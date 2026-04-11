@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 import TimePicker from '../components/TimePicker'
+import AddressAutocomplete from '../components/AddressAutocomplete'
 
 const DAYS = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday']
 const DAY_LABELS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']
@@ -435,9 +436,15 @@ export default function ProfilePage() {
         <div className="addr-grid">
           <div className="pf addr-street">
             <label>Street address <span className="req-star">*</span></label>
-            <input type="text" value={form.address} onChange={e => setField('address', e.target.value)}
-              placeholder="123 Main St" tabIndex={1}
-              className={errors.address ? 'input-err' : ''} />
+            <AddressAutocomplete
+              value={form.address}
+              onChange={val => setField('address', val)}
+              onSelect={({ street, city, state, zip, lat, lng }) => {
+                setForm(f => ({ ...f, address: street, city, state, zip }))
+                if (errors.address) setErrors(e => ({ ...e, address: null }))
+              }}
+              error={!!errors.address}
+            />
             {errors.address && <span className="field-err">{errors.address}</span>}
           </div>
           <div className="pf addr-city">
