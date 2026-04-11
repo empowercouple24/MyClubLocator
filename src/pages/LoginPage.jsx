@@ -57,6 +57,9 @@ export default function LoginPage() {
           <button className="btn-full" type="submit" disabled={loading}>
             {loading ? 'Logging in…' : 'Log in'}
           </button>
+          <div className="forgot-link">
+            <Link to="/forgot-password">Forgot password?</Link>
+          </div>
         </form>
 
         <div className="auth-toggle">

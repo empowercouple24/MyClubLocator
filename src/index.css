@@ -562,3 +562,42 @@ body {
   .tabbar { padding: 0 16px; }
   .dir-page, .profile-page { padding: 16px; }
 }
+
+/* Success message */
+.success-msg {
+  background: #E1F5EE;
+  color: #0F6E56;
+  border: 1px solid #A8DFD0;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 14px;
+  margin-bottom: 16px;
+}
+
+/* Info message */
+.info-msg {
+  background: #EEF4FF;
+  color: #2955A8;
+  border: 1px solid #B8CFFE;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 14px;
+  margin-bottom: 16px;
+}
+
+/* Forgot password link */
+.forgot-link {
+  text-align: right;
+  margin-top: 8px;
+  font-size: 13px;
+}
+
+.forgot-link a {
+  color: #888;
+  text-decoration: none;
+}
+
+.forgot-link a:hover {
+  color: #333;
+  text-decoration: underline;
+}

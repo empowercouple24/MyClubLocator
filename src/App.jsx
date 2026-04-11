@@ -6,6 +6,8 @@ import SignupPage from './pages/SignupPage'
 import MapPage from './pages/MapPage'
 import DirectoryPage from './pages/DirectoryPage'
 import ProfilePage from './pages/ProfilePage'
+import ResetPasswordPage from './pages/ResetPasswordPage'
+import ForgotPasswordPage from './pages/ForgotPasswordPage'
 
 function RequireAuth({ children }) {
   const { session } = useAuth()
@@ -19,6 +21,8 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignupPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route
         path="/"
         element={
