@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 
-const TABS = ['members', 'settings']
+const TABS = ['members', 'settings', 'contacts']
 
 function ToggleSwitch({ on, onChange }) {
   return (
@@ -59,6 +59,11 @@ export default function AdminPage() {
   const [savingSettings, setSavingSettings]   = useState(false)
   const [savedSettings, setSavedSettings]     = useState(false)
 
+  // Contacts state
+  const [contacts, setContacts]           = useState([])
+  const [loadingContacts, setLoadingContacts] = useState(false)
+  const [contactsLoaded, setContactsLoaded]   = useState(false)
+
   useEffect(() => {
     if (!isAdmin) { navigate('/app/map'); return }
     loadMembers()
@@ -79,6 +84,22 @@ export default function AdminPage() {
     const { data } = await supabase.from('app_settings').select('*').eq('id', 1).single()
     if (data) setSettings(s => ({ ...s, ...data }))
     setLoadingSettings(false)
+  }
+
+  async function loadContacts() {
+    setLoadingContacts(true)
+    const { data } = await supabase
+      .from('contact_submissions')
+      .select('*')
+      .order('created_at', { ascending: false })
+    if (data) setContacts(data)
+    setLoadingContacts(false)
+    setContactsLoaded(true)
+  }
+
+  function handleTabChange(t) {
+    setTab(t)
+    if (t === 'contacts' && !contactsLoaded) loadContacts()
   }
 
   async function handleApprove(member) {
@@ -157,8 +178,8 @@ export default function AdminPage() {
       <div className="admin-tabs">
         {TABS.map(t => (
           <button key={t} className={`admin-tab ${tab === t ? 'active' : ''}`}
-            onClick={() => setTab(t)}>
-            {t === 'members' ? 'Members' : 'Settings'}
+            onClick={() => handleTabChange(t)}>
+            {t === 'members' ? 'Members' : t === 'settings' ? 'Settings' : `Messages ${contacts.length > 0 ? `(${contacts.length})` : ''}`}
           </button>
         ))}
       </div>
@@ -371,6 +392,38 @@ export default function AdminPage() {
                 </button>
               </div>
             </>
+          )}
+        </div>
+      )}
+
+      {/* ── CONTACTS TAB ── */}
+      {tab === 'contacts' && (
+        <div className="admin-contacts">
+          {loadingContacts ? (
+            <div className="admin-loading">Loading messages…</div>
+          ) : contacts.length === 0 ? (
+            <div className="admin-empty">No messages yet.</div>
+          ) : (
+            <div className="contact-submissions-list">
+              {contacts.map(c => (
+                <div key={c.id} className="contact-submission-card">
+                  <div className="csub-header">
+                    <div className="csub-avatar">{(c.name || '?').slice(0,1).toUpperCase()}</div>
+                    <div className="csub-meta">
+                      <div className="csub-name">{c.name}</div>
+                      <div className="csub-email">{c.email}</div>
+                    </div>
+                    <div className="csub-date">
+                      {new Date(c.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </div>
+                  </div>
+                  <div className="csub-message">{c.message}</div>
+                  <a href={`mailto:${c.email}?subject=Re: Your message to My Club Locator`} className="csub-reply-btn">
+                    Reply by email →
+                  </a>
+                </div>
+              ))}
+            </div>
           )}
         </div>
       )}

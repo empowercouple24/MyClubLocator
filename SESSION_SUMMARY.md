@@ -226,6 +226,7 @@ clubregistry-main/
 - **Demographics: spending behavior** (Census consumer expenditure) — discussed, not yet added
 - ✅ **Map search bar address autocomplete** — done (MapSearchAutocomplete component)
 - **Welcome message preview button** in Admin Settings
+- ✅ **Contact form on landing page** — modal form saves to contact_submissions table; admin Messages tab shows all submissions with reply-by-email link
 - **Welcome message entry box larger** — match YouTube embed field width
 - ✅ **Index/landing page** — two-card welcome page at /, routes to /login or /signup
 - ✅ **Signup page** — two-panel layout: value prop left, form right

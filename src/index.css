@@ -3433,3 +3433,198 @@ body {
   .signup-panel--right { padding: 2rem 1.5rem; }
   .signup-form-wrap { max-width: 100%; }
 }
+
+/* ── Contact modal (landing page) ───────────────────────── */
+.contact-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 1rem;
+}
+
+.contact-modal {
+  background: #fff;
+  border-radius: 16px;
+  padding: 2rem;
+  width: 100%;
+  max-width: 460px;
+  position: relative;
+}
+
+.contact-modal-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #aaa;
+  padding: 4px;
+  line-height: 1;
+  border-radius: 6px;
+}
+.contact-modal-close:hover { background: #f4f4f4; color: #555; }
+
+.contact-modal-title {
+  font-size: 20px;
+  font-weight: 500;
+  color: #111;
+  margin: 0 0 6px;
+}
+
+.contact-modal-sub {
+  font-size: 14px;
+  color: #777;
+  margin: 0 0 1.5rem;
+}
+
+.contact-textarea {
+  width: 100%;
+  border: 1px solid #dde4e0;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 14px;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 100px;
+  box-sizing: border-box;
+  outline: none;
+  color: #111;
+  line-height: 1.5;
+}
+.contact-textarea:focus { border-color: #1A3C2E; box-shadow: 0 0 0 3px rgba(26,60,46,0.08); }
+
+.contact-success {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 1rem 0;
+}
+
+.contact-success-icon { margin-bottom: 1rem; }
+
+.contact-success-title {
+  font-size: 20px;
+  font-weight: 500;
+  color: #111;
+  margin: 0 0 8px;
+}
+
+.contact-success-sub {
+  font-size: 14px;
+  color: #777;
+  margin: 0;
+}
+
+.landing-contact-link {
+  background: none;
+  border: none;
+  color: #1A3C2E;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  padding: 0;
+}
+.landing-contact-link:hover { opacity: 0.75; }
+
+/* ── Admin contacts tab ──────────────────────────────────── */
+.admin-contacts {
+  padding: 8px 0;
+}
+
+.contact-submissions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.contact-submission-card {
+  background: #fff;
+  border: 1px solid #e4e9e6;
+  border-radius: 12px;
+  padding: 1.25rem;
+}
+
+.csub-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.csub-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: #E1F5EE;
+  color: #1A3C2E;
+  font-weight: 500;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.csub-meta {
+  flex: 1;
+  min-width: 0;
+}
+
+.csub-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: #111;
+}
+
+.csub-email {
+  font-size: 12px;
+  color: #888;
+  margin-top: 1px;
+}
+
+.csub-date {
+  font-size: 12px;
+  color: #aaa;
+  flex-shrink: 0;
+}
+
+.csub-message {
+  font-size: 14px;
+  color: #444;
+  line-height: 1.65;
+  background: #f8faf9;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  white-space: pre-wrap;
+}
+
+.csub-reply-btn {
+  font-size: 13px;
+  font-weight: 500;
+  color: #1A3C2E;
+  text-decoration: none;
+}
+.csub-reply-btn:hover { text-decoration: underline; }
+
+.admin-loading {
+  padding: 2rem;
+  text-align: center;
+  color: #aaa;
+  font-size: 14px;
+}
+
+.admin-empty {
+  padding: 2rem;
+  text-align: center;
+  color: #aaa;
+  font-size: 14px;
+}
