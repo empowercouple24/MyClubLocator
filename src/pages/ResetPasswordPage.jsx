@@ -58,7 +58,7 @@ export default function ResetPasswordPage() {
       setLoading(false)
     } else {
       setMessage('Password updated! Redirecting you to the app…')
-      setTimeout(() => navigate('/map'), 2000)
+      setTimeout(() => navigate('/app/map'), 2000)
     }
   }
 

@@ -1,6 +1,6 @@
 # My Club Locator — Session Summary
 **Last updated:** April 11, 2026
-**Sessions completed:** 03
+**Sessions completed:** 04
 
 ---
 
@@ -219,18 +219,27 @@ clubregistry-main/
 
 ## Pending / not yet built
 
-- **Google / Facebook OAuth login** — requires Google Cloud Console + Facebook Developer app
-- **Custom domain** — connect via Vercel Settings → Domains
+- ✅ **Google / Facebook OAuth login** — buttons on login + signup pages, both providers configured in Supabase
+- ✅ **Custom domain** — nemecekorgclubs domain connected
 - **Password reset end-to-end verification** — built but not tested live yet
 - **Demographics: health indicators** (CDC PLACES obesity/inactivity data) — discussed, not yet added
 - **Demographics: spending behavior** (Census consumer expenditure) — discussed, not yet added
-- **Map search bar address autocomplete** — built in profile, not yet added to map search
+- ✅ **Map search bar address autocomplete** — done (MapSearchAutocomplete component)
+- **Welcome message preview button** in Admin Settings
+- **Welcome message entry box larger** — match YouTube embed field width
+- ✅ **Index/landing page** — two-card welcome page at /, routes to /login or /signup
+- ✅ **Signup page** — two-panel layout: value prop left, form right
+- **Sort/rearrange club featured photos**
+- **Crop profile pics before uploading**
+- **Profile photos show in club map click panel**
+- **Club map click — link to open full club details on mobile**
+- **New member approval — vetting questions** (upline, etc.)
 
 ---
 
 ## Known items
 
-- Migrations 004 and 005 still need to be run in Supabase SQL Editor
+- ✅ All migrations applied (001–007)
 - The `chip` CSS class may have a stale reference — not used in new directory cards but harmless
 - Photo upload requires Supabase Storage bucket `club-photos` to be created (Migration 002 includes this)
 

@@ -60,7 +60,7 @@ export default function AdminPage() {
   const [savedSettings, setSavedSettings]     = useState(false)
 
   useEffect(() => {
-    if (!isAdmin) { navigate('/map'); return }
+    if (!isAdmin) { navigate('/app/map'); return }
     loadMembers()
     loadSettings()
   }, [isAdmin])

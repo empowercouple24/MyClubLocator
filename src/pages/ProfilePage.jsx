@@ -289,7 +289,7 @@ export default function ProfilePage() {
     }
     setHasProfile(true)
     if (action === 'map') {
-      navigate('/map')
+      navigate('/app/map')
     } else {
       setToast('Profile saved and live on the map ✓')
       setTimeout(() => setToast(''), 3000)

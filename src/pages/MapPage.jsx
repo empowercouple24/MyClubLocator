@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 import { useNavigate } from 'react-router-dom'
 import DemographicsPanel from '../components/DemographicsPanel'
+import MapSearchAutocomplete from '../components/MapSearchAutocomplete'
 
 delete L.Icon.Default.prototype._getIconUrl
 
@@ -489,9 +490,17 @@ export default function MapPage() {
         {/* Search toolbar */}
         <div className="map-toolbar">
           <form className="map-search-form" onSubmit={handleCitySearch}>
-            <input className="map-search-input" type="text" placeholder="Filter by city, state…"
-              value={citySearch} onChange={e => setCitySearch(e.target.value)} />
-            <button className="map-search-btn" type="submit" disabled={geocoding}>{geocoding ? '…' : '⌕'}</button>
+            <MapSearchAutocomplete
+              value={citySearch}
+              onChange={setCitySearch}
+              geocoding={geocoding}
+              onSelect={({ lat, lng, label }) => {
+                setMapCenter([lat, lng])
+                setMapZoom(11)
+                setCityFilter(label)
+              }}
+              onClear={clearFilters}
+            />
           </form>
           {hasFilter && <button className="map-clear-btn" onClick={clearFilters}>✕ Clear</button>}
           <button
@@ -561,7 +570,7 @@ export default function MapPage() {
           {/* Pinned: My Club card — always at top */}
           <div className="cp-my-club-zone">
             <div className="cp-zone-label">My Club</div>
-            <MyClubCard myClub={myClub} onManage={() => navigate('/profile')} />
+            <MyClubCard myClub={myClub} onManage={() => navigate('/app/profile')} />
           </div>
 
           {/* Divider */}
@@ -575,7 +584,7 @@ export default function MapPage() {
             <ClubDetail
               club={selected}
               userId={user?.id}
-              onManage={() => navigate('/profile')}
+              onManage={() => navigate('/app/profile')}
               radiusMiles={radiusMiles}
               setRadiusMiles={setRadiusMiles}
               customMiles={customMiles}

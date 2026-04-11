@@ -19,11 +19,11 @@ export default function Layout() {
       <WelcomeModal />
 
       <header className="topbar">
-        <NavLink to="/map" className="brand" style={{ textDecoration: 'none' }}>My Club<span> Locator</span></NavLink>
+        <NavLink to="/app/map" className="brand" style={{ textDecoration: 'none' }}>My Club<span> Locator</span></NavLink>
         <nav className="topbar-nav">
           <span className="topbar-user">{user?.email}</span>
           {isAdmin && (
-            <NavLink to="/admin" className={({ isActive }) => `admin-badge ${isActive ? 'active' : ''}`}>
+            <NavLink to="/app/admin" className={({ isActive }) => `admin-badge ${isActive ? 'active' : ''}`}>
               Admin
             </NavLink>
           )}
@@ -34,9 +34,9 @@ export default function Layout() {
       </header>
 
       <nav className="tabbar">
-        <NavLink to="/map" className={({ isActive }) => isActive ? 'active' : ''}>Map</NavLink>
-        <NavLink to="/directory" className={({ isActive }) => isActive ? 'active' : ''}>Directory</NavLink>
-        <NavLink to="/profile" className={({ isActive }) => isActive ? 'active' : ''}>My Profile</NavLink>
+        <NavLink to="/app/map" className={({ isActive }) => isActive ? 'active' : ''}>Map</NavLink>
+        <NavLink to="/app/directory" className={({ isActive }) => isActive ? 'active' : ''}>Directory</NavLink>
+        <NavLink to="/app/profile" className={({ isActive }) => isActive ? 'active' : ''}>My Profile</NavLink>
       </nav>
 
       <main style={{ flex: 1, overflow: 'auto' }}>

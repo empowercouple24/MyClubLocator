@@ -39,7 +39,7 @@ export default function WelcomeModal() {
 
   function goToProfile() {
     dismiss()
-    navigate('/profile')
+    navigate('/app/profile')
   }
 
   if (!show || !settings) return null

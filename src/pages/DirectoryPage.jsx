@@ -107,7 +107,7 @@ export default function DirectoryPage() {
 
             return (
               <div className={`dir-card ${isYours ? 'dir-card-mine' : ''}`} key={loc.id}
-                onClick={() => isYours ? navigate('/profile') : null}
+                onClick={() => isYours ? navigate('/app/profile') : null}
                 style={{ cursor: isYours ? 'pointer' : 'default' }}>
 
                 {/* Card top: logo + name + badge */}
