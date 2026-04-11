@@ -1,6 +1,6 @@
 # My Club Locator — Session Summary
 **Last updated:** April 11, 2026
-**Sessions completed:** 02
+**Sessions completed:** 03
 
 ---
 
@@ -9,8 +9,9 @@
 These apply to every session, every feature, every file:
 
 1. **Mobile-first always** — Design and build for small screens first. Desktop is an enhancement, not the baseline. Every component, layout, and interaction must work well on a phone before anything else.
-2. **Always deliver the full zip** — At the end of every session (and whenever files are updated), Claude delivers the complete `my-club-locator.zip` containing the full repo. This makes GitHub uploads straightforward.
-3. **Session summary stays current** — This file is updated at the end of every session to reflect the true current state of the app, pending items, and any config steps needed.
+2. **Always deliver the full zip** — After every meaningful update, Claude delivers the complete `my-club-locator.zip` containing the full repo. This makes GitHub uploads straightforward.
+3. **Ask before building** — Before starting any new feature, Claude confirms the user is ready to build. No surprises.
+4. **Session summary stays current** — This file is updated at the end of every session to reflect the true current state of the app, pending items, and any config steps needed.
 
 ---
 
@@ -23,6 +24,7 @@ These apply to every session, every feature, every file:
 **Supabase URL:** https://ulezfnzqwebkupgxqprs.supabase.co
 **Supabase account:** Separate second account (not Jeffrey's primary)
 **GitHub repo:** Private — clubregistry
+**Admin user ID:** ed1f34a7-7838-4d01-a29c-63220c43e9f1
 
 ---
 
@@ -34,8 +36,9 @@ These apply to every session, every feature, every file:
 | Auth + Database | Supabase |
 | Mapping | Leaflet (react-leaflet) |
 | Geocoding | OpenStreetMap Nominatim (free, no key) |
+| Demographics | US Census ACS 2022 API (free, no key) |
 | Hosting | Vercel |
-| Email (SMTP) | Resend (configured session 02) |
+| Email (SMTP) | Resend (configured) |
 
 ---
 
@@ -47,7 +50,7 @@ clubregistry-main/
 ├── vite.config.js
 ├── package.json
 ├── vercel.json
-├── supabase-schema.sql        ← includes app_settings table (added session 02)
+├── supabase-schema.sql
 ├── DEPLOY.md
 ├── SESSION_SUMMARY.md
 └── src/
@@ -56,19 +59,24 @@ clubregistry-main/
     ├── index.css
     ├── lib/
     │   ├── supabase.js
-    │   └── AuthContext.jsx    ← includes isAdmin flag (session 02)
+    │   ├── AuthContext.jsx          ← isAdmin flag, Jeffrey's user ID set
+    │   └── demographics.js          ← Census API service, market score calc
     ├── components/
-    │   ├── Layout.jsx         ← includes WelcomeModal + Admin nav link
-    │   └── WelcomeModal.jsx   ← new session 02
+    │   ├── Layout.jsx               ← UpdateBanner, WelcomeModal, Admin nav
+    │   ├── UpdateBanner.jsx         ← 15s GitHub deploy check
+    │   ├── WelcomeModal.jsx         ← First-login modal, reads from Supabase
+    │   ├── TimePicker.jsx           ← Custom 15-min interval time picker
+    │   ├── AddressAutocomplete.jsx  ← Live address lookup as-you-type
+    │   └── DemographicsPanel.jsx    ← Market data widget for map panel
     └── pages/
-        ├── LoginPage.jsx      ← password visibility toggle, forgot password link
-        ├── SignupPage.jsx     ← password visibility toggle
-        ├── ForgotPasswordPage.jsx   ← new session 02
-        ├── ResetPasswordPage.jsx    ← new session 02
-        ├── MapPage.jsx        ← full rewrite session 02: panel, filters, radius, base maps
-        ├── DirectoryPage.jsx
-        ├── ProfilePage.jsx
-        └── AdminPage.jsx      ← new session 02
+        ├── LoginPage.jsx            ← Eye toggle, forgot password link
+        ├── SignupPage.jsx           ← Eye toggle
+        ├── ForgotPasswordPage.jsx
+        ├── ResetPasswordPage.jsx
+        ├── MapPage.jsx              ← Full rewrite: always-visible panel, demo toggle
+        ├── DirectoryPage.jsx        ← Rich cards: logo, owners, hours, socials
+        ├── ProfilePage.jsx          ← Full profile flow: owners, photos, story
+        └── AdminPage.jsx            ← Members tab + Settings tab
 ```
 
 ---
@@ -78,83 +86,141 @@ clubregistry-main/
 ### Auth
 - ✅ Email + password login and signup
 - ✅ Password visibility toggle on all password fields
-- ✅ Forgot password flow (`/forgot-password` → email → `/reset-password`)
-- ✅ Custom branded HTML email templates for: signup confirmation, password reset, email change
-- ✅ SMTP via Resend (configured in Supabase — removes rate limit)
-- ✅ Admin role detection via `ADMIN_USER_IDS` array in `AuthContext.jsx`
+- ✅ Forgot password / reset password flow
+- ✅ Custom branded HTML email templates (signup confirm, password reset, email change)
+- ✅ SMTP via Resend (no rate limits)
+- ✅ Admin role detection via user ID in AuthContext
 
-### Map (major session 02 rewrite)
-- ✅ Full-screen Leaflet map
-- ✅ Click any pin → slide-in detail panel on the right (stacks below on mobile)
-- ✅ Selected pin turns gold; your pin is blue; others are green
-- ✅ Detail panel shows: name, city, address, phone, website, hours, social links
-- ✅ If viewing your own club → "✏️ Manage My Club" CTA button in panel
-- ✅ If viewing another club → read-only panel
-- ✅ Radius search tool lives inside the detail panel (presets: 1, 2, 5, 10 mi + custom)
-- ✅ Radius circle drawn on map when active
-- ✅ City/state filter with geocoding (search bar top-center of map)
-- ✅ Base map toggle: Clean (CartoDB) / Street (OSM) / Aerial (Esri) / Topo
-- ✅ Club count badge (updates when filters active)
+### Map (major overhaul)
+- ✅ Always-visible dashboard panel (never hides)
+- ✅ Panel position per user: Left / Right / Bottom — saved to localStorage, defaults Right
+- ✅ Pinned "My Club" card always at top of panel (logo, name, city, since date, edit button)
+- ✅ Dynamic club detail fills bottom section on pin click
+- ✅ Club detail shows: logo/initials, all owners, contact, hours (formatted AM/PM), social links
+- ✅ "Manage My Club" CTA only shows when viewing your own club
+- ✅ City/state filter with geocoding (search bar)
+- ✅ Radius search: presets (1/2/5/10 mi) + custom — lives in club detail section
+- ✅ Base map toggle: Clean / Street / Aerial / Topo
+- ✅ Hover tooltip on pins: club name, owner, address
+- ✅ Unapproved clubs hidden from map
 - ✅ Real-time updates via Supabase subscription
 
+### Demographics / Market Data
+- ✅ 📊 Market Data toggle button in map toolbar
+- ✅ Click-to-load: prompts "select an area", loads on map click
+- ✅ Reverse geocodes click to ZIP + county via Census geocoder
+- ✅ Fetches ZIP-level: population, income, poverty rate, unemployment, households
+- ✅ Fetches county-level: age breakdown, per capita income, age fit % (18–49)
+- ✅ Auto-weighted market score → letter grade (A+ through F) + numeric score subtitle
+- ✅ Signal tags: "Strong income", "Great age fit", "2 clubs nearby", etc.
+- ✅ Club competition section: nearby club list + saturation (clubs per 10k people)
+- ✅ Source note: county-level data flagged clearly
+- ✅ Admin toggles per data category (7 switches in Settings tab)
+
+### Profile (5 cards)
+- ✅ Card 1 — Owners: primary + optional owner 2 + owner 3, each with first/last/email
+- ✅ Card 2 — Club Info: name, email (required), phone, website, address with ZIP autocomplete
+- ✅ Card 3 — Club Specifics: opened month/year, hours with custom TimePicker (15-min intervals, AM/PM defaults), social media
+- ✅ Card 4 — Club Photos: logo upload + up to 6 club photos (Supabase Storage)
+- ✅ Card 5 — Your Story: 4 optional prompts
+- ✅ Address autocomplete (live lookup as you type), city/state auto-filled from ZIP, read-only
+- ✅ Hours copy tool: copy one day's hours to selected other days
+- ✅ Validation with inline errors on all required fields
+- ✅ Two save buttons: Save My Profile / Save & Return to Map
+
+### Directory
+- ✅ Rich cards: logo/initials, club name, city, owner names, address, contact links, hours summary, day dots, since date, social badges
+- ✅ Sort: Name A–Z, City A–Z, Newest first, Oldest first
+- ✅ Search by name, city, owner name
+- ✅ Your club gets green border + tap-to-edit prompt
+
+### Admin panel (two tabs)
+- ✅ Members tab:
+  - 4 stat cards (total, complete, incomplete, pending)
+  - Filter by profile status + approval status + search
+  - Per-member: Approve / Revoke / Remove actions
+  - Remove triggers confirmation modal
+  - Your own account protected from removal
+  - Unapproved clubs hidden from map
+- ✅ Settings tab:
+  - Welcome modal controls (title, message, video URL, video on/off)
+  - Require approval toggle for new members
+  - Demographics section: 7 category toggles
+
 ### Welcome modal
-- ✅ Shows once per user on first login (localStorage flag per user ID)
-- ✅ Reads title, message, video URL, and video toggle from `app_settings` table in Supabase
-- ✅ Two CTAs: "Add / Manage My Club" → /profile, "Explore the Map" → dismisses
-- ✅ Video iframe embed (YouTube/Vimeo embed URL format)
+- ✅ Shows once per user on first login (localStorage)
+- ✅ Two CTAs: Add/Manage My Club → /profile, Explore the Map → dismiss
+- ✅ Optional video embed (YouTube/Vimeo)
+- ✅ All content controlled from Admin → Settings
 
-### Admin page (`/admin`)
-- ✅ Only visible/accessible to admin user(s)
-- ✅ Admin badge appears in top nav for admin accounts
-- ✅ Toggle welcome video on/off
-- ✅ Set video embed URL
-- ✅ Customize welcome modal title and message text
-- ✅ Settings saved to `app_settings` table in Supabase
+### Update banner
+- ✅ Checks for new Vercel deploys every 15 seconds
+- ✅ Slides in banner: "A new version is available — Refresh"
+- ✅ Only active on live site (silent on localhost)
 
-### Profile & Directory
-- ✅ Editable profile: business name, address, city, state/zip, phone, website
-- ✅ Hours of operation (per-day open/close grid)
-- ✅ Social media links: Facebook, Instagram, TikTok, YouTube
-- ✅ Auto-geocodes address to lat/lng on save
-- ✅ Row-level security: users can only edit their own row
-- ✅ Directory page: card grid of all registered clubs
-
-### Email templates (paste into Supabase → Authentication → Email Templates)
-- ✅ Confirm signup (`confirm-signup-email.html`)
-- ✅ Reset password (`reset-password-email.html`)
-- ✅ Change email (`change-email-email.html`)
+### Email templates (in Supabase → Auth → Email Templates)
+- ✅ Confirm signup
+- ✅ Reset password
+- ✅ Change email
 
 ---
 
-## Config steps still needed
+## Supabase migrations status
 
-| Step | Where | Notes |
+| Migration | Description | Status |
 |---|---|---|
-| Add your Supabase user ID | `src/lib/AuthContext.jsx` line 7 | Replace `'REPLACE_WITH_YOUR_SUPABASE_USER_ID'` — find it in Supabase → Auth → Users |
-| Run `app_settings` SQL | Supabase → SQL Editor | Paste the bottom block from `supabase-schema.sql` |
-| Set Supabase Site URL | Supabase → Auth → URL Configuration | Set to `https://clubregistry.vercel.app` |
-| Add redirect URL | Same place as above | Add `https://clubregistry.vercel.app/reset-password` |
-| Paste email templates | Supabase → Auth → Email Templates | 3 templates: confirm signup, reset password, change email |
+| Initial setup | locations table, RLS, realtime, app_settings | ✅ Applied |
+| Migration 001 | first/last name, owner2/3, zip, state, opened fields | ✅ Applied |
+| Migration 002 | owner_email, club_email, photo URLs, story prompts, storage bucket | ✅ Applied |
+| Migration 003 | owner3 fields | ✅ Applied |
+| Migration 004 | approved, approved_at, approved_by + admin RLS policies | ⚠️ Run this |
+| Migration 005 | demographics toggle columns in app_settings | ⚠️ Run this |
 
 ---
 
-## Pending / discussed but not yet built
+## Config completed ✅
 
-- **Google / Facebook OAuth login** — requires Google Cloud Console + Facebook Developer app setup
-- **Member approval flow** — admin approves new signups before they appear on map
-- **Admin member management** — view all members, remove a member, see who has/hasn't filled profile
-- **Profile photo upload** — Supabase Storage
-- **Club description field** — short "about" blurb on profile
+- Supabase Site URL set to https://clubregistry.vercel.app
+- Redirect URL set to https://clubregistry.vercel.app/reset-password
+- Email templates pasted in (all 3)
+- SMTP via Resend configured
+- Admin user ID set in AuthContext.jsx
+- Email confirmation disabled (fine for internal tool)
+
+---
+
+## To-do for next session (top priority)
+
+- **Move website field** — remove from Club Info card, add to Social Media section in ProfilePage
+- **Auto-format phone numbers** — format as `(###) ###-####` as user types, applies to all phone fields
+- **Hover tooltip: second owner + open since** — if a club has a second owner, show both owner names in the hover tooltip; also include "Open since Month Year"
+- **Dashboard phone formatting** — display phone numbers as `(###) ###-####` in the club detail panel
+- **Disable mailto link on email in dashboard** — show email as plain text, not a clickable mailto link
+- **Radius presets update** — change nearby clubs radius presets to: 3 mi, 10 mi, 20 mi, 30 mi
+- **Dashboard: club open since** — show "Open since Month Year" in the club detail panel
+- **Auto-load market data on pin click** — when a club pin is clicked, automatically load demographic data for that club's ZIP code (no extra map click needed)
+- **Owner profile photos in dashboard** — if owner(s) have a profile photo uploaded, display it next to their name in the dashboard
+- **Owner profile photos in settings** — allow primary, secondary, and third owners to each upload a profile photo in the profile page
+- **Sticky save bar on profile** — when editing profile fields, the Save My Profile / Save & Return to Map buttons stick to the bottom of the screen at all times
+
+---
+
+## Pending / not yet built
+
+- **Google / Facebook OAuth login** — requires Google Cloud Console + Facebook Developer app
 - **Custom domain** — connect via Vercel Settings → Domains
-- **Password reset flow** — built but needs Supabase Site URL set to work end-to-end
+- **Password reset end-to-end verification** — built but not tested live yet
+- **Demographics: health indicators** (CDC PLACES obesity/inactivity data) — discussed, not yet added
+- **Demographics: spending behavior** (Census consumer expenditure) — discussed, not yet added
+- **Map search bar address autocomplete** — built in profile, not yet added to map search
 
 ---
 
-## Known issues / watch items
+## Known items
 
-- `REPLACE_WITH_YOUR_SUPABASE_USER_ID` placeholder must be filled in `AuthContext.jsx` before admin works
-- Email confirmation is currently disabled in Supabase — fine for internal use
-- Supabase URL is in client-side code by design — not a security risk
+- Migrations 004 and 005 still need to be run in Supabase SQL Editor
+- The `chip` CSS class may have a stale reference — not used in new directory cards but harmless
+- Photo upload requires Supabase Storage bucket `club-photos` to be created (Migration 002 includes this)
 
 ---
 
@@ -164,3 +230,4 @@ clubregistry-main/
 - **During session:** Claude delivers full `my-club-locator.zip` after every meaningful update
 - **End of session:** Claude updates this SESSION_SUMMARY.md before final zip delivery
 - **Context management:** Claude will flag when context window is getting full and recommend starting a new chat
+- **Before building:** Claude always asks "Ready to build?" before starting any new feature
