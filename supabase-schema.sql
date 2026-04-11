@@ -1,42 +1,62 @@
 -- ============================================================
--- ClubRegistry — Supabase Schema
--- Run this in: Supabase Dashboard > SQL Editor > New query
+-- My Club Locator — Supabase Schema
+-- ============================================================
+-- HOW TO USE THIS FILE:
+--
+-- SECTION 1 — Initial Setup (run ONCE when first creating the project)
+-- SECTION 2 — Migrations (run only the NEW block when prompted by Claude)
+--
+-- Never re-run Section 1 if your tables already exist.
+-- Only run the specific migration block that's new to you.
 -- ============================================================
 
--- Create the locations table
+
+-- ============================================================
+-- SECTION 1: INITIAL SETUP
+-- Run this once when setting up a brand new Supabase project.
+-- ============================================================
+
+-- Locations table
 create table if not exists public.locations (
   id uuid default gen_random_uuid() primary key,
   user_id uuid references auth.users(id) on delete cascade not null unique,
   created_at timestamptz default now(),
   updated_at timestamptz default now(),
 
-  -- Business info
+  -- Owner info
+  first_name text,
+  last_name text,
+  owner2_first_name text,
+  owner2_last_name text,
+  owner2_email text,
+  owner2_phone text,
+
+  -- Club info
   business_name text,
   phone text,
   address text,
   city text,
-  state_zip text,
+  state text,
+  zip text,
+  state_zip text,   -- legacy combined field, kept for compatibility
   website text,
+
+  -- When opened
+  opened_month text,
+  opened_year text,
 
   -- Geocoded coordinates (auto-set on save from the app)
   lat double precision,
   lng double precision,
 
   -- Hours of operation (open/close per day, stored as HH:MM strings)
-  hours_monday_open text,
-  hours_monday_close text,
-  hours_tuesday_open text,
-  hours_tuesday_close text,
-  hours_wednesday_open text,
-  hours_wednesday_close text,
-  hours_thursday_open text,
-  hours_thursday_close text,
-  hours_friday_open text,
-  hours_friday_close text,
-  hours_saturday_open text,
-  hours_saturday_close text,
-  hours_sunday_open text,
-  hours_sunday_close text,
+  hours_monday_open text,    hours_monday_close text,
+  hours_tuesday_open text,   hours_tuesday_close text,
+  hours_wednesday_open text, hours_wednesday_close text,
+  hours_thursday_open text,  hours_thursday_close text,
+  hours_friday_open text,    hours_friday_close text,
+  hours_saturday_open text,  hours_saturday_close text,
+  hours_sunday_open text,    hours_sunday_close text,
 
   -- Social media
   social_facebook text,
@@ -58,54 +78,32 @@ create trigger on_locations_updated
   before update on public.locations
   for each row execute procedure public.handle_updated_at();
 
--- ============================================================
--- Row Level Security (RLS)
--- Users can only read/write their own row.
--- Anyone logged in can read all rows (for map + directory).
--- ============================================================
-
+-- Row Level Security
 alter table public.locations enable row level security;
 
--- All authenticated users can read all locations (for map & directory)
 create policy "Authenticated users can read all locations"
-  on public.locations
-  for select
-  to authenticated
-  using (true);
+  on public.locations for select
+  to authenticated using (true);
 
--- Users can only insert their own row
 create policy "Users can insert their own location"
-  on public.locations
-  for insert
-  to authenticated
-  with check (auth.uid() = user_id);
+  on public.locations for insert
+  to authenticated with check (auth.uid() = user_id);
 
--- Users can only update their own row
 create policy "Users can update their own location"
-  on public.locations
-  for update
+  on public.locations for update
   to authenticated
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
 
--- Users can only delete their own row
 create policy "Users can delete their own location"
-  on public.locations
-  for delete
-  to authenticated
-  using (auth.uid() = user_id);
+  on public.locations for delete
+  to authenticated using (auth.uid() = user_id);
 
--- ============================================================
--- Enable Realtime (so the map updates live when anyone saves)
--- ============================================================
-
+-- Enable Realtime
 alter publication supabase_realtime add table public.locations;
 
--- ============================================================
--- App Settings table (for admin-controlled platform settings)
--- Run this as a new query in Supabase SQL Editor
--- ============================================================
 
+-- App settings table
 create table if not exists public.app_settings (
   id integer primary key default 1,
   welcome_video_enabled boolean default false,
@@ -116,34 +114,84 @@ create table if not exists public.app_settings (
   constraint single_row check (id = 1)
 );
 
--- Insert the default settings row
 insert into public.app_settings (id) values (1) on conflict (id) do nothing;
 
--- RLS: anyone authenticated can read settings
 alter table public.app_settings enable row level security;
 
 create policy "Authenticated users can read settings"
   on public.app_settings for select
   to authenticated using (true);
 
--- Only allow updates via service role (admin updates go through the app with admin check)
 create policy "Authenticated users can update settings"
   on public.app_settings for update
   to authenticated using (true);
 
+
 -- ============================================================
--- Migration: Profile enhancements
--- Run this in Supabase SQL Editor as a new query
+-- SECTION 2: MIGRATIONS
+-- Run ONLY the specific block marked as new when Claude
+-- instructs you to. Skip any blocks already applied.
 -- ============================================================
 
+-- ── Migration 001 (Session 02) ── already applied ──────────
+-- Adds owner name fields, second owner, separate zip/state,
+-- and club opened month/year.
+--
+-- alter table public.locations
+--   add column if not exists first_name text,
+--   add column if not exists last_name text,
+--   add column if not exists owner2_first_name text,
+--   add column if not exists owner2_last_name text,
+--   add column if not exists owner2_email text,
+--   add column if not exists owner2_phone text,
+--   add column if not exists zip text,
+--   add column if not exists state text,
+--   add column if not exists opened_month text,
+--   add column if not exists opened_year text;
+-- ── End Migration 001 ───────────────────────────────────────
+
+
+-- Future migrations will be added here as:
+-- ── Migration 002 (Session XX) ── [status] ─────────────────
+-- Description of what it adds
+-- SQL goes here
+-- ── End Migration 002 ──────────────────────────────────────
+
+-- ── Migration 002 (Session 02) ── RUN THIS NOW ──────────────
+-- Adds owner email, club email, photo URLs, and story prompts
+
 alter table public.locations
-  add column if not exists first_name text,
-  add column if not exists last_name text,
-  add column if not exists owner2_first_name text,
-  add column if not exists owner2_last_name text,
-  add column if not exists owner2_email text,
-  add column if not exists owner2_phone text,
-  add column if not exists zip text,
-  add column if not exists state text,
-  add column if not exists opened_month text,
-  add column if not exists opened_year text;
+  add column if not exists owner_email text,
+  add column if not exists club_email text,
+  add column if not exists club_phone text,
+  add column if not exists logo_url text,
+  add column if not exists photo_urls text[],
+  add column if not exists story_why text,
+  add column if not exists story_favorite_part text,
+  add column if not exists story_favorite_products text,
+  add column if not exists story_unique text;
+
+-- Create storage bucket for club photos (run this too)
+insert into storage.buckets (id, name, public)
+  values ('club-photos', 'club-photos', true)
+  on conflict (id) do nothing;
+
+-- Allow authenticated users to upload to their own folder
+create policy "Users can upload club photos"
+  on storage.objects for insert
+  to authenticated
+  with check (bucket_id = 'club-photos' AND (storage.foldername(name))[1] = auth.uid()::text);
+
+-- Allow anyone authenticated to read club photos
+create policy "Authenticated users can view club photos"
+  on storage.objects for select
+  to authenticated
+  using (bucket_id = 'club-photos');
+
+-- Allow users to delete their own photos
+create policy "Users can delete their own club photos"
+  on storage.objects for delete
+  to authenticated
+  using (bucket_id = 'club-photos' AND (storage.foldername(name))[1] = auth.uid()::text);
+
+-- ── End Migration 002 ───────────────────────────────────────
