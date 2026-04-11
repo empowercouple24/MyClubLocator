@@ -1848,3 +1848,187 @@ body {
   .photos-grid { grid-template-columns: repeat(2, 1fr); }
   .logo-upload-row { flex-direction: column; align-items: flex-start; }
 }
+
+/* ══════════════════════════════════════════
+   Owner email full-width
+══════════════════════════════════════════ */
+.owner-email-full {
+  margin-top: 14px;
+  width: 100%;
+}
+
+.owner-email-full input {
+  width: 100%;
+}
+
+.add-owner-row {
+  margin-top: 16px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* ══════════════════════════════════════════
+   Hours list layout (replaces table)
+══════════════════════════════════════════ */
+.hrs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.hrs-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.hrs-row.row-err .tp-trigger {
+  border-color: #e53e3e;
+}
+
+.hrs-pickers {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+}
+
+.hrs-dash {
+  color: #aaa;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+/* ══════════════════════════════════════════
+   TimePicker
+══════════════════════════════════════════ */
+.tp-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.tp-trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #fff;
+  border: 1px solid #dde8e0;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 13px;
+  cursor: pointer;
+  color: #333;
+  transition: border 0.15s;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.tp-trigger:hover,
+.tp-trigger.open {
+  border-color: #1A3C2E;
+}
+
+.tp-placeholder { color: #bbb; }
+
+.tp-caret {
+  font-size: 9px;
+  color: #aaa;
+  margin-left: 6px;
+  flex-shrink: 0;
+}
+
+.tp-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 1000;
+  background: #fff;
+  border: 1px solid #e0e8e0;
+  border-radius: 10px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.14);
+  padding: 10px;
+  min-width: 520px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.tp-grid {
+  display: flex;
+  gap: 2px;
+}
+
+.tp-hour-col {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.tp-option {
+  background: none;
+  border: none;
+  border-radius: 5px;
+  padding: 5px 6px;
+  font-size: 12px;
+  cursor: pointer;
+  color: #333;
+  text-align: left;
+  white-space: nowrap;
+  transition: background 0.1s;
+}
+
+.tp-option:hover  { background: #f0faf5; color: #1A3C2E; }
+.tp-option.selected { background: #1A3C2E; color: #fff; }
+
+.tp-clear {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  border-top: 1px solid #f0f0f0;
+  padding-top: 8px;
+  background: none;
+  border-left: none;
+  border-right: none;
+  border-bottom: none;
+  font-size: 12px;
+  color: #e53e3e;
+  cursor: pointer;
+  text-align: center;
+}
+
+/* Mobile: dropdown goes full-width and scrolls */
+@media (max-width: 600px) {
+  .tp-dropdown {
+    min-width: 0;
+    width: calc(100vw - 32px);
+    left: 50%;
+    transform: translateX(-50%);
+    max-height: 260px;
+  }
+
+  .tp-grid {
+    flex-wrap: wrap;
+  }
+
+  .tp-hour-col {
+    flex-direction: row;
+    flex-wrap: wrap;
+    flex: none;
+    width: 100%;
+    gap: 4px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid #f0f0f0;
+  }
+
+  .tp-option {
+    flex: 0 0 calc(25% - 4px);
+    text-align: center;
+  }
+
+  .hrs-row { flex-wrap: nowrap; }
+  .hrs-day-label { min-width: 60px; font-size: 12px; }
+}

@@ -195,3 +195,12 @@ create policy "Users can delete their own club photos"
   using (bucket_id = 'club-photos' AND (storage.foldername(name))[1] = auth.uid()::text);
 
 -- ── End Migration 002 ───────────────────────────────────────
+
+-- ── Migration 003 (Session 02) ── RUN THIS NOW ──────────────
+-- Adds third owner fields, removes owner phone fields
+
+alter table public.locations
+  add column if not exists owner3_first_name text,
+  add column if not exists owner3_last_name text,
+  add column if not exists owner3_email text;
+-- ── End Migration 003 ───────────────────────────────────────
