@@ -76,17 +76,31 @@ function ClubMarkers({ locations, selectedId, userId, onSelect }) {
   const markersRef = useRef({})
 
   useEffect(() => {
-    // Remove old markers
     Object.values(markersRef.current).forEach(m => m.remove())
     markersRef.current = {}
 
     locations.forEach(loc => {
-      const isOwn     = loc.user_id === userId
+      const isOwn      = loc.user_id === userId
       const isSelected = loc.id === selectedId
       const icon = isSelected ? goldIcon : (isOwn ? blueIcon : greenIcon)
 
+      const ownerName = [loc.first_name, loc.last_name].filter(Boolean).join(' ')
+      const line1 = loc.business_name || 'Unnamed Club'
+      const line2 = ownerName
+      const line3 = loc.address ? loc.address + (loc.city ? ', ' + loc.city : '') : (loc.city || '')
+
+      const tooltipHtml = `<div class="ct-name">${line1}</div>${line2 ? '<div class="ct-line">' + line2 + '</div>' : ''}${line3 ? '<div class="ct-line">' + line3 + '</div>' : ''}`
+
+      const tooltip = L.tooltip({
+        permanent: false,
+        direction: 'top',
+        offset: [0, -36],
+        className: 'club-tooltip',
+      }).setContent(tooltipHtml)
+
       const marker = L.marker([loc.lat, loc.lng], { icon })
         .addTo(map)
+        .bindTooltip(tooltip)
         .on('click', () => onSelect(loc))
 
       markersRef.current[loc.id] = marker

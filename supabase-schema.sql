@@ -130,3 +130,20 @@ create policy "Authenticated users can read settings"
 create policy "Authenticated users can update settings"
   on public.app_settings for update
   to authenticated using (true);
+
+-- ============================================================
+-- Migration: Profile enhancements
+-- Run this in Supabase SQL Editor as a new query
+-- ============================================================
+
+alter table public.locations
+  add column if not exists first_name text,
+  add column if not exists last_name text,
+  add column if not exists owner2_first_name text,
+  add column if not exists owner2_last_name text,
+  add column if not exists owner2_email text,
+  add column if not exists owner2_phone text,
+  add column if not exists zip text,
+  add column if not exists state text,
+  add column if not exists opened_month text,
+  add column if not exists opened_year text;
