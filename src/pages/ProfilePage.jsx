@@ -17,6 +17,15 @@ function buildYears() {
 }
 const YEARS = buildYears()
 
+// ── Phone formatting ─────────────────────────────────────────
+function formatPhone(raw) {
+  const digits = raw.replace(/\D/g, '').slice(0, 10)
+  if (digits.length === 0) return ''
+  if (digits.length <= 3) return `(${digits}`
+  if (digits.length <= 6) return `(${digits.slice(0,3)}) ${digits.slice(3)}`
+  return `(${digits.slice(0,3)}) ${digits.slice(3,6)}-${digits.slice(6)}`
+}
+
 const DEFAULT_FORM = {
   first_name: '', last_name: '', owner_email: '',
   owner2_first_name: '', owner2_last_name: '', owner2_email: '',
@@ -62,55 +71,35 @@ async function lookupZip(zip) {
   return null
 }
 
-function OwnerBlock({ num, form, setField, errors, show, onShow, onRemove }) {
-  const prefix = num === 1 ? '' : `owner${num}_`
-  const firstName = num === 1 ? 'first_name' : `owner${num}_first_name`
-  const lastName  = num === 1 ? 'last_name'  : `owner${num}_last_name`
-  const email     = num === 1 ? 'owner_email': `owner${num}_email`
-  const label     = num === 1 ? 'Primary Owner' : `Owner ${num}`
-
-  if (num > 1 && !show) return null
-
+// ── Owner photo upload widget ─────────────────────────────────
+function OwnerPhotoUpload({ label, photoUrl, onUpload, uploading }) {
+  const inputRef = useRef()
   return (
-    <div className={num > 1 ? 'owner2-block' : ''}>
-      {num > 1 && (
-        <div className="owner2-header">
-          <span>{label}</span>
-          <button className="owner2-remove" onClick={onRemove}>Remove</button>
-        </div>
-      )}
-      {num === 1 && <div className="sec-label">Primary Owner</div>}
-
-      <div className="fgrid">
-        <div className="pf">
-          <label>First name <span className="req-star">*</span></label>
-          <input type="text" value={form[firstName]}
-            onChange={e => setField(firstName, e.target.value)}
-            placeholder="First name"
-            className={errors[firstName] ? 'input-err' : ''} />
-          {errors[firstName] && <span className="field-err">{errors[firstName]}</span>}
-        </div>
-        <div className="pf">
-          <label>Last name <span className="req-star">*</span></label>
-          <input type="text" value={form[lastName]}
-            onChange={e => setField(lastName, e.target.value)}
-            placeholder="Last name"
-            className={errors[lastName] ? 'input-err' : ''} />
-          {errors[lastName] && <span className="field-err">{errors[lastName]}</span>}
-        </div>
+    <div className="owner-photo-upload">
+      <div className="owner-photo-preview">
+        {photoUrl
+          ? <img src={photoUrl} alt={label + ' photo'} />
+          : <div className="owner-photo-placeholder">👤</div>
+        }
       </div>
-
-      <div className="pf owner-email-full">
-        <label>
-          Email
-          {num === 1
-            ? <span className="optional-tag">optional</span>
-            : <span className="optional-tag">optional</span>}
-        </label>
-        <input type="email" value={form[email]}
-          onChange={e => setField(email, e.target.value)}
-          placeholder="email@example.com" />
+      <div className="owner-photo-actions">
+        <div className="owner-photo-label">{label} Photo <span className="optional-tag">optional</span></div>
+        <button
+          className="upload-btn upload-btn-sm"
+          onClick={() => inputRef.current && inputRef.current.click()}
+          disabled={uploading}
+        >
+          {uploading ? 'Uploading…' : photoUrl ? '↑ Replace' : '↑ Upload Photo'}
+        </button>
+        <p className="upload-hint">Square photo works best</p>
       </div>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        style={{ display: 'none' }}
+        onChange={onUpload}
+      />
     </div>
   )
 }
@@ -136,6 +125,14 @@ export default function ProfilePage() {
   const logoInputRef  = useRef()
   const photoInputRef = useRef()
 
+  // Owner profile photos
+  const [ownerPhotoUrl,  setOwnerPhotoUrl]  = useState(null)
+  const [owner2PhotoUrl, setOwner2PhotoUrl] = useState(null)
+  const [owner3PhotoUrl, setOwner3PhotoUrl] = useState(null)
+  const [uploadingOwnerPhoto,  setUploadingOwnerPhoto]  = useState(false)
+  const [uploadingOwner2Photo, setUploadingOwner2Photo] = useState(false)
+  const [uploadingOwner3Photo, setUploadingOwner3Photo] = useState(false)
+
   const [copySource, setCopySource]   = useState(null)
   const [copyTargets, setCopyTargets] = useState({})
 
@@ -152,6 +149,9 @@ export default function ProfilePage() {
         if (data.owner3_first_name) setShowOwner3(true)
         if (data.logo_url) setLogoUrl(data.logo_url)
         if (data.photo_urls) setPhotoUrls(data.photo_urls)
+        if (data.owner_photo_url)  setOwnerPhotoUrl(data.owner_photo_url)
+        if (data.owner2_photo_url) setOwner2PhotoUrl(data.owner2_photo_url)
+        if (data.owner3_photo_url) setOwner3PhotoUrl(data.owner3_photo_url)
       }
       setLoading(false)
     }
@@ -163,6 +163,10 @@ export default function ProfilePage() {
     if (errors[key]) setErrors(e => ({ ...e, [key]: null }))
   }
 
+  function handlePhoneChange(key, raw) {
+    setField(key, formatPhone(raw))
+  }
+
   async function handleZipBlur(zip) {
     if (zip.length < 5) return
     setZipLooking(true)
@@ -172,11 +176,11 @@ export default function ProfilePage() {
   }
 
   async function handleLogoUpload(e) {
-    const file = e.target.files?.[0]
+    const file = e.target.files && e.target.files[0]
     if (!file) return
     setUploadingLogo(true)
     const ext = file.name.split('.').pop()
-    const path = `${user.id}/logo.${ext}`
+    const path = user.id + '/logo.' + ext
     const { error } = await supabase.storage.from('club-photos').upload(path, file, { upsert: true })
     if (!error) {
       const { data } = supabase.storage.from('club-photos').getPublicUrl(path)
@@ -192,7 +196,7 @@ export default function ProfilePage() {
     const newUrls = [...photoUrls]
     for (const file of files) {
       const ext = file.name.split('.').pop()
-      const path = `${user.id}/photos/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+      const path = user.id + '/photos/' + Date.now() + '-' + Math.random().toString(36).slice(2) + '.' + ext
       const { error } = await supabase.storage.from('club-photos').upload(path, file)
       if (!error) {
         const { data } = supabase.storage.from('club-photos').getPublicUrl(path)
@@ -201,6 +205,21 @@ export default function ProfilePage() {
     }
     setPhotoUrls(newUrls)
     setUploadingPhoto(false)
+  }
+
+  async function handleOwnerPhotoUpload(ownerNum, e, setUrl, setUploading) {
+    const file = e.target.files && e.target.files[0]
+    if (!file) return
+    setUploading(true)
+    const ext = file.name.split('.').pop()
+    const slot = ownerNum === 1 ? 'owner' : 'owner' + ownerNum
+    const path = user.id + '/' + slot + '-photo.' + ext
+    const { error } = await supabase.storage.from('club-photos').upload(path, file, { upsert: true })
+    if (!error) {
+      const { data } = supabase.storage.from('club-photos').getPublicUrl(path)
+      setUrl(data.publicUrl)
+    }
+    setUploading(false)
   }
 
   function removePhoto(url) { setPhotoUrls(p => p.filter(u => u !== url)) }
@@ -217,11 +236,11 @@ export default function ProfilePage() {
     if (!form.state.trim())        e.state      = 'Required'
     if (!form.opened_month)        e.opened_month = 'Required'
     if (!form.opened_year)         e.opened_year  = 'Required'
-    const hasHours = DAYS.some(d => form[`hours_${d}_open`] && form[`hours_${d}_close`])
+    const hasHours = DAYS.some(d => form['hours_' + d + '_open'] && form['hours_' + d + '_close'])
     if (!hasHours) e.hours = 'At least one day of hours is required'
     DAYS.forEach(d => {
-      const o = form[`hours_${d}_open`], c = form[`hours_${d}_close`]
-      if ((o && !c) || (!o && c)) e[`hours_${d}`] = 'Both open and close required'
+      const o = form['hours_' + d + '_open'], c = form['hours_' + d + '_close']
+      if ((o && !c) || (!o && c)) e['hours_' + d] = 'Both open and close required'
     })
     if (showOwner2) {
       if (!form.owner2_first_name.trim()) e.owner2_first_name = 'Required'
@@ -249,11 +268,14 @@ export default function ProfilePage() {
 
     const record = {
       user_id: user.id, ...form,
-      state_zip: `${form.state} ${form.zip}`.trim(),
+      state_zip: (form.state + ' ' + form.zip).trim(),
       logo_url: logoUrl,
       photo_urls: photoUrls,
-      lat: coords?.lat ?? null,
-      lng: coords?.lng ?? null,
+      owner_photo_url:  ownerPhotoUrl,
+      owner2_photo_url: owner2PhotoUrl,
+      owner3_photo_url: owner3PhotoUrl,
+      lat: coords ? coords.lat : null,
+      lng: coords ? coords.lng : null,
     }
 
     const result = hasProfile
@@ -277,12 +299,12 @@ export default function ProfilePage() {
 
   function applyCopyToTargets() {
     if (!copySource) return
-    const o = form[`hours_${copySource}_open`], c = form[`hours_${copySource}_close`]
+    const o = form['hours_' + copySource + '_open'], c = form['hours_' + copySource + '_close']
     const updates = {}
-    Object.entries(copyTargets).forEach(([day, checked]) => {
+    Object.entries(copyTargets).forEach(function([day, checked]) {
       if (checked && day !== copySource) {
-        updates[`hours_${day}_open`] = o
-        updates[`hours_${day}_close`] = c
+        updates['hours_' + day + '_open'] = o
+        updates['hours_' + day + '_close'] = c
       }
     })
     setForm(f => ({ ...f, ...updates }))
@@ -294,7 +316,10 @@ export default function ProfilePage() {
   function selectWeekdays()   { const t = {}; WEEKDAYS.forEach(d => { if (d !== copySource) t[d] = true }); setCopyTargets(t) }
 
   function clearOwner(num) {
-    ;[`owner${num}_first_name`,`owner${num}_last_name`,`owner${num}_email`].forEach(k => setField(k,''))
+    const fields = ['owner' + num + '_first_name', 'owner' + num + '_last_name', 'owner' + num + '_email']
+    fields.forEach(k => setField(k, ''))
+    if (num === 2) setOwner2PhotoUrl(null)
+    if (num === 3) setOwner3PhotoUrl(null)
   }
 
   if (loading) return <div className="loading">Loading profile…</div>
@@ -311,9 +336,8 @@ export default function ProfilePage() {
       {errors._general && <div className="error-msg">{errors._general}</div>}
       {errorCount > 0 && <div className="error-msg">Please fix {errorCount} required field{errorCount !== 1 ? 's' : ''} below.</div>}
 
-      {/* ── CARD 1: Owners ── */}
+      {/* CARD 1: Owners */}
       <div className="sec-card">
-        {/* Primary owner */}
         <div className="sec-label">Primary Owner</div>
         <div className="fgrid">
           <div className="pf">
@@ -334,6 +358,12 @@ export default function ProfilePage() {
           <input type="email" value={form.owner_email} onChange={e => setField('owner_email', e.target.value)}
             placeholder="your@email.com" />
         </div>
+        <OwnerPhotoUpload
+          label="Primary Owner"
+          photoUrl={ownerPhotoUrl}
+          onUpload={e => handleOwnerPhotoUpload(1, e, setOwnerPhotoUrl, setUploadingOwnerPhoto)}
+          uploading={uploadingOwnerPhoto}
+        />
 
         {/* Owner 2 */}
         {showOwner2 && (
@@ -361,6 +391,12 @@ export default function ProfilePage() {
               <input type="email" value={form.owner2_email} onChange={e => setField('owner2_email', e.target.value)}
                 placeholder="owner2@email.com" />
             </div>
+            <OwnerPhotoUpload
+              label="Owner 2"
+              photoUrl={owner2PhotoUrl}
+              onUpload={e => handleOwnerPhotoUpload(2, e, setOwner2PhotoUrl, setUploadingOwner2Photo)}
+              uploading={uploadingOwner2Photo}
+            />
           </div>
         )}
 
@@ -390,10 +426,15 @@ export default function ProfilePage() {
               <input type="email" value={form.owner3_email} onChange={e => setField('owner3_email', e.target.value)}
                 placeholder="owner3@email.com" />
             </div>
+            <OwnerPhotoUpload
+              label="Owner 3"
+              photoUrl={owner3PhotoUrl}
+              onUpload={e => handleOwnerPhotoUpload(3, e, setOwner3PhotoUrl, setUploadingOwner3Photo)}
+              uploading={uploadingOwner3Photo}
+            />
           </div>
         )}
 
-        {/* Add owner buttons */}
         <div className="add-owner-row">
           {!showOwner2 && (
             <button className="add-owner-btn" onClick={() => setShowOwner2(true)}>+ Add a second owner</button>
@@ -404,7 +445,7 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* ── CARD 2: Club Info ── */}
+      {/* CARD 2: Club Info — website removed, phone formatted */}
       <div className="sec-card">
         <div className="sec-label">Club Info</div>
         <div className="fgrid">
@@ -420,15 +461,11 @@ export default function ProfilePage() {
               placeholder="hello@yourclub.com" className={errors.club_email ? 'input-err' : ''} />
             {errors.club_email && <span className="field-err">{errors.club_email}</span>}
           </div>
-          <div className="pf">
+          <div className="pf" style={{ gridColumn: '1 / -1' }}>
             <label>Club phone <span className="optional-tag">optional</span></label>
-            <input type="tel" value={form.club_phone} onChange={e => setField('club_phone', e.target.value)}
+            <input type="tel" value={form.club_phone}
+              onChange={e => handlePhoneChange('club_phone', e.target.value)}
               placeholder="(555) 000-0000" />
-          </div>
-          <div className="pf">
-            <label>Website <span className="optional-tag">optional</span></label>
-            <input type="text" value={form.website} onChange={e => setField('website', e.target.value)}
-              placeholder="yoursite.com" />
           </div>
         </div>
 
@@ -439,7 +476,7 @@ export default function ProfilePage() {
             <AddressAutocomplete
               value={form.address}
               onChange={val => setField('address', val)}
-              onSelect={({ street, city, state, zip, lat, lng }) => {
+              onSelect={({ street, city, state, zip }) => {
                 setForm(f => ({ ...f, address: street, city, state, zip }))
                 if (errors.address) setErrors(e => ({ ...e, address: null }))
               }}
@@ -450,25 +487,22 @@ export default function ProfilePage() {
           <div className="pf addr-city">
             <label className="dimmed-label">City <span className="autofill-hint">✦ auto-filled</span></label>
             <input type="text" value={form.city} readOnly tabIndex={-1}
-              placeholder="Auto-filled from address"
-              className="dimmed-input" />
+              placeholder="Auto-filled from address" className="dimmed-input" />
           </div>
           <div className="pf addr-state">
             <label className="dimmed-label">State <span className="autofill-hint">✦ auto-filled</span></label>
             <input type="text" value={form.state} readOnly tabIndex={-1}
-              placeholder="Auto-filled from address"
-              className="dimmed-input" />
+              placeholder="Auto-filled from address" className="dimmed-input" />
           </div>
           <div className="pf addr-zip">
             <label className="dimmed-label">ZIP <span className="autofill-hint">✦ auto-filled</span></label>
             <input type="text" value={form.zip} readOnly tabIndex={-1}
-              placeholder="Auto-filled from address"
-              className="dimmed-input" />
+              placeholder="Auto-filled from address" className="dimmed-input" />
           </div>
         </div>
       </div>
 
-      {/* ── CARD 3: Club Specifics ── */}
+      {/* CARD 3: Club Specifics */}
       <div className="sec-card">
         <div className="sec-label">Club Specifics</div>
 
@@ -499,25 +533,25 @@ export default function ProfilePage() {
 
         <div className="hrs-list">
           {DAYS.map((day, i) => (
-            <div key={day} className={`hrs-row ${errors[`hours_${day}`] ? 'row-err' : ''}`}>
+            <div key={day} className={'hrs-row' + (errors['hours_' + day] ? ' row-err' : '')}>
               <span className="hrs-day-label">{DAY_LABELS[i]}</span>
               <div className="hrs-pickers">
                 <TimePicker
-                  value={form[`hours_${day}_open`]}
-                  onChange={v => setField(`hours_${day}_open`, v)}
+                  value={form['hours_' + day + '_open']}
+                  onChange={v => setField('hours_' + day + '_open', v)}
                   placeholder="Open"
                   defaultPeriod="AM"
                 />
                 <span className="hrs-dash">–</span>
                 <TimePicker
-                  value={form[`hours_${day}_close`]}
-                  onChange={v => setField(`hours_${day}_close`, v)}
+                  value={form['hours_' + day + '_close']}
+                  onChange={v => setField('hours_' + day + '_close', v)}
                   placeholder="Close"
                   defaultPeriod="PM"
                 />
               </div>
               <button className="copy-hours-btn" title="Copy to other days"
-                disabled={!form[`hours_${day}_open`] || !form[`hours_${day}_close`]}
+                disabled={!form['hours_' + day + '_open'] || !form['hours_' + day + '_close']}
                 onClick={() => { setCopySource(day); setCopyTargets({}) }}>⇢</button>
             </div>
           ))}
@@ -550,13 +584,14 @@ export default function ProfilePage() {
         )}
         <p className="hrs-hint">Leave open and close blank for days you are closed.</p>
 
-        {/* Social */}
-        <div className="sec-sublabel" style={{ marginTop: 24 }}>Social media <span className="optional-tag">all optional</span></div>
+        {/* Social media + Website (website moved here) */}
+        <div className="sec-sublabel" style={{ marginTop: 24 }}>Social media &amp; website <span className="optional-tag">all optional</span></div>
         {[
           { key: 'social_facebook',  label: 'Facebook',  placeholder: 'facebook.com/yourpage' },
           { key: 'social_instagram', label: 'Instagram', placeholder: '@yourhandle' },
           { key: 'social_tiktok',    label: 'TikTok',    placeholder: '@yourhandle' },
           { key: 'social_youtube',   label: 'YouTube',   placeholder: 'youtube.com/yourchannel' },
+          { key: 'website',          label: 'Website',   placeholder: 'yoursite.com' },
         ].map(({ key, label, placeholder }) => (
           <div className="soc-row" key={key}>
             <span className="soc-lbl">{label}</span>
@@ -566,7 +601,7 @@ export default function ProfilePage() {
         ))}
       </div>
 
-      {/* ── CARD 4: Photos ── */}
+      {/* CARD 4: Photos */}
       <div className="sec-card">
         <div className="sec-label">Club Photos <span className="optional-tag">optional</span></div>
         <div className="photo-section">
@@ -577,7 +612,7 @@ export default function ProfilePage() {
               : <div className="upload-placeholder logo-placeholder"><span>No logo yet</span></div>
             }
             <div>
-              <button className="upload-btn" onClick={() => logoInputRef.current?.click()} disabled={uploadingLogo}>
+              <button className="upload-btn" onClick={() => logoInputRef.current && logoInputRef.current.click()} disabled={uploadingLogo}>
                 {uploadingLogo ? 'Uploading…' : logoUrl ? '↑ Replace Logo' : '↑ Upload Logo'}
               </button>
               <p className="upload-hint">PNG or JPG, square preferred</p>
@@ -592,12 +627,12 @@ export default function ProfilePage() {
           <div className="photos-grid">
             {photoUrls.map((url, i) => (
               <div key={i} className="photo-thumb">
-                <img src={url} alt={`Club photo ${i+1}`} />
+                <img src={url} alt={'Club photo ' + (i+1)} />
                 <button className="photo-remove-btn" onClick={() => removePhoto(url)}>✕</button>
               </div>
             ))}
             {photoUrls.length < 6 && (
-              <button className="photo-add-tile" onClick={() => photoInputRef.current?.click()} disabled={uploadingPhoto}>
+              <button className="photo-add-tile" onClick={() => photoInputRef.current && photoInputRef.current.click()} disabled={uploadingPhoto}>
                 {uploadingPhoto ? '…' : '+'}
               </button>
             )}
@@ -606,7 +641,7 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* ── CARD 5: Your Story ── */}
+      {/* CARD 5: Your Story */}
       <div className="sec-card">
         <div className="sec-label">Your Story <span className="optional-tag">all optional</span></div>
         <p className="story-intro">Share a little about yourself and your club. These may be shown on your club's profile page.</p>
@@ -624,8 +659,8 @@ export default function ProfilePage() {
         ))}
       </div>
 
-      {/* ── Save ── */}
-      <div className="save-bar">
+      {/* Sticky Save Bar */}
+      <div className="save-bar save-bar--sticky">
         <button className="btn-save" onClick={() => handleSave('save')} disabled={saving && saveAction === 'save'}>
           {saving && saveAction === 'save' ? 'Saving…' : 'Save My Profile'}
         </button>
@@ -634,7 +669,10 @@ export default function ProfilePage() {
         </button>
       </div>
 
-      <div className={`toast ${toast ? 'show' : ''}`}>{toast}</div>
+      {/* Spacer so last card clears the sticky bar */}
+      <div style={{ height: 88 }} />
+
+      <div className={'toast' + (toast ? ' show' : '')}>{toast}</div>
     </div>
   )
 }

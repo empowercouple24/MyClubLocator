@@ -7,33 +7,48 @@ import { useNavigate } from 'react-router-dom'
 import DemographicsPanel from '../components/DemographicsPanel'
 
 delete L.Icon.Default.prototype._getIconUrl
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-})
 
-const makeIcon = (color) => new L.Icon({
-  iconUrl: `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-${color}.png`,
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-  iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41],
-})
+// ── Emoji pin icons via DivIcon ─────────────────────────────
+// Three shades: teal (your club), green (others), gold (selected)
+function makePinIcon(type) {
+  const configs = {
+    own:      { emoji: '📍', filter: 'hue-rotate(160deg) saturate(2) brightness(0.85)', size: 32 },
+    other:    { emoji: '📍', filter: 'hue-rotate(100deg) saturate(1.6) brightness(0.9)', size: 28 },
+    selected: { emoji: '📍', filter: 'hue-rotate(30deg) saturate(3) brightness(1.1)', size: 36 },
+  }
+  const { emoji, filter, size } = configs[type]
+  return L.divIcon({
+    className: '',
+    html: `<div style="font-size:${size}px;line-height:1;filter:${filter};cursor:pointer;transform:translate(-50%,-100%);display:inline-block;">${emoji}</div>`,
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size],
+    popupAnchor: [0, -size],
+  })
+}
 
-const greenIcon = makeIcon('green')
-const blueIcon  = makeIcon('blue')
-const goldIcon  = makeIcon('gold')
+const ownIcon      = makePinIcon('own')
+const otherIcon    = makePinIcon('other')
+const selectedIcon = makePinIcon('selected')
 
 const BASE_MAPS = [
-  { id: 'carto',     label: 'Clean',    url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', attribution: '&copy; OpenStreetMap &copy; CARTO' },
-  { id: 'street',    label: 'Street',   url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', attribution: '&copy; OpenStreetMap' },
-  { id: 'satellite', label: 'Aerial',   url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', attribution: '&copy; Esri' },
-  { id: 'topo',      label: 'Topo',     url: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', attribution: '&copy; OpenTopoMap' },
+  { id: 'carto',     label: 'Clean',  url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', attribution: '&copy; OpenStreetMap &copy; CARTO' },
+  { id: 'street',    label: 'Street', url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', attribution: '&copy; OpenStreetMap' },
+  { id: 'satellite', label: 'Aerial', url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', attribution: '&copy; Esri' },
 ]
 
-const RADIUS_PRESETS = [1, 2, 5, 10]
+const RADIUS_PRESETS = [3, 10, 20, 30]
 const PANEL_POSITIONS = ['right', 'left', 'bottom']
 
 function milesToMeters(m) { return m * 1609.34 }
+
+function formatPhone(raw) {
+  if (!raw) return ''
+  const digits = raw.replace(/\D/g, '').slice(0, 10)
+  if (digits.length === 0) return raw
+  if (digits.length <= 3) return `(${digits}`
+  if (digits.length <= 6) return `(${digits.slice(0,3)}) ${digits.slice(3)}`
+  return `(${digits.slice(0,3)}) ${digits.slice(3,6)}-${digits.slice(6)}`
+}
 
 function getDistanceMiles(lat1, lng1, lat2, lng2) {
   const R = 3958.8
@@ -87,6 +102,12 @@ function MapController({ center, zoom, panelPosition }) {
   return null
 }
 
+function MapRefCapture({ mapRef }) {
+  const map = useMap()
+  useEffect(() => { mapRef.current = map }, [map])
+  return null
+}
+
 function ClubMarkers({ locations, selectedId, userId, onSelect }) {
   const map = useMap()
   const markersRef = useRef({})
@@ -98,15 +119,42 @@ function ClubMarkers({ locations, selectedId, userId, onSelect }) {
     locations.forEach(loc => {
       const isOwn      = loc.user_id === userId
       const isSelected = loc.id === selectedId
-      const icon = isSelected ? goldIcon : (isOwn ? blueIcon : greenIcon)
+      const icon = isSelected ? selectedIcon : (isOwn ? ownIcon : otherIcon)
 
-      const ownerName = [loc.first_name, loc.last_name].filter(Boolean).join(' ')
-      const line1 = loc.business_name || 'Unnamed Club'
-      const line2 = ownerName
-      const line3 = loc.address ? loc.address + (loc.city ? ', ' + loc.city : '') : (loc.city || '')
-      const tooltipHtml = `<div class="ct-name">${line1}</div>${line2 ? `<div class="ct-line">${line2}</div>` : ''}${line3 ? `<div class="ct-line">${line3}</div>` : ''}`
+      // Build owner names list
+      const owners = [
+        [loc.first_name, loc.last_name].filter(Boolean).join(' '),
+        [loc.owner2_first_name, loc.owner2_last_name].filter(Boolean).join(' '),
+        [loc.owner3_first_name, loc.owner3_last_name].filter(Boolean).join(' '),
+      ].filter(Boolean)
 
-      const tooltip = L.tooltip({ permanent: false, direction: 'top', offset: [0, -36], className: 'club-tooltip' }).setContent(tooltipHtml)
+      const openSince = loc.opened_month && loc.opened_year
+        ? `Open since ${loc.opened_month} ${loc.opened_year}` : ''
+
+      // Logo or initials
+      const logoHtml = loc.logo_url
+        ? `<img src="${loc.logo_url}" class="ct-logo-img" alt="logo" />`
+        : `<div class="ct-logo-initials">${(loc.business_name || 'CL').slice(0,2).toUpperCase()}</div>`
+
+      const ownersHtml = owners.map(n => `<div class="ct-line">👤 ${n}</div>`).join('')
+      const sinceHtml  = openSince ? `<div class="ct-since">${openSince}</div>` : ''
+
+      const tooltipHtml = `
+        <div class="ct-inner">
+          <div class="ct-header">
+            ${logoHtml}
+            <div class="ct-name">${loc.business_name || 'Unnamed Club'}</div>
+          </div>
+          ${ownersHtml}
+          ${sinceHtml}
+        </div>`
+
+      const tooltip = L.tooltip({
+        permanent: false,
+        direction: 'top',
+        offset: [0, -28],
+        className: 'club-tooltip',
+      }).setContent(tooltipHtml)
 
       const marker = L.marker([loc.lat, loc.lng], { icon })
         .addTo(map).bindTooltip(tooltip).on('click', () => onSelect(loc))
@@ -168,6 +216,12 @@ function ClubDetail({ club, userId, onManage, radiusMiles, setRadiusMiles, custo
   const owner2Name = [club.owner2_first_name, club.owner2_last_name].filter(Boolean).join(' ')
   const owner3Name = [club.owner3_first_name, club.owner3_last_name].filter(Boolean).join(' ')
 
+  const owners = [
+    { name: ownerName,  photo: club.owner_photo_url },
+    { name: owner2Name, photo: club.owner2_photo_url },
+    { name: owner3Name, photo: club.owner3_photo_url },
+  ].filter(o => o.name)
+
   return (
     <>
       {/* Club header */}
@@ -181,7 +235,7 @@ function ClubDetail({ club, userId, onManage, radiusMiles, setRadiusMiles, custo
             <h2 className="cp-name">{club.business_name || 'Unnamed Club'}</h2>
             {club.city && <p className="cp-location">{club.city}{club.state ? `, ${club.state}` : ''}</p>}
             {club.opened_month && club.opened_year && (
-              <p className="cp-since">Since {club.opened_month} {club.opened_year}</p>
+              <p className="cp-since">Open since {club.opened_month} {club.opened_year}</p>
             )}
           </div>
         </div>
@@ -199,12 +253,20 @@ function ClubDetail({ club, userId, onManage, radiusMiles, setRadiusMiles, custo
       )}
 
       {/* Owners */}
-      {(ownerName || owner2Name || owner3Name) && (
+      {owners.length > 0 && (
         <div className="cp-section">
           <div className="cp-section-title">Owners</div>
-          {ownerName && <div className="cp-row"><span className="cp-icon">👤</span><span>{ownerName}</span></div>}
-          {owner2Name && <div className="cp-row"><span className="cp-icon">👤</span><span>{owner2Name}</span></div>}
-          {owner3Name && <div className="cp-row"><span className="cp-icon">👤</span><span>{owner3Name}</span></div>}
+          {owners.map((o, i) => (
+            <div key={i} className="cp-row cp-owner-row">
+              <div className="cp-owner-avatar">
+                {o.photo
+                  ? <img src={o.photo} alt={o.name} className="cp-owner-photo" />
+                  : <span className="cp-icon">👤</span>
+                }
+              </div>
+              <span>{o.name}</span>
+            </div>
+          ))}
         </div>
       )}
 
@@ -212,8 +274,8 @@ function ClubDetail({ club, userId, onManage, radiusMiles, setRadiusMiles, custo
       <div className="cp-section">
         <div className="cp-section-title">Contact</div>
         {club.address && <div className="cp-row"><span className="cp-icon">📍</span><span>{club.address}{club.city ? `, ${club.city}` : ''}</span></div>}
-        {club.club_phone && <div className="cp-row"><span className="cp-icon">📞</span><a href={`tel:${club.club_phone}`}>{club.club_phone}</a></div>}
-        {club.club_email && <div className="cp-row"><span className="cp-icon">✉️</span><a href={`mailto:${club.club_email}`}>{club.club_email}</a></div>}
+        {club.club_phone && <div className="cp-row"><span className="cp-icon">📞</span><a href={`tel:${club.club_phone}`}>{formatPhone(club.club_phone)}</a></div>}
+        {club.club_email && <div className="cp-row"><span className="cp-icon">✉️</span><span className="cp-email-plain">{club.club_email}</span></div>}
         {club.website && <div className="cp-row"><span className="cp-icon">🌐</span><a href={club.website.startsWith('http') ? club.website : `https://${club.website}`} target="_blank" rel="noreferrer">{club.website}</a></div>}
       </div>
 
@@ -289,6 +351,8 @@ export default function MapPage() {
   const [geocoding, setGeocoding]   = useState(false)
   const [radiusMiles, setRadiusMiles] = useState(null)
   const [customMiles, setCustomMiles] = useState('')
+  const [saveViewToast, setSaveViewToast] = useState(false)
+  const mapRef = useRef(null)
 
   // Demographics
   const [demoActive, setDemoActive]   = useState(false)
@@ -298,7 +362,8 @@ export default function MapPage() {
   const [enabledFactors] = useState(defaultEnabledFactors)
 
   // Panel position — per user, stored in localStorage, default 'right'
-  const posKey = user ? `panel_position_${user.id}` : 'panel_position'
+  const posKey     = user ? `panel_position_${user.id}` : 'panel_position'
+  const viewKey    = user ? `default_view_${user.id}`   : 'default_view'
   const [panelPosition, setPanelPosition] = useState(() => {
     return localStorage.getItem(posKey) || 'right'
   })
@@ -306,6 +371,31 @@ export default function MapPage() {
   function updatePanelPosition(pos) {
     setPanelPosition(pos)
     localStorage.setItem(posKey, pos)
+  }
+
+  // Load saved default view on mount (after locations load)
+  const defaultViewApplied = useRef(false)
+  useEffect(() => {
+    if (locations.length > 0 && !defaultViewApplied.current) {
+      const saved = localStorage.getItem(viewKey)
+      if (saved) {
+        try {
+          const { lat, lng, zoom } = JSON.parse(saved)
+          setMapCenter([lat, lng])
+          setMapZoom(zoom)
+        } catch {}
+      }
+      defaultViewApplied.current = true
+    }
+  }, [locations])
+
+  function saveDefaultView() {
+    if (!mapRef.current) return
+    const center = mapRef.current.getCenter()
+    const zoom   = mapRef.current.getZoom()
+    localStorage.setItem(viewKey, JSON.stringify({ lat: center.lat, lng: center.lng, zoom }))
+    setSaveViewToast(true)
+    setTimeout(() => setSaveViewToast(false), 2500)
   }
 
   useEffect(() => {
@@ -325,12 +415,18 @@ export default function MapPage() {
 
   const myClub = locations.find(l => l.user_id === user?.id) || null
 
-  function handleSelectClub(loc) {
+  async function handleSelectClub(loc) {
     setSelected(loc)
     setRadiusMiles(null)
     setCustomMiles('')
     setMapCenter([loc.lat, loc.lng])
     setMapZoom(14)
+    // Auto-load market data if demo panel is active, or activate it and load
+    if (loc.lat && loc.lng) {
+      setDemoActive(true)
+      setDemoLat(loc.lat)
+      setDemoLng(loc.lng)
+    }
   }
 
   async function handleCitySearch(e) {
@@ -378,6 +474,7 @@ export default function MapPage() {
       <div className="map-area">
         {loading ? <div className="loading">Loading map…</div> : (
           <MapContainer center={defaultCenter} zoom={locations.length > 0 ? 11 : 5} style={{ height: '100%', width: '100%' }}>
+            <MapRefCapture mapRef={mapRef} />
             <MapController center={mapCenter} zoom={mapZoom} panelPosition={panelPosition} />
             <MapClickHandler active={demoActive} onMapClick={(lat, lng) => { setDemoLat(lat); setDemoLng(lng) }} />
             <TileLayer key={activeBase.id} attribution={activeBase.attribution} url={activeBase.url} />
@@ -405,30 +502,44 @@ export default function MapPage() {
           </button>
         </div>
 
-        {/* Base map + panel position toggles */}
+        {/* Base map + panel position toggles + default view */}
         <div className="map-controls-bottom">
           <div className="map-basemap-toggle">
             {BASE_MAPS.map(b => (
               <button key={b.id} className={`basemap-btn ${baseMap === b.id ? 'active' : ''}`} onClick={() => setBaseMap(b.id)}>{b.label}</button>
             ))}
           </div>
-          <div className="map-position-toggle" title="Panel position">
-            {[
-              { pos: 'left',   icon: '⬅' },
-              { pos: 'bottom', icon: '⬇' },
-              { pos: 'right',  icon: '➡' },
-            ].map(({ pos, icon }) => (
-              <button key={pos} className={`position-btn ${panelPosition === pos ? 'active' : ''}`}
-                onClick={() => updatePanelPosition(pos)} title={`Panel on ${pos}`}>{icon}</button>
-            ))}
+          <div className="map-controls-right">
+            <button className="map-default-view-btn" onClick={saveDefaultView} title="Save current map view as default">
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M8 1l1.8 3.6L14 5.6l-3 2.9.7 4.1L8 10.5l-3.7 2.1.7-4.1L2 5.6l4.2-.9L8 1z" fill="currentColor"/>
+              </svg>
+              Set Default View
+            </button>
+            <div className="map-position-toggle" title="Panel position">
+              {[
+                { pos: 'left',   icon: (
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="1" y="1" width="5" height="14" rx="1" fill="currentColor" opacity="0.9"/><rect x="7" y="1" width="8" height="14" rx="1" fill="currentColor" opacity="0.3"/></svg>
+                )},
+                { pos: 'bottom', icon: (
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="1" y="1" width="14" height="9" rx="1" fill="currentColor" opacity="0.3"/><rect x="1" y="11" width="14" height="4" rx="1" fill="currentColor" opacity="0.9"/></svg>
+                )},
+                { pos: 'right',  icon: (
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="1" y="1" width="8" height="14" rx="1" fill="currentColor" opacity="0.3"/><rect x="10" y="1" width="5" height="14" rx="1" fill="currentColor" opacity="0.9"/></svg>
+                )},
+              ].map(({ pos, icon }) => (
+                <button key={pos} className={`position-btn ${panelPosition === pos ? 'active' : ''}`}
+                  onClick={() => updatePanelPosition(pos)} title={`Panel on ${pos}`}>{icon}</button>
+              ))}
+            </div>
           </div>
         </div>
 
         {/* Legend */}
         <div className="map-legend">
-          <div className="legend-row"><div className="legend-dot blue" /><span>Your club</span></div>
-          <div className="legend-row"><div className="legend-dot green" /><span>Other clubs</span></div>
-          <div className="legend-row"><div className="legend-dot gold" /><span>Selected</span></div>
+          <div className="legend-row"><span className="legend-pin legend-pin--own">📍</span><span>Your club</span></div>
+          <div className="legend-row"><span className="legend-pin legend-pin--other">📍</span><span>Other clubs</span></div>
+          <div className="legend-row"><span className="legend-pin legend-pin--selected">📍</span><span>Selected</span></div>
         </div>
 
         {/* Club count */}
@@ -436,6 +547,11 @@ export default function MapPage() {
           <strong>{filteredLocations.length}</strong>
           {hasFilter ? ` of ${locations.length}` : ''} club{filteredLocations.length !== 1 ? 's' : ''}
         </div>
+
+        {/* Save view toast */}
+        {saveViewToast && (
+          <div className="map-save-toast">✓ Default view saved</div>
+        )}
       </div>
 
       {/* ── Always-visible dashboard panel ── */}

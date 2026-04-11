@@ -174,7 +174,7 @@ clubregistry-main/
 | Migration 002 | owner_email, club_email, photo URLs, story prompts, storage bucket | ✅ Applied |
 | Migration 003 | owner3 fields | ✅ Applied |
 | Migration 004 | approved, approved_at, approved_by + admin RLS policies | ⚠️ Run this |
-| Migration 005 | demographics toggle columns in app_settings | ⚠️ Run this |
+| Migration 006 | owner_photo_url, owner2_photo_url, owner3_photo_url columns | ⚠️ Run this |
 
 ---
 
@@ -191,17 +191,29 @@ clubregistry-main/
 
 ## To-do for next session (top priority)
 
-- **Move website field** — remove from Club Info card, add to Social Media section in ProfilePage
-- **Auto-format phone numbers** — format as `(###) ###-####` as user types, applies to all phone fields
-- **Hover tooltip: second owner + open since** — if a club has a second owner, show both owner names in the hover tooltip; also include "Open since Month Year"
-- **Dashboard phone formatting** — display phone numbers as `(###) ###-####` in the club detail panel
-- **Disable mailto link on email in dashboard** — show email as plain text, not a clickable mailto link
-- **Radius presets update** — change nearby clubs radius presets to: 3 mi, 10 mi, 20 mi, 30 mi
-- **Dashboard: club open since** — show "Open since Month Year" in the club detail panel
-- **Auto-load market data on pin click** — when a club pin is clicked, automatically load demographic data for that club's ZIP code (no extra map click needed)
-- **Owner profile photos in dashboard** — if owner(s) have a profile photo uploaded, display it next to their name in the dashboard
-- **Owner profile photos in settings** — allow primary, secondary, and third owners to each upload a profile photo in the profile page
-- **Sticky save bar on profile** — when editing profile fields, the Save My Profile / Save & Return to Map buttons stick to the bottom of the screen at all times
+### Profile Page
+- ✅ **Move website field** — removed from Club Info, added to Social Media section
+- ✅ **Auto-format phone numbers** — `(###) ###-####` as user types on all phone fields
+- ✅ **Owner profile photos in settings** — primary, owner 2, owner 3 each have photo upload (requires Migration 006)
+- ✅ **Sticky save bar** — Save My Profile / Save & Return to Map fixed to bottom of screen
+
+### Map — Dashboard Panel
+- ✅ **Dashboard phone formatting** — displays as `(###) ###-####` in club detail panel
+- ✅ **Disable mailto on email** — club email shown as plain text, not a clickable link
+- ✅ **Dashboard: club open since** — shows "Open since Month Year" in club detail header
+- ✅ **Owner profile photos in dashboard** — circular avatar next to each owner name; falls back to 👤 icon
+- ✅ **Radius presets update** — changed to 3 mi, 10 mi, 20 mi, 30 mi
+
+### Map — Pins & Tooltips
+- ✅ **Hover tooltip: both owners + open since** — all owner names + "Open since Month Year" shown in tooltip
+- ✅ **Club logo in hover tooltip** — logo image (or initials fallback) displayed in tooltip header; white card design with black text
+- ✅ **Map pin emoji** — replaced Leaflet markers with 📍 DivIcon pins; teal tint = your club, green tint = others, gold tint = selected
+
+### Map — UI & Controls
+- ✅ **Auto-load market data on pin click** — clicking any pin automatically activates the demo panel and loads data for that club's coordinates
+- ✅ **Remove Topo base map** — only Clean / Street / Aerial remain
+- ✅ **Panel position toggle** — replaced arrow emoji with SVG layout icons showing the panel position visually (left/bottom/right block diagrams)
+- ✅ **Set default map extent** — "Set Default View" button (⭐) saves current center + zoom to localStorage per user; loads automatically on next visit with a confirmation toast
 
 ---
 
