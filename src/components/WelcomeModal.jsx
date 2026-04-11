@@ -8,6 +8,7 @@ export default function WelcomeModal() {
   const navigate = useNavigate()
   const [show, setShow] = useState(false)
   const [settings, setSettings] = useState(null)
+  const [hasClub, setHasClub] = useState(false)
 
   useEffect(() => {
     if (!user) return
@@ -16,13 +17,13 @@ export default function WelcomeModal() {
     if (seen) return
 
     async function load() {
-      const { data } = await supabase
-        .from('app_settings')
-        .select('*')
-        .eq('id', 1)
-        .single()
-      if (data) {
-        setSettings(data)
+      const [{ data: settingsData }, { data: clubData }] = await Promise.all([
+        supabase.from('app_settings').select('*').eq('id', 1).single(),
+        supabase.from('locations').select('id').eq('user_id', user.id).maybeSingle(),
+      ])
+      if (settingsData) {
+        setSettings(settingsData)
+        setHasClub(!!clubData)
         setShow(true)
       }
     }
@@ -41,6 +42,13 @@ export default function WelcomeModal() {
 
   if (!show || !settings) return null
 
+  const firstName = user?.user_metadata?.first_name || user?.email?.split('@')[0] || ''
+
+  // Determine video URL — use saved URL or fall back to placeholder
+  const PLACEHOLDER_VIDEO = 'https://www.youtube.com/embed/dQw4w9WgXcQ'
+  const videoUrl = settings.welcome_video_url || PLACEHOLDER_VIDEO
+  const showVideo = settings.welcome_video_enabled && !hasClub
+
   return (
     <div className="modal-overlay" onClick={dismiss}>
       <div className="modal-card" onClick={e => e.stopPropagation()}>
@@ -57,29 +65,61 @@ export default function WelcomeModal() {
           </svg>
         </div>
 
-        <h2 className="modal-title">{settings.welcome_title}</h2>
-        <p className="modal-message">{settings.welcome_message}</p>
+        {hasClub ? (
+          /* ── Returning user with a club ── */
+          <>
+            <h2 className="modal-title">
+              {firstName ? `Welcome back, ${firstName}!` : 'Welcome back!'}
+            </h2>
+            <p className="modal-message">
+              {settings.welcome_message || "You're part of the network. Explore the map to see clubs near you."}
+            </p>
 
-        {settings.welcome_video_enabled && settings.welcome_video_url && (
-          <div className="modal-video">
-            <iframe
-              src={settings.welcome_video_url}
-              title="Welcome video"
-              frameBorder="0"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-            />
+            <div className="modal-actions">
+              <button className="modal-btn-primary" onClick={dismiss}>
+                Explore the Map
+              </button>
+            </div>
+          </>
+        ) : (
+          /* ── New user / no club yet ── */
+          <>
+            <h2 className="modal-title">{settings.welcome_title || 'Welcome to My Club Locator!'}</h2>
+            <p className="modal-message">
+              {settings.welcome_message || "You're now part of the network. Watch the video below to get started, then add your club to the map."}
+            </p>
+
+            {showVideo && (
+              <div className="modal-video">
+                <iframe
+                  src={videoUrl}
+                  title="Welcome video"
+                  frameBorder="0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              </div>
+            )}
+
+            <div className="modal-actions">
+              <button className="modal-btn-primary" onClick={goToProfile}>
+                Add My Club
+              </button>
+              <button className="modal-btn-secondary" onClick={dismiss}>
+                Explore the Map
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* Disclaimer — shown to all users */}
+        {(settings.welcome_disclaimer || true) && (
+          <div className="modal-disclaimer">
+            {settings.welcome_disclaimer ||
+              'Disclaimer placeholder — edit this text in Admin → Settings.'}
           </div>
         )}
 
-        <div className="modal-actions">
-          <button className="modal-btn-primary" onClick={goToProfile}>
-            Add / Manage My Club
-          </button>
-          <button className="modal-btn-secondary" onClick={dismiss}>
-            Explore the Map
-          </button>
-        </div>
       </div>
     </div>
   )

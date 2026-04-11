@@ -42,8 +42,10 @@ export default function AdminPage() {
   const [settings, setSettings] = useState({
     welcome_video_enabled: false,
     welcome_video_url: '',
+    welcome_video_placeholder: 'https://www.youtube.com/embed/dQw4w9WgXcQ',
     welcome_title: 'Welcome to My Club Locator!',
     welcome_message: "You're now part of the network. Watch the video below to get started, then add your club to the map.",
+    welcome_disclaimer: '',
     require_approval: false,
     demo_population: true,
     demo_income: true,
@@ -304,6 +306,21 @@ export default function AdminPage() {
                       placeholder="https://www.youtube.com/embed/VIDEO_ID"
                       disabled={!settings.welcome_video_enabled} />
                     <span className="field-hint">YouTube embed format: youtube.com/embed/VIDEO_ID</span>
+                  </div>
+                  <div className="field" style={{ gridColumn: '1 / -1' }}>
+                    <label>Video placeholder URL <span className="field-optional">shown until you set a real video</span></label>
+                    <input type="url" value={settings.welcome_video_placeholder}
+                      onChange={e => setSettings(s => ({ ...s, welcome_video_placeholder: e.target.value }))}
+                      placeholder="https://www.youtube.com/embed/VIDEO_ID" />
+                    <span className="field-hint">Shown to new users when no video URL is set above</span>
+                  </div>
+                  <div className="field" style={{ gridColumn: '1 / -1' }}>
+                    <label>Disclaimer text <span className="field-optional">shown to all users at bottom of modal</span></label>
+                    <textarea rows={3} value={settings.welcome_disclaimer}
+                      onChange={e => setSettings(s => ({ ...s, welcome_disclaimer: e.target.value }))}
+                      placeholder="Enter your disclaimer here — e.g. terms of use, membership rules, etc."
+                      style={{ resize: 'vertical' }} />
+                    <span className="field-hint">Leave blank to show the default placeholder text until you're ready</span>
                   </div>
                 </div>
               </div>

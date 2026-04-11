@@ -174,7 +174,7 @@ clubregistry-main/
 | Migration 002 | owner_email, club_email, photo URLs, story prompts, storage bucket | ✅ Applied |
 | Migration 003 | owner3 fields | ✅ Applied |
 | Migration 004 | approved, approved_at, approved_by + admin RLS policies | ⚠️ Run this |
-| Migration 006 | owner_photo_url, owner2_photo_url, owner3_photo_url columns | ⚠️ Run this |
+| Migration 007 | welcome_disclaimer, welcome_video_placeholder columns in app_settings | ⚠️ Run this |
 
 ---
 

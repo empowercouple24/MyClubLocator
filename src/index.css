@@ -909,6 +909,27 @@ body {
 
 .modal-btn-secondary:hover { background: #eaeaea; }
 
+/* Modal disclaimer */
+.modal-disclaimer {
+  margin-top: 16px;
+  padding: 10px 14px;
+  background: #f8f8f6;
+  border: 1px solid #e8e8e4;
+  border-radius: 8px;
+  font-size: 11px;
+  color: #888;
+  line-height: 1.5;
+  text-align: center;
+}
+
+/* Admin field optional label */
+.field-optional {
+  font-size: 11px;
+  font-weight: 400;
+  color: #aaa;
+  margin-left: 6px;
+}
+
 /* ── Map toolbar ── */
 .map-toolbar {
   position: absolute;
