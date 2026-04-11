@@ -2,6 +2,7 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 import WelcomeModal from './WelcomeModal'
+import UpdateBanner from './UpdateBanner'
 
 export default function Layout() {
   const { user, isAdmin } = useAuth()
@@ -14,6 +15,7 @@ export default function Layout() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
+      <UpdateBanner />
       <WelcomeModal />
 
       <header className="topbar">
