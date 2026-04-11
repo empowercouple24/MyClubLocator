@@ -31,7 +31,7 @@ export default function SignupPage() {
     <div className="auth-page">
       <div className="auth-card">
         <h1>Create your account</h1>
-        <p className="sub">Register your nutrition club and appear on the member map.</p>
+        <p className="sub">Register your nutrition club and appear on the locator map.</p>
 
         {error && <div className="error-msg">{error}</div>}
 

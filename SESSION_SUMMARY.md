@@ -1,4 +1,4 @@
-# ClubRegistry — Session Summary
+# My Club Locator — Session Summary
 **Date:** April 11, 2026
 **Session:** 01 — Initial Build & Deployment
 
@@ -7,7 +7,7 @@
 ## What was accomplished this session
 
 ### 1. Product scoped and designed
-- Defined ClubRegistry as a web app for independently owned nutrition club operators
+- Defined My Club Locator as a web app for independently owned nutrition club operators
 - Core concept: each user registers a profile; all profiles feed a shared interactive map
 - Map is login-gated (not public)
 - Built and validated a full interactive HTML prototype covering all four screens
@@ -16,7 +16,7 @@
 Complete React + Vite project generated from scratch with the following structure:
 
 ```
-clubregistry/
+my-club-locator/
 ├── index.html
 ├── vite.config.js
 ├── package.json
@@ -45,7 +45,7 @@ clubregistry/
 ### 3. Infrastructure set up
 - **Supabase:** New account created (separate from Jeffrey's two existing projects), project created, schema deployed
 - **GitHub:** Private repo created, all files uploaded via web UI
-- **Vercel:** Project deployed and live at `https://clubregistry.vercel.app`
+- **Vercel:** Project deployed and live at `https://my-club-locator.vercel.app`
 
 ### 4. Issues encountered and resolved
 | Issue | Fix |
@@ -58,7 +58,7 @@ clubregistry/
 
 ## Current state of the app
 
-- ✅ Live at `https://clubregistry.vercel.app`
+- ✅ Live at `https://my-club-locator.vercel.app`
 - ✅ Login / Signup working (email confirmation disabled for internal use)
 - ✅ My Profile form — all fields present and saving to Supabase
 - ✅ Map tab — Leaflet map, pins fed from Supabase, real-time updates
@@ -73,11 +73,11 @@ clubregistry/
 
 | Item | Value |
 |---|---|
-| Live URL | https://clubregistry.vercel.app |
-| Vercel project | https://vercel.com/empowercouple24s-projects/clubregistry |
+| Live URL | https://my-club-locator.vercel.app |
+| Vercel project | https://vercel.com/empowercouple24s-projects/my-club-locator |
 | Supabase URL | https://ulezfnzqwebkupgxqprs.supabase.co |
 | Supabase account | Separate second account (not Jeffrey's primary) |
-| GitHub repo | Private — clubregistry |
+| GitHub repo | Private — my-club-locator |
 
 ---
 
@@ -99,7 +99,7 @@ clubregistry/
 
 ## Recommended next steps
 
-1. **Set Supabase Site URL** → Authentication → URL Configuration → set to `https://clubregistry.vercel.app` and add `https://clubregistry.vercel.app/**` to redirect URLs (needed for password reset and future OAuth)
+1. **Set Supabase Site URL** → Authentication → URL Configuration → set to `https://my-club-locator.vercel.app` and add `https://my-club-locator.vercel.app/**` to redirect URLs (needed for password reset and future OAuth)
 2. **Add Google / Facebook OAuth** — generate updated LoginPage.jsx and SignupPage.jsx
 3. **Test full profile flow** — sign up, fill profile, confirm pin on map
 4. **Invite first members** — share the signup URL with your network

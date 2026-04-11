@@ -18,7 +18,7 @@ export default function Layout() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
       <header className="topbar">
-        <span className="brand">Club<span>Registry</span></span>
+        <span className="brand">My Club<span> Locator</span></span>
         <nav className="topbar-nav">
           <span className="topbar-user">{user?.email}</span>
           <button className="btn-outline" style={{ padding: '6px 14px', fontSize: '13px' }} onClick={handleLogout}>

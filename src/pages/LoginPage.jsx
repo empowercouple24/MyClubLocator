@@ -28,7 +28,7 @@ export default function LoginPage() {
     <div className="auth-page">
       <div className="auth-card">
         <h1>Welcome back</h1>
-        <p className="sub">Log in to your ClubRegistry account to manage your location.</p>
+        <p className="sub">Log in to your My Club Locator account to manage your location.</p>
 
         {error && <div className="error-msg">{error}</div>}
 
