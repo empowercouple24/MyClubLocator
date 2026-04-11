@@ -7,7 +7,7 @@ const AuthContext = createContext(null)
 const ADMIN_USER_IDS = [
   // Replace this with your actual Supabase user ID
   // Find it: Supabase Dashboard → Authentication → Users → click your user
-  'REPLACE_WITH_YOUR_SUPABASE_USER_ID'
+  'ed1f34a7-7838-4d01-a29c-63220c43e9f1'
 ]
 
 export function AuthProvider({ children }) {

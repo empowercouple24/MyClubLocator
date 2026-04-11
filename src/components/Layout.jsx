@@ -19,7 +19,7 @@ export default function Layout() {
       <WelcomeModal />
 
       <header className="topbar">
-        <span className="brand">My Club<span> Locator</span></span>
+        <NavLink to="/map" className="brand" style={{ textDecoration: 'none' }}>My Club<span> Locator</span></NavLink>
         <nav className="topbar-nav">
           <span className="topbar-user">{user?.email}</span>
           {isAdmin && (

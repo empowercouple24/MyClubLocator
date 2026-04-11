@@ -204,3 +204,39 @@ alter table public.locations
   add column if not exists owner3_last_name text,
   add column if not exists owner3_email text;
 -- ── End Migration 003 ───────────────────────────────────────
+
+-- ── Migration 004 (Session 02) ── RUN THIS NOW ──────────────
+-- Adds member approval flow columns to locations table
+
+alter table public.locations
+  add column if not exists approved boolean default true,
+  add column if not exists approved_at timestamptz,
+  add column if not exists approved_by uuid;
+
+-- Add RLS policy so admin can update any row (for approval/removal)
+-- Note: run this only if you want admin to be able to approve/remove members
+-- The app enforces admin-only access via the isAdmin check in AuthContext
+create policy "Admin can update all locations"
+  on public.locations for update
+  to authenticated
+  using (true)
+  with check (true);
+
+create policy "Admin can delete all locations"
+  on public.locations for delete
+  to authenticated
+  using (true);
+-- ── End Migration 004 ───────────────────────────────────────
+
+-- ── Migration 005 (Session 02) ── RUN THIS NOW ──────────────
+-- Adds demographics settings columns to app_settings
+
+alter table public.app_settings
+  add column if not exists demo_population boolean default true,
+  add column if not exists demo_income boolean default true,
+  add column if not exists demo_age_fit boolean default true,
+  add column if not exists demo_poverty boolean default true,
+  add column if not exists demo_competition boolean default true,
+  add column if not exists demo_unemployment boolean default true,
+  add column if not exists demo_households boolean default true;
+-- ── End Migration 005 ───────────────────────────────────────
