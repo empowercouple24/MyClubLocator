@@ -1,43 +1,46 @@
 import { useState, useRef, useEffect } from 'react'
 
-// Generates times at 15-min intervals: 5:00 AM … 11:45 PM
-function buildTimeOptions() {
-  const options = []
-  for (let h = 5; h <= 23; h++) {
-    for (let m = 0; m < 60; m += 15) {
-      const period = h < 12 ? 'AM' : 'PM'
-      const display12 = h === 0 ? 12 : h > 12 ? h - 12 : h
-      const label = `${display12}:${String(m).padStart(2,'0')} ${period}`
-      const value = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`
-      options.push({ label, value, hour: h, minute: m })
-    }
-  }
-  return options
+const HOURS   = ['6','7','8','9','10','11','12','1','2','3','4','5']
+const MINUTES = ['00','15','30','45']
+const PERIODS = ['AM','PM']
+
+function parseValue(value) {
+  if (!value) return { hour: null, minute: null, period: null }
+  const [h, m] = value.split(':').map(Number)
+  const period = h < 12 ? 'AM' : 'PM'
+  const hour   = h === 0 ? '12' : h > 12 ? String(h - 12) : String(h)
+  const minute = String(m).padStart(2, '0')
+  return { hour, minute, period }
 }
 
-const ALL_TIMES = buildTimeOptions()
-
-// Group by hour for column display
-function groupByHour(times) {
-  const groups = {}
-  times.forEach(t => {
-    if (!groups[t.hour]) groups[t.hour] = []
-    groups[t.hour].push(t)
-  })
-  return Object.values(groups)
+function toValue(hour, minute, period) {
+  if (!hour || !minute || !period) return ''
+  let h = parseInt(hour)
+  if (period === 'AM' && h === 12) h = 0
+  if (period === 'PM' && h !== 12) h += 12
+  return `${String(h).padStart(2,'0')}:${minute}`
 }
 
-const HOUR_GROUPS = groupByHour(ALL_TIMES)
-
-function formatDisplay(value) {
-  if (!value) return ''
-  const match = ALL_TIMES.find(t => t.value === value)
-  return match ? match.label : value
+function formatDisplay(hour, minute, period) {
+  if (!hour || !minute || !period) return null
+  return `${hour}:${minute} ${period}`
 }
 
-export default function TimePicker({ value, onChange, placeholder = 'Select time' }) {
-  const [open, setOpen] = useState(false)
+export default function TimePicker({ value, onChange, placeholder = 'Select', defaultPeriod = 'AM' }) {
+  const parsed = parseValue(value)
+  const [open,   setOpen]   = useState(false)
+  const [hour,   setHour]   = useState(parsed.hour   || null)
+  const [minute, setMinute] = useState(parsed.minute || null)
+  const [period, setPeriod] = useState(parsed.period || defaultPeriod)
   const ref = useRef()
+
+  // Sync if parent value changes externally
+  useEffect(() => {
+    const p = parseValue(value)
+    if (p.hour)   setHour(p.hour)
+    if (p.minute) setMinute(p.minute)
+    if (p.period) setPeriod(p.period)
+  }, [value])
 
   useEffect(() => {
     function handleClick(e) {
@@ -47,44 +50,61 @@ export default function TimePicker({ value, onChange, placeholder = 'Select time
     return () => document.removeEventListener('mousedown', handleClick)
   }, [])
 
-  function select(val) {
-    onChange(val)
+  function select(type, val) {
+    let h = hour, m = minute, p = period
+    if (type === 'hour')   h = val
+    if (type === 'minute') m = val
+    if (type === 'period') p = val
+    setHour(h); setMinute(m); setPeriod(p)
+    const result = toValue(h, m, p)
+    if (result) { onChange(result); setOpen(false) }
+  }
+
+  function clear(e) {
+    e.stopPropagation()
+    setHour(null); setMinute(null); setPeriod(defaultPeriod)
+    onChange('')
     setOpen(false)
   }
 
+  const display = formatDisplay(hour, minute, period)
+
   return (
     <div className="tp-wrap" ref={ref}>
-      <button
-        type="button"
-        className={`tp-trigger ${value ? 'has-value' : ''} ${open ? 'open' : ''}`}
-        onClick={() => setOpen(o => !o)}
-      >
-        <span>{value ? formatDisplay(value) : <span className="tp-placeholder">{placeholder}</span>}</span>
+      <button type="button" className={`tp-btn ${open ? 'open' : ''} ${display ? 'has-value' : ''}`}
+        onClick={() => setOpen(o => !o)}>
+        <span className={display ? 'tp-val' : 'tp-placeholder'}>{display || placeholder}</span>
         <span className="tp-caret">{open ? '▲' : '▼'}</span>
       </button>
 
       {open && (
-        <div className="tp-dropdown">
-          <div className="tp-grid">
-            {HOUR_GROUPS.map(group => (
-              <div key={group[0].hour} className="tp-hour-col">
-                {group.map(t => (
-                  <button
-                    key={t.value}
-                    type="button"
-                    className={`tp-option ${value === t.value ? 'selected' : ''}`}
-                    onClick={() => select(t.value)}
-                  >
-                    {t.label}
-                  </button>
-                ))}
-              </div>
+        <div className="tp-popup">
+          <div className="tp-col">
+            <div className="tp-col-hdr">Hour</div>
+            {HOURS.map(h => (
+              <button key={h} type="button"
+                className={`tp-item ${hour === h ? 'sel' : ''}`}
+                onClick={() => select('hour', h)}>{h}</button>
             ))}
           </div>
-          {value && (
-            <button type="button" className="tp-clear" onClick={() => { onChange(''); setOpen(false) }}>
-              Clear
-            </button>
+          <div className="tp-col">
+            <div className="tp-col-hdr">Min</div>
+            {MINUTES.map(m => (
+              <button key={m} type="button"
+                className={`tp-item ${minute === m ? 'sel' : ''}`}
+                onClick={() => select('minute', m)}>{m}</button>
+            ))}
+          </div>
+          <div className="tp-col tp-col-period">
+            <div className="tp-col-hdr">AM/PM</div>
+            {PERIODS.map(p => (
+              <button key={p} type="button"
+                className={`tp-item ${period === p ? 'sel' : ''}`}
+                onClick={() => select('period', p)}>{p}</button>
+            ))}
+          </div>
+          {display && (
+            <button type="button" className="tp-clear" onClick={clear}>✕</button>
           )}
         </div>
       )}

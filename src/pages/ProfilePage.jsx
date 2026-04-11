@@ -12,7 +12,7 @@ const MONTHS = ['January','February','March','April','May','June','July','August
 
 function buildYears() {
   const y = []
-  for (let yr = new Date().getFullYear(); yr >= 2000; yr--) y.push(String(yr))
+  for (let yr = new Date().getFullYear(); yr >= 2006; yr--) y.push(String(yr))
   return y
 }
 const YEARS = buildYears()
@@ -448,28 +448,22 @@ export default function ProfilePage() {
             {errors.address && <span className="field-err">{errors.address}</span>}
           </div>
           <div className="pf addr-city">
-            <label className="dimmed-label">City <span className="autofill-hint">auto-filled</span></label>
-            <input type="text" value={form.city} onChange={e => setField('city', e.target.value)}
-              placeholder="Auto-filled from ZIP" tabIndex={3}
-              className={`dimmed-input${errors.city ? ' input-err' : ''}`} />
+            <label className="dimmed-label">City <span className="autofill-hint">✦ auto-filled</span></label>
+            <input type="text" value={form.city} readOnly tabIndex={-1}
+              placeholder="Auto-filled from address"
+              className="dimmed-input" />
           </div>
           <div className="pf addr-state">
-            <label className="dimmed-label">State <span className="autofill-hint">auto-filled</span></label>
-            <input type="text" value={form.state} onChange={e => setField('state', e.target.value)}
-              placeholder="Auto-filled" tabIndex={4}
-              className={`dimmed-input${errors.state ? ' input-err' : ''}`} />
+            <label className="dimmed-label">State <span className="autofill-hint">✦ auto-filled</span></label>
+            <input type="text" value={form.state} readOnly tabIndex={-1}
+              placeholder="Auto-filled from address"
+              className="dimmed-input" />
           </div>
           <div className="pf addr-zip">
-            <label>ZIP code <span className="req-star">*</span></label>
-            <div style={{ position: 'relative' }}>
-              <input type="text" value={form.zip}
-                onChange={e => setField('zip', e.target.value)}
-                onBlur={e => handleZipBlur(e.target.value)}
-                placeholder="44060" maxLength={10} tabIndex={2}
-                className={errors.zip ? 'input-err' : ''} />
-              {zipLooking && <span className="zip-loading">Looking up…</span>}
-            </div>
-            {errors.zip && <span className="field-err">{errors.zip}</span>}
+            <label className="dimmed-label">ZIP <span className="autofill-hint">✦ auto-filled</span></label>
+            <input type="text" value={form.zip} readOnly tabIndex={-1}
+              placeholder="Auto-filled from address"
+              className="dimmed-input" />
           </div>
         </div>
       </div>
@@ -512,12 +506,14 @@ export default function ProfilePage() {
                   value={form[`hours_${day}_open`]}
                   onChange={v => setField(`hours_${day}_open`, v)}
                   placeholder="Open"
+                  defaultPeriod="AM"
                 />
                 <span className="hrs-dash">–</span>
                 <TimePicker
                   value={form[`hours_${day}_close`]}
                   onChange={v => setField(`hours_${day}_close`, v)}
                   placeholder="Close"
+                  defaultPeriod="PM"
                 />
               </div>
               <button className="copy-hours-btn" title="Copy to other days"
