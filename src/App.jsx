@@ -8,6 +8,7 @@ import DirectoryPage from './pages/DirectoryPage'
 import ProfilePage from './pages/ProfilePage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
 import ForgotPasswordPage from './pages/ForgotPasswordPage'
+import AdminPage from './pages/AdminPage'
 
 function RequireAuth({ children }) {
   const { session } = useAuth()
@@ -35,6 +36,7 @@ export default function App() {
         <Route path="map" element={<MapPage />} />
         <Route path="directory" element={<DirectoryPage />} />
         <Route path="profile" element={<ProfilePage />} />
+        <Route path="admin" element={<AdminPage />} />
       </Route>
     </Routes>
   )

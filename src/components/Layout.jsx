@@ -1,9 +1,10 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
+import WelcomeModal from './WelcomeModal'
 
 export default function Layout() {
-  const { user } = useAuth()
+  const { user, isAdmin } = useAuth()
   const navigate = useNavigate()
 
   async function handleLogout() {
@@ -11,16 +12,19 @@ export default function Layout() {
     navigate('/login')
   }
 
-  const initials = user?.email
-    ? user.email.slice(0, 2).toUpperCase()
-    : '?'
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
+      <WelcomeModal />
+
       <header className="topbar">
         <span className="brand">My Club<span> Locator</span></span>
         <nav className="topbar-nav">
           <span className="topbar-user">{user?.email}</span>
+          {isAdmin && (
+            <NavLink to="/admin" className={({ isActive }) => `admin-badge ${isActive ? 'active' : ''}`}>
+              Admin
+            </NavLink>
+          )}
           <button className="btn-outline" style={{ padding: '6px 14px', fontSize: '13px' }} onClick={handleLogout}>
             Log out
           </button>

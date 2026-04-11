@@ -1,0 +1,86 @@
+import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { supabase } from '../lib/supabase'
+import { useAuth } from '../lib/AuthContext'
+
+export default function WelcomeModal() {
+  const { user } = useAuth()
+  const navigate = useNavigate()
+  const [show, setShow] = useState(false)
+  const [settings, setSettings] = useState(null)
+
+  useEffect(() => {
+    if (!user) return
+    const key = `welcome_seen_${user.id}`
+    const seen = localStorage.getItem(key)
+    if (seen) return
+
+    async function load() {
+      const { data } = await supabase
+        .from('app_settings')
+        .select('*')
+        .eq('id', 1)
+        .single()
+      if (data) {
+        setSettings(data)
+        setShow(true)
+      }
+    }
+    load()
+  }, [user])
+
+  function dismiss() {
+    localStorage.setItem(`welcome_seen_${user.id}`, 'true')
+    setShow(false)
+  }
+
+  function goToProfile() {
+    dismiss()
+    navigate('/profile')
+  }
+
+  if (!show || !settings) return null
+
+  return (
+    <div className="modal-overlay" onClick={dismiss}>
+      <div className="modal-card" onClick={e => e.stopPropagation()}>
+        <button className="modal-close" onClick={dismiss} aria-label="Close">✕</button>
+
+        <div className="modal-logo">
+          <svg width="32" height="32" viewBox="0 0 18 18" fill="none">
+            <circle cx="9" cy="9" r="3.5" fill="#4CAF82"/>
+            <circle cx="9" cy="9" r="7" stroke="#4CAF82" strokeWidth="1.5" fill="none"/>
+            <line x1="9" y1="2" x2="9" y2="0.5" stroke="#4CAF82" strokeWidth="1.5" strokeLinecap="round"/>
+            <line x1="9" y1="16" x2="9" y2="17.5" stroke="#4CAF82" strokeWidth="1.5" strokeLinecap="round"/>
+            <line x1="2" y1="9" x2="0.5" y2="9" stroke="#4CAF82" strokeWidth="1.5" strokeLinecap="round"/>
+            <line x1="16" y1="9" x2="17.5" y2="9" stroke="#4CAF82" strokeWidth="1.5" strokeLinecap="round"/>
+          </svg>
+        </div>
+
+        <h2 className="modal-title">{settings.welcome_title}</h2>
+        <p className="modal-message">{settings.welcome_message}</p>
+
+        {settings.welcome_video_enabled && settings.welcome_video_url && (
+          <div className="modal-video">
+            <iframe
+              src={settings.welcome_video_url}
+              title="Welcome video"
+              frameBorder="0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+            />
+          </div>
+        )}
+
+        <div className="modal-actions">
+          <button className="modal-btn-primary" onClick={goToProfile}>
+            Add / Manage My Club
+          </button>
+          <button className="modal-btn-secondary" onClick={dismiss}>
+            Explore the Map
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}

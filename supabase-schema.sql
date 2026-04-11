@@ -100,3 +100,33 @@ create policy "Users can delete their own location"
 -- ============================================================
 
 alter publication supabase_realtime add table public.locations;
+
+-- ============================================================
+-- App Settings table (for admin-controlled platform settings)
+-- Run this as a new query in Supabase SQL Editor
+-- ============================================================
+
+create table if not exists public.app_settings (
+  id integer primary key default 1,
+  welcome_video_enabled boolean default false,
+  welcome_video_url text default '',
+  welcome_title text default 'Welcome to My Club Locator!',
+  welcome_message text default 'You''re now part of the network. Watch the video below to get started, then add your club to the map.',
+  updated_at timestamptz default now(),
+  constraint single_row check (id = 1)
+);
+
+-- Insert the default settings row
+insert into public.app_settings (id) values (1) on conflict (id) do nothing;
+
+-- RLS: anyone authenticated can read settings
+alter table public.app_settings enable row level security;
+
+create policy "Authenticated users can read settings"
+  on public.app_settings for select
+  to authenticated using (true);
+
+-- Only allow updates via service role (admin updates go through the app with admin check)
+create policy "Authenticated users can update settings"
+  on public.app_settings for update
+  to authenticated using (true);
