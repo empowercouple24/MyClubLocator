@@ -805,6 +805,15 @@ body {
   padding: 16px;
 }
 
+/* Locked overlay — no click-to-dismiss, no cursor change */
+.modal-overlay--locked {
+  cursor: default;
+  pointer-events: all;
+}
+.modal-overlay--locked .modal-card {
+  pointer-events: all;
+}
+
 .modal-card {
   background: #fff;
   border-radius: 20px;
