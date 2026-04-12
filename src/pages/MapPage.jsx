@@ -162,6 +162,18 @@ function ClubMarkers({ locations, selectedId, userId, onSelect, navigate }) {
       const icon = isSelected ? selectedIcon : (isOwn ? ownIcon : otherIcon)
 
       // ── Owner rows with photo or initials + per-owner level pill ──
+      // ── Level condensing helper ──
+      const condenseLvl = (l) => {
+        if (!l) return ''
+        return l
+          .replace('Presidents Team', 'PT').replace('Chairmans Club', 'CC')
+          .replace('Founders Circle', 'FC').replace('Millionaire Team 7500', 'MP')
+          .replace('Millionaire Team', 'MT').replace('Get Team 2500', 'GP')
+          .replace('Get Team', 'GT').replace('Active World Team', 'AWT')
+          .replace('World Team', 'WT').replace('Supervisor', 'SP')
+          .replace('Success Builder', 'SB').replace('Distributor', 'DS')
+      }
+
       const ownerRows = [
         { name: [loc.first_name, loc.last_name].filter(Boolean).join(' '), photo: loc.owner_photo_url, level: loc.herbalife_level },
         { name: [loc.owner2_first_name, loc.owner2_last_name].filter(Boolean).join(' '), photo: loc.owner2_photo_url, level: loc.owner2_herbalife_level },
@@ -184,16 +196,6 @@ function ClubMarkers({ locations, selectedId, userId, onSelect, navigate }) {
         : `<div class="ct-logo-initials">${(loc.club_name || 'CL').slice(0,2).toUpperCase()}</div>`
 
       // ── Level pill ──
-      const condenseLvl = (l) => {
-        if (!l) return ''
-        return l
-          .replace('Presidents Team', 'PT').replace('Chairmans Club', 'CC')
-          .replace('Founders Circle', 'FC').replace('Millionaire Team 7500', 'MP')
-          .replace('Millionaire Team', 'MT').replace('Get Team 2500', 'GP')
-          .replace('Get Team', 'GT').replace('Active World Team', 'AWT')
-          .replace('World Team', 'WT').replace('Supervisor', 'SP')
-          .replace('Success Builder', 'SB').replace('Distributor', 'DS')
-      }
       const levelLabel = condenseLvl(loc.herbalife_level)
       const levelHtml = levelLabel
         ? `<div class="ct-level-pill">${levelLabel.replace(/ (\d+) 💎$/, ' $1 💎')}</div>`
