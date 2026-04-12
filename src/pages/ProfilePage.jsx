@@ -344,7 +344,8 @@ function ClubEditor({ club, clubIndex, userId, isOnly, onSaved, onRemove, userEm
   const photoInputRef = useRef()
 
   const [cropSrc, setCropSrc]     = useState(null)
-  const dragIdx = useRef(null)
+  const [dragIdx, setDragIdx]     = useState(null)   // index of photo being dragged
+  const [dropTarget, setDropTarget] = useState(null) // insertion position (0..n)
 
   const [copySource, setCopySource]   = useState(null)
   const [copyTargets, setCopyTargets] = useState({})
@@ -834,34 +835,64 @@ function ClubEditor({ club, clubIndex, userId, isOnly, onSaved, onRemove, userEm
         <div className="photo-section" style={{ marginTop: 20 }}>
           <div className="photo-section-title">Club Photos</div>
           <p className="upload-hint" style={{ marginBottom: 12 }}>Up to 10 photos. Drag to reorder — first photo is your cover.</p>
-          <div className="photos-grid">
-            {photoUrls.map((url, i) => (
+          <div className={`photos-grid${dragIdx !== null ? ' photos-grid--dragging' : ''}`}>
+            {/* Drop zone before first photo */}
+            {dragIdx !== null && (
               <div
-                key={url}
-                className={`photo-thumb ${dragIdx.current === i ? 'dragging' : ''}`}
-                draggable
-                onDragStart={() => { dragIdx.current = i }}
-                onDragOver={e => { e.preventDefault() }}
+                className={`photo-drop-gap${dropTarget === 0 ? ' active' : ''}`}
+                onDragOver={e => { e.preventDefault(); setDropTarget(0) }}
                 onDrop={() => {
-                  if (dragIdx.current === null || dragIdx.current === i) return
+                  if (dragIdx === null) return
                   const newUrls = [...photoUrls]
-                  const [moved] = newUrls.splice(dragIdx.current, 1)
-                  newUrls.splice(i, 0, moved)
+                  const [moved] = newUrls.splice(dragIdx, 1)
+                  const insertAt = dropTarget > dragIdx ? dropTarget - 1 : dropTarget
+                  newUrls.splice(insertAt, 0, moved)
                   setPhotoUrls(newUrls)
-                  dragIdx.current = null
+                  setDragIdx(null); setDropTarget(null)
                 }}
-                onDragEnd={() => { dragIdx.current = null }}
-              >
-                <img src={url} alt={'Club photo ' + (i+1)} />
-                {i === 0 && <span className="photo-cover-badge">Cover</span>}
-                <span className="photo-drag-handle">
-                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                    <circle cx="3" cy="3" r="1.2" fill="white"/><circle cx="3" cy="6" r="1.2" fill="white"/><circle cx="3" cy="9" r="1.2" fill="white"/>
-                    <circle cx="9" cy="3" r="1.2" fill="white"/><circle cx="9" cy="6" r="1.2" fill="white"/><circle cx="9" cy="9" r="1.2" fill="white"/>
-                  </svg>
-                </span>
-                <button className="photo-remove-btn" onClick={() => setPhotoUrls(p => p.filter((_, idx) => idx !== i))}>✕</button>
-              </div>
+              />
+            )}
+            {photoUrls.map((url, i) => (
+              <>
+                <div
+                  key={url}
+                  className={[
+                    'photo-thumb',
+                    dragIdx === i ? 'photo-thumb--dragging' : '',
+                    dragIdx !== null && dragIdx !== i ? 'photo-thumb--dimmed' : '',
+                  ].filter(Boolean).join(' ')}
+                  draggable
+                  onDragStart={() => { setDragIdx(i); setDropTarget(null) }}
+                  onDragEnd={() => { setDragIdx(null); setDropTarget(null) }}
+                >
+                  <img src={url} alt={'Club photo ' + (i+1)} />
+                  {i === 0 && <span className="photo-cover-badge">Cover</span>}
+                  <span className="photo-drag-handle">
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                      <circle cx="3" cy="3" r="1.2" fill="white"/><circle cx="3" cy="6" r="1.2" fill="white"/><circle cx="3" cy="9" r="1.2" fill="white"/>
+                      <circle cx="9" cy="3" r="1.2" fill="white"/><circle cx="9" cy="6" r="1.2" fill="white"/><circle cx="9" cy="9" r="1.2" fill="white"/>
+                    </svg>
+                  </span>
+                  <button className="photo-remove-btn" onClick={() => setPhotoUrls(p => p.filter((_, idx) => idx !== i))}>✕</button>
+                </div>
+                {/* Drop zone after each photo */}
+                {dragIdx !== null && (
+                  <div
+                    key={'gap-' + i}
+                    className={`photo-drop-gap${dropTarget === i + 1 ? ' active' : ''}`}
+                    onDragOver={e => { e.preventDefault(); setDropTarget(i + 1) }}
+                    onDrop={() => {
+                      if (dragIdx === null) return
+                      const newUrls = [...photoUrls]
+                      const [moved] = newUrls.splice(dragIdx, 1)
+                      const insertAt = dropTarget > dragIdx ? dropTarget - 1 : dropTarget
+                      newUrls.splice(insertAt, 0, moved)
+                      setPhotoUrls(newUrls)
+                      setDragIdx(null); setDropTarget(null)
+                    }}
+                  />
+                )}
+              </>
             ))}
             {uploadProgress && (
               <div className="photo-upload-progress-tile">
@@ -896,8 +927,8 @@ function ClubEditor({ club, clubIndex, userId, isOnly, onSaved, onRemove, userEm
         />
       )}
 
-      {/* Per-club save bar */}
-      <div className={`club-save-bar ${isDirty || !form.id ? 'club-save-bar--visible' : ''}`}>
+      {/* Per-club save bar — sticky when dirty or unsaved */}
+      <div className={`club-save-bar${isDirty || !form.id ? ' club-save-bar--visible' : ''}${isDirty ? ' club-save-bar--sticky' : ''}`}>
         {isDirty && form.id && (
           <div className="save-bar-alert">
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
@@ -953,8 +984,8 @@ export default function ProfilePage() {
   const [showOwner2, setShowOwner2] = useState(false)
   const [showOwner3, setShowOwner3] = useState(false)
   const [owner1Collapsed, setOwner1Collapsed] = useState(false)
-  const [owner2Collapsed, setOwner2Collapsed] = useState(false)
-  const [owner3Collapsed, setOwner3Collapsed] = useState(false)
+  const [owner2Collapsed, setOwner2Collapsed] = useState(true)
+  const [owner3Collapsed, setOwner3Collapsed] = useState(true)
   const [surveyOpen, setSurveyOpen] = useState(false)
   const [storyOpen,  setStoryOpen]  = useState(false)
 
@@ -1352,10 +1383,10 @@ export default function ProfilePage() {
           )}
         </div>
 
-        {/* Owner save bar */}
-        {(isPersonDirty || savedPersonForm === null) && hasAnyClub && (
-          <div className="owner-save-bar">
-            {isPersonDirty && savedPersonForm !== null && (
+        {/* Owner save bar — sticky when dirty */}
+        {hasAnyClub && (
+          <div className={`owner-save-bar${isPersonDirty ? ' owner-save-bar--sticky' : ''}`}>
+            {isPersonDirty && (
               <div className="save-bar-alert">
                 <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
                   <circle cx="8" cy="8" r="7" stroke="#B45309" strokeWidth="1.5"/>
@@ -1365,7 +1396,7 @@ export default function ProfilePage() {
                 Unsaved changes
               </div>
             )}
-            <button className="btn-save" onClick={savePersonFields} disabled={saving}>
+            <button className="btn-save" onClick={savePersonFields} disabled={saving || !isPersonDirty}>
               {saving ? 'Saving…' : 'Save Owner Info'}
             </button>
           </div>

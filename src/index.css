@@ -2238,9 +2238,29 @@ body {
 }
 
 .photos-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  display: flex;
+  flex-wrap: wrap;
   gap: 8px;
+  align-items: flex-start;
+}
+
+.photos-grid .photo-thumb {
+  width: calc((100% - 16px) / 3);
+  flex-shrink: 0;
+}
+
+.photos-grid--dragging {
+  gap: 0;
+  align-items: stretch;
+}
+
+.photos-grid--dragging .photo-thumb {
+  margin: 4px 0;
+}
+
+.photos-grid--dragging .photo-add-tile,
+.photos-grid--dragging .photo-upload-progress-tile {
+  margin: 4px 0;
 }
 
 .photo-thumb {
@@ -5124,8 +5144,38 @@ body {
 .photo-thumb {
   position: relative;
   cursor: grab;
+  transition: filter 0.15s, opacity 0.15s;
 }
-.photo-thumb.dragging { opacity: 0.4; }
+
+/* The photo being dragged — full opacity, no blur */
+.photo-thumb--dragging {
+  opacity: 1 !important;
+  filter: none !important;
+  cursor: grabbing;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.22);
+  z-index: 2;
+}
+
+/* All other photos while a drag is in progress */
+.photo-thumb--dimmed {
+  opacity: 0.45;
+  filter: blur(1.5px);
+}
+
+/* Drop gap zones — sit between photos in the grid */
+.photo-drop-gap {
+  width: 6px;
+  border-radius: 3px;
+  background: transparent;
+  transition: background 0.1s, width 0.1s;
+  align-self: stretch;
+  cursor: copy;
+}
+.photo-drop-gap.active {
+  width: 4px;
+  background: #2E7D5B;
+  box-shadow: 0 0 0 2px #9bdcbc;
+}
 
 .photo-cover-badge {
   position: absolute;
@@ -6326,12 +6376,23 @@ body {
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
-  padding: 14px 0 1.25rem;
+  padding: 14px 1.5rem 1.25rem;
   border-top: 1px solid #e8ede9;
   margin-top: 1rem;
+  transition: box-shadow 0.2s;
 }
 .club-save-bar--visible {
   display: flex;
+}
+.club-save-bar--sticky {
+  position: sticky;
+  bottom: 0;
+  background: #fff;
+  z-index: 50;
+  border-top: 1.5px solid #d4e8dc;
+  box-shadow: 0 -4px 16px rgba(0,0,0,0.08);
+  margin-top: 0;
+  padding: 12px 1.5rem;
 }
 
 .remove-club-link {
@@ -6356,6 +6417,17 @@ body {
   padding: 14px 0 4px;
   border-top: 1px solid #e8ede9;
   margin-top: 1rem;
+  transition: box-shadow 0.2s;
+}
+.owner-save-bar--sticky {
+  position: sticky;
+  bottom: 0;
+  background: #fff;
+  z-index: 50;
+  border-top: 1.5px solid #d4e8dc;
+  box-shadow: 0 -4px 16px rgba(0,0,0,0.08);
+  margin: 0 -1.5rem;
+  padding: 12px 1.5rem;
 }
 
 /* ── Add/Remove Club Modals ───────────────────────────────── */
