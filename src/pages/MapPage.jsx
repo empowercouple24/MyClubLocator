@@ -9,8 +9,7 @@ import MapSearchAutocomplete from '../components/MapSearchAutocomplete'
 import PhotoGallery from '../components/PhotoGallery'
 
 // ── Circle markers via DivIcon ────────────────────────────
-// own = warm red, other = periwinkle blue, selected = gold
-// Each has a white stroke on light map, white stroke on aerial
+// own = warm red, other = periwinkle blue, selected = gold with pulse
 function makeCircleIcon(type) {
   const configs = {
     own:      { fill: '#D94F4F', stroke: '#a83535', size: 22 },
@@ -19,6 +18,20 @@ function makeCircleIcon(type) {
   }
   const { fill, stroke, size } = configs[type]
   const r = size / 2
+
+  if (type === 'selected') {
+    // Pulsing rings injected as sibling divs with CSS animation
+    const html = `
+      <div style="position:relative;width:${size}px;height:${size}px;cursor:pointer;transform:translate(-50%,-50%);">
+        <div class="marker-pulse-ring marker-pulse-ring--1" style="--pulse-color:${fill};"></div>
+        <div class="marker-pulse-ring marker-pulse-ring--2" style="--pulse-color:${fill};"></div>
+        <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg" style="position:relative;z-index:2;">
+          <circle cx="${r}" cy="${r}" r="${r - 1.5}" fill="${fill}" stroke="white" stroke-width="2.5"/>
+        </svg>
+      </div>`
+    return divIcon({ className: '', html, iconSize: [size, size], iconAnchor: [r, r], popupAnchor: [0, -r] })
+  }
+
   const svg = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg"><circle cx="${r}" cy="${r}" r="${r - 1.5}" fill="${fill}" stroke="white" stroke-width="2"/></svg>`
   return divIcon({
     className: '',
@@ -47,7 +60,7 @@ const BASE_MAPS = [
 ]
 
 const RADIUS_PRESETS = [3, 10, 20, 30]
-const PANEL_POSITIONS = ['right', 'left', 'bottom']
+const PANEL_POSITIONS = ['right', 'left']
 
 function milesToMeters(m) { return m * 1609.34 }
 
@@ -438,7 +451,7 @@ function ClubDetail({ club, userId, onManage, radiusMiles, setRadiusMiles, custo
       <div className="cp-section">
         <div className="cp-section-title">Contact</div>
         {club.address && <div className="cp-row"><span className="cp-icon">📍</span><span>{club.address}{club.city ? `, ${club.city}` : ''}</span></div>}
-        {club.club_phone && <div className="cp-row"><span className="cp-icon">📞</span><a href={`tel:${club.club_phone}`}>{formatPhone(club.club_phone)}</a></div>}
+        {club.club_phone && <div className="cp-row"><span className="cp-icon">📞</span><span>{formatPhone(club.club_phone)}</span></div>}
         {club.club_email && <div className="cp-row"><span className="cp-icon">✉️</span><span className="cp-email-plain">{club.club_email}</span></div>}
         {club.website && <div className="cp-row"><span className="cp-icon">🌐</span><a href={club.website.startsWith('http') ? club.website : `https://${club.website}`} target="_blank" rel="noreferrer">{club.website}</a></div>}
       </div>
@@ -929,13 +942,10 @@ export default function MapPage() {
             </button>
             <div className="map-position-toggle" title="Panel position">
               {[
-                { pos: 'left',   icon: (
+                { pos: 'left',  icon: (
                   <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="1" y="1" width="5" height="14" rx="1" fill="currentColor" opacity="0.9"/><rect x="7" y="1" width="8" height="14" rx="1" fill="currentColor" opacity="0.3"/></svg>
                 )},
-                { pos: 'bottom', icon: (
-                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="1" y="1" width="14" height="9" rx="1" fill="currentColor" opacity="0.3"/><rect x="1" y="11" width="14" height="4" rx="1" fill="currentColor" opacity="0.9"/></svg>
-                )},
-                { pos: 'right',  icon: (
+                { pos: 'right', icon: (
                   <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="1" y="1" width="8" height="14" rx="1" fill="currentColor" opacity="0.3"/><rect x="10" y="1" width="5" height="14" rx="1" fill="currentColor" opacity="0.9"/></svg>
                 )},
               ].map(({ pos, icon }) => (
@@ -995,9 +1005,15 @@ export default function MapPage() {
             title={panelCollapsed ? 'Expand panel' : 'Collapse panel'}
           >
             <svg width="8" height="14" viewBox="0 0 8 14" fill="none">
-              {panelCollapsed
-                ? <path d="M2 1l5 6-5 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                : <path d="M6 1l-5 6 5 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              {/* Right panel: collapsed=point left(open), expanded=point right(close) */}
+              {/* Left panel: collapsed=point right(open), expanded=point left(close) */}
+              {panelPosition === 'right'
+                ? panelCollapsed
+                  ? <path d="M6 1l-5 6 5 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  : <path d="M2 1l5 6-5 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                : panelCollapsed
+                  ? <path d="M2 1l5 6-5 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  : <path d="M6 1l-5 6 5 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
               }
             </svg>
           </button>
@@ -1009,7 +1025,7 @@ export default function MapPage() {
 
           {/* Panel header: width toggle pill */}
           {panelPosition !== 'bottom' && (
-            <div className="panel-width-row">
+            <div className={`panel-width-row panel-width-row--${panelPosition}`}>
               <button
                 className={`panel-wide-pill ${panelWidth === 'wide' ? 'active' : ''}`}
                 onClick={togglePanelWidth}

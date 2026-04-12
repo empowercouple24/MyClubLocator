@@ -1263,19 +1263,12 @@ body {
 .map-pos-left .map-area { flex: 1; min-width: 0; position: relative; }
 .map-pos-left .club-panel { width: 340px; border-right: 1px solid #e0e8e0; border-left: none; }
 
-/* Bottom */
-.map-pos-bottom { flex-direction: column; }
-.map-pos-bottom .map-area { flex: 1; min-width: 0; position: relative; }
-.map-pos-bottom .club-panel { width: 100%; height: 260px; flex-shrink: 0; border-top: 1px solid #e0e8e0; border-left: none; }
-.map-pos-bottom .club-panel-inner { flex-direction: row; gap: 0; }
-.map-pos-bottom .cp-my-club-zone { width: 280px; flex-shrink: 0; border-right: 1px solid #f0f0f0; border-bottom: none; padding-right: 16px; }
-.map-pos-bottom .cp-panel-divider { display: none; }
-.map-pos-bottom .cp-detail-zone { flex: 1; overflow-y: auto; padding-left: 16px; }
+/* Bottom — removed */
 
 /* Panel base */
 .club-panel {
   background: #fff;
-  overflow-y: auto;
+  overflow: visible;
   display: flex;
   flex-direction: column;
   box-shadow: -2px 0 16px rgba(0,0,0,0.06);
@@ -1364,7 +1357,12 @@ body {
   flex-direction: column;
   gap: 0;
   overflow-y: auto;
+  overflow-x: hidden;
 }
+
+/* Width pill alignment — right panel = right aligned, left panel = left aligned */
+.panel-width-row--right { justify-content: flex-end; }
+.panel-width-row--left  { justify-content: flex-start; }
 
 /* ── My Club pinned zone ── */
 .cp-my-club-zone {
@@ -1607,9 +1605,9 @@ body {
 }
 
 .cp-hours-grid { display: flex; flex-direction: column; gap: 4px; }
-.cp-hours-row  { display: flex; justify-content: space-between; font-size: 12px; }
-.cp-hours-day  { color: #666; font-weight: 500; width: 32px; }
-.cp-hours-time { color: #333; }
+.cp-hours-row  { display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; gap: 6px; flex-wrap: nowrap; }
+.cp-hours-day  { color: #666; font-weight: 500; width: 32px; flex-shrink: 0; }
+.cp-hours-time { color: #333; white-space: nowrap; flex-shrink: 0; }
 
 .cp-socials { display: flex; flex-wrap: wrap; gap: 5px; }
 .cp-social-link {
@@ -6756,4 +6754,32 @@ input.input-ok {
 .cp-explore-btn:hover {
   background: #E1F5EE;
   border-color: #4CAF82;
+}
+
+/* ── Selected marker pulse rings ─────────────────────────── */
+.marker-pulse-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  border-radius: 50%;
+  background: transparent;
+  border: 2px solid var(--pulse-color, #F59E0B);
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.6);
+  pointer-events: none;
+  z-index: 1;
+}
+.marker-pulse-ring--1 {
+  width: 50px;
+  height: 50px;
+  animation: marker-pulse 2s ease-out infinite;
+}
+.marker-pulse-ring--2 {
+  width: 50px;
+  height: 50px;
+  animation: marker-pulse 2s ease-out infinite 0.7s;
+}
+@keyframes marker-pulse {
+  0%   { transform: translate(-50%, -50%) scale(0.5); opacity: 0.8; }
+  100% { transform: translate(-50%, -50%) scale(2.2); opacity: 0; }
 }
