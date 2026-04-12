@@ -1256,12 +1256,12 @@ body {
 /* Right (default) */
 .map-pos-right { flex-direction: row; }
 .map-pos-right .map-area { flex: 1; min-width: 0; position: relative; }
-.map-pos-right .club-panel { width: 340px; flex-shrink: 0; border-left: 1px solid #e0e8e0; }
+.map-pos-right .club-panel { width: 340px; border-left: 1px solid #e0e8e0; }
 
 /* Left */
 .map-pos-left { flex-direction: row-reverse; }
 .map-pos-left .map-area { flex: 1; min-width: 0; position: relative; }
-.map-pos-left .club-panel { width: 340px; flex-shrink: 0; border-right: 1px solid #e0e8e0; border-left: none; }
+.map-pos-left .club-panel { width: 340px; border-right: 1px solid #e0e8e0; border-left: none; }
 
 /* Bottom */
 .map-pos-bottom { flex-direction: column; }
@@ -1279,6 +1279,69 @@ body {
   display: flex;
   flex-direction: column;
   box-shadow: -2px 0 16px rgba(0,0,0,0.06);
+  transition: width 0.25s ease;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.map-pos-right .club-panel--wide  { width: 440px !important; }
+.map-pos-left  .club-panel--wide  { width: 440px !important; }
+.map-pos-right .club-panel--collapsed { width: 22px !important; overflow: hidden; box-shadow: none; border-left: 1px solid #e0e8e0; }
+.map-pos-left  .club-panel--collapsed { width: 22px !important; overflow: hidden; box-shadow: none; border-right: 1px solid #e0e8e0; }
+
+/* Collapse tab — sits flush on the map-facing edge */
+.panel-collapse-tab {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 48px;
+  background: #fff;
+  border: 1px solid #e0e8e0;
+  border-radius: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #888;
+  z-index: 10;
+  transition: background 0.15s, color 0.15s;
+  padding: 0;
+}
+.panel-collapse-tab:hover { background: #f0f8f4; color: #1A3C2E; }
+.map-pos-right .panel-collapse-tab { left: -18px; border-radius: 8px 0 0 8px; border-right: none; }
+.map-pos-left  .panel-collapse-tab { right: -18px; border-radius: 0 8px 8px 0; border-left: none; }
+
+/* Width toggle pill row */
+.panel-width-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 0.5px solid #e8ede9;
+}
+.panel-width-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 500;
+  border-radius: 20px;
+  border: 1px solid #dde8e2;
+  background: transparent;
+  color: #888;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.panel-width-pill:hover:not(.active) { background: #f5f9f6; color: #444; }
+.panel-width-pill.active {
+  background: #E1F5EE;
+  border-color: #4CAF82;
+  color: #0F6E56;
+  font-weight: 600;
+  cursor: default;
 }
 
 .club-panel-inner {
@@ -3848,7 +3911,7 @@ body {
   background: none;
   border: none;
   cursor: pointer;
-  padding: 10px 0;
+  padding: 5px 0;
   gap: 8px;
 }
 .cp-my-club-header:hover { opacity: 0.8; }
@@ -3856,25 +3919,25 @@ body {
 .cp-my-club-collapsed-row {
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 7px;
   min-width: 0;
 }
 
 .cp-mcc-thumb {
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
   object-fit: cover;
   flex-shrink: 0;
 }
 
 .cp-mcc-initials {
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
   background: #1A3C2E;
   color: #fff;
-  font-size: 11px;
+  font-size: 9px;
   font-weight: 500;
   display: flex;
   align-items: center;
@@ -3883,7 +3946,7 @@ body {
 }
 
 .cp-mcc-name {
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 500;
   color: #1A3C2E;
   white-space: nowrap;
@@ -6571,4 +6634,113 @@ input.input-ok {
   background: #2E7D5B;
   border-radius: 2px;
   transition: width 0.2s ease;
+}
+
+/* ── My Location button ───────────────────────────────────── */
+.map-geolocate-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 12px;
+  height: 36px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #444;
+  background: #fff;
+  border: 1px solid #d0d9d4;
+  border-radius: 8px;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.map-geolocate-btn:hover:not(:disabled) {
+  background: #f0f8f4;
+  border-color: #4CAF82;
+  color: #1A3C2E;
+}
+.map-geolocate-btn.active {
+  background: #E1F5EE;
+  border-color: #4CAF82;
+  color: #0F6E56;
+  font-weight: 600;
+}
+.map-geolocate-btn:disabled {
+  opacity: 0.7;
+  cursor: default;
+}
+
+.geo-spinner {
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  border: 2px solid #c8ecd8;
+  border-top-color: #2E7D5B;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+/* ── Geo error toast ─────────────────────────────────────── */
+.map-geo-error {
+  background: #C0392B !important;
+  color: #fff !important;
+}
+
+/* ── Geolocation pulsing dot marker ─────────────────────── */
+.geo-dot {
+  position: relative;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.geo-dot-inner {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #1A6EF5;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+  position: relative;
+  z-index: 2;
+}
+.geo-dot-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(26, 110, 245, 0.2);
+  animation: geo-pulse 1.8s ease-out infinite;
+}
+@keyframes geo-pulse {
+  0%   { transform: translate(-50%, -50%) scale(0.6); opacity: 0.8; }
+  100% { transform: translate(-50%, -50%) scale(2.2); opacity: 0; }
+}
+
+/* ── Explore this area button ─────────────────────────────── */
+.cp-explore-btn {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  padding: 9px 12px;
+  margin: 4px 0 8px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #0F6E56;
+  background: #f0faf5;
+  border: 1px solid #a8d9be;
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s, border-color 0.15s;
+}
+.cp-explore-btn:hover {
+  background: #E1F5EE;
+  border-color: #4CAF82;
 }

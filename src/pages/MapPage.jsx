@@ -41,8 +41,9 @@ function getIcons() {
 }
 
 const BASE_MAPS = [
-  { id: 'carto',     label: 'Clean',  url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', attribution: '&copy; OpenStreetMap &copy; CARTO' },
-  { id: 'satellite', label: 'Aerial', url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', attribution: '&copy; Esri' },
+  { id: 'carto',     label: 'OpenStreetMap', url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', attribution: '&copy; OpenStreetMap &copy; CARTO' },
+  { id: 'satellite', label: 'Aerial',        url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', attribution: '&copy; Esri' },
+  { id: 'mapbox',    label: 'Mapbox',        url: `https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/256/{z}/{x}/{y}@2x?access_token=${import.meta.env.VITE_MAPBOX_TOKEN}`, attribution: '&copy; <a href="https://www.mapbox.com/about/maps/">Mapbox</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' },
 ]
 
 const RADIUS_PRESETS = [3, 10, 20, 30]
@@ -363,7 +364,7 @@ function MyClubCard({ myClub, onManage }) {
 }
 
 // ── Club detail panel content ───────────────────────────────
-function ClubDetail({ club, userId, onManage, radiusMiles, setRadiusMiles, customMiles, setCustomMiles, filteredCount, setGalleryPhotos }) {
+function ClubDetail({ club, userId, onManage, radiusMiles, setRadiusMiles, customMiles, setCustomMiles, filteredCount, setGalleryPhotos, onExploreArea }) {
   if (!club) {
     return (
       <div className="cp-empty">
@@ -505,6 +506,21 @@ function ClubDetail({ club, userId, onManage, radiusMiles, setRadiusMiles, custo
         </div>
       )}
 
+      {/* Explore area button */}
+      {club.lat && club.lng && onExploreArea && (
+        <button className="cp-explore-btn" onClick={onExploreArea}>
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
+            <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5"/>
+            <circle cx="8" cy="8" r="2" fill="currentColor"/>
+            <line x1="8" y1="1" x2="8" y2="3.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+            <line x1="8" y1="12.5" x2="8" y2="15" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+            <line x1="1" y1="8" x2="3.5" y2="8" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+            <line x1="12.5" y1="8" x2="15" y2="8" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+          </svg>
+          Explore Market Demographics Data →
+        </button>
+      )}
+
       {/* Radius */}
       <div className="cp-section cp-radius-section">
         <div className="cp-section-title">Nearby Clubs</div>
@@ -564,6 +580,9 @@ export default function MapPage() {
     const saved = localStorage.getItem('mapScrollZoom')
     return saved === null ? true : saved === 'true'
   })
+  const [geoLocating, setGeoLocating] = useState(false)   // spinner while fetching
+  const [geoError, setGeoError]       = useState(null)    // error message
+  const [geoMarker, setGeoMarker]     = useState(null)    // { lat, lng } or null
   const defaultEnabledFactors = {
     population: true, income: true, ageFit: true, medianAge: true,
     poverty: true, competition: true, health: true, spending: true,
@@ -599,10 +618,51 @@ export default function MapPage() {
   const [panelPosition, setPanelPosition] = useState(() => {
     return localStorage.getItem(posKey) || 'right'
   })
+  const [panelWidth,     setPanelWidth]     = useState('normal')   // 'normal' | 'wide'
+  const [panelCollapsed, setPanelCollapsed] = useState(false)
 
   function updatePanelPosition(pos) {
     setPanelPosition(pos)
     localStorage.setItem(posKey, pos)
+  }
+
+  // Load panel width/collapsed prefs from user_demo_preferences
+  useEffect(() => {
+    if (!user) return
+    async function loadPanelPrefs() {
+      const { data } = await supabase
+        .from('user_demo_preferences')
+        .select('preferences')
+        .eq('user_id', user.id)
+        .single()
+      if (data?.preferences?.panelWidth)     setPanelWidth(data.preferences.panelWidth)
+      if (data?.preferences?.panelCollapsed !== undefined) setPanelCollapsed(data.preferences.panelCollapsed)
+    }
+    loadPanelPrefs()
+  }, [user])
+
+  async function savePanelPrefs(width, collapsed) {
+    if (!user) return
+    const { data: existing } = await supabase
+      .from('user_demo_preferences')
+      .select('preferences')
+      .eq('user_id', user.id)
+      .single()
+    const merged = { ...(existing?.preferences || {}), panelWidth: width, panelCollapsed: collapsed }
+    await supabase.from('user_demo_preferences')
+      .upsert({ user_id: user.id, preferences: merged }, { onConflict: 'user_id' })
+  }
+
+  function togglePanelWidth() {
+    const next = panelWidth === 'normal' ? 'wide' : 'normal'
+    setPanelWidth(next)
+    savePanelPrefs(next, panelCollapsed)
+  }
+
+  function togglePanelCollapsed() {
+    const next = !panelCollapsed
+    setPanelCollapsed(next)
+    savePanelPrefs(panelWidth, next)
   }
 
   // Load saved default view on mount (after locations load)
@@ -647,18 +707,25 @@ export default function MapPage() {
 
   const myClub = locations.find(l => l.user_id === user?.id) || null
 
+  // Zoom map to fit the radius circle whenever radiusMiles or selected changes
+  useEffect(() => {
+    if (!radiusMiles || !selected?.lat || !selected?.lng || !mapRef.current) return
+    const radiusMeters = milesToMeters(radiusMiles)
+    const latDelta = radiusMeters / 111320
+    const lngDelta = radiusMeters / (111320 * Math.cos(selected.lat * Math.PI / 180))
+    mapRef.current.fitBounds(
+      [[selected.lat - latDelta, selected.lng - lngDelta],
+       [selected.lat + latDelta, selected.lng + lngDelta]],
+      { padding: [48, 48], animate: true, maxZoom: 14 }
+    )
+  }, [radiusMiles, selected])
+
   async function handleSelectClub(loc) {
     setSelected(loc)
     setRadiusMiles(null)
     setCustomMiles('')
     setMapCenter([loc.lat, loc.lng])
     setMapZoom(14)
-    // Auto-load market data if demo panel is active, or activate it and load
-    if (loc.lat && loc.lng) {
-      setDemoActive(true)
-      setDemoLat(loc.lat)
-      setDemoLng(loc.lng)
-    }
   }
 
   async function handleCitySearch(e) {
@@ -681,6 +748,40 @@ export default function MapPage() {
     setCityFilter(''); setCitySearch('')
     setRadiusMiles(null); setCustomMiles('')
     setSelected(null)
+  }
+
+  function handleGeoLocate() {
+    if (!navigator.geolocation) {
+      setGeoError('Geolocation is not supported by your browser.')
+      setTimeout(() => setGeoError(null), 4000)
+      return
+    }
+    // If already showing a marker, clicking again clears it
+    if (geoMarker) {
+      setGeoMarker(null)
+      return
+    }
+    setGeoLocating(true)
+    setGeoError(null)
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        const { latitude: lat, longitude: lng } = pos.coords
+        setGeoMarker({ lat, lng })
+        setMapCenter([lat, lng])
+        setMapZoom(13)
+        setGeoLocating(false)
+      },
+      err => {
+        setGeoLocating(false)
+        if (err.code === 1) {
+          setGeoError('Location access denied. Enable it in your browser settings.')
+        } else {
+          setGeoError('Could not get your location. Try again.')
+        }
+        setTimeout(() => setGeoError(null), 5000)
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+    )
   }
 
   const filteredLocations = locations.filter(loc => {
@@ -734,6 +835,17 @@ export default function MapPage() {
               <Circle center={[selected.lat, selected.lng]} radius={milesToMeters(radiusMiles)}
                 pathOptions={{ color: '#1A3C2E', fillColor: '#4CAF82', fillOpacity: 0.08, weight: 2 }} />
             )}
+            {geoMarker && (
+              <Marker
+                position={[geoMarker.lat, geoMarker.lng]}
+                icon={divIcon({
+                  className: '',
+                  html: '<div class="geo-dot"><div class="geo-dot-inner"></div><div class="geo-dot-ring"></div></div>',
+                  iconSize: [24, 24],
+                  iconAnchor: [12, 12],
+                })}
+              />
+            )}
           </MapContainer>
         )}
 
@@ -777,6 +889,21 @@ export default function MapPage() {
             }}
             title={scrollZoom ? 'Scroll zoom ON — click to disable' : 'Scroll zoom OFF — click to enable'}>
             🖱️ Scroll Zoom {scrollZoom ? 'On' : 'Off'}
+          </button>
+          <button
+            className={`map-geolocate-btn${geoMarker ? ' active' : ''}${geoLocating ? ' loading' : ''}`}
+            onClick={handleGeoLocate}
+            title={geoMarker ? 'Clear my location' : 'Show my location on the map'}
+            disabled={geoLocating}>
+            {geoLocating
+              ? <span className="geo-spinner" />
+              : <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="4" fill="currentColor"/>
+                  <path d="M12 2v3M12 19v3M2 12h3M19 12h3" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                  <circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="1.5" strokeDasharray="3 2"/>
+                </svg>
+            }
+            {geoLocating ? ' Locating…' : geoMarker ? ' My Location ✓' : ' My Location'}
           </button>
           {!scrollZoom && (
             <div className="map-manual-zoom">
@@ -844,11 +971,65 @@ export default function MapPage() {
         {saveViewToast && (
           <div className="map-save-toast">✓ Default view saved</div>
         )}
+        {/* Geo error toast */}
+        {geoError && (
+          <div className="map-save-toast map-geo-error">{geoError}</div>
+        )}
       </div>
 
       {/* ── Always-visible dashboard panel ── */}
-      <div className="club-panel">
+      <div
+        className={[
+          'club-panel',
+          panelPosition !== 'bottom' && panelWidth === 'wide' ? 'club-panel--wide' : '',
+          panelPosition !== 'bottom' && panelCollapsed ? 'club-panel--collapsed' : '',
+        ].filter(Boolean).join(' ')}
+        onClick={panelCollapsed ? togglePanelCollapsed : undefined}
+        style={panelCollapsed ? { cursor: 'pointer' } : {}}
+      >
+        {/* Collapse/expand tab — only for left/right positions */}
+        {panelPosition !== 'bottom' && (
+          <button
+            className="panel-collapse-tab"
+            onClick={e => { e.stopPropagation(); togglePanelCollapsed() }}
+            title={panelCollapsed ? 'Expand panel' : 'Collapse panel'}
+          >
+            <svg width="8" height="14" viewBox="0 0 8 14" fill="none">
+              {panelCollapsed
+                ? <path d="M2 1l5 6-5 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                : <path d="M6 1l-5 6 5 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              }
+            </svg>
+          </button>
+        )}
+
+        {/* Panel contents — hidden when collapsed */}
+        {!panelCollapsed && (
         <div className="club-panel-inner">
+
+          {/* Panel header: width toggle pill */}
+          {panelPosition !== 'bottom' && (
+            <div className="panel-width-row">
+              <button
+                className={`panel-width-pill ${panelWidth === 'normal' ? 'active' : ''}`}
+                onClick={() => panelWidth !== 'normal' && togglePanelWidth()}
+              >
+                <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+                  <path d="M8 2l3 4-3 4M4 2L1 6l3 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                Normal
+              </button>
+              <button
+                className={`panel-width-pill ${panelWidth === 'wide' ? 'active' : ''}`}
+                onClick={() => panelWidth !== 'wide' && togglePanelWidth()}
+              >
+                <svg width="13" height="11" viewBox="0 0 14 12" fill="none">
+                  <path d="M10 2l3 4-3 4M4 2L1 6l3 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                Wide
+              </button>
+            </div>
+          )}
 
           {/* Pinned: My Club card — collapsible */}
           <div className="cp-my-club-zone">
@@ -897,6 +1078,12 @@ export default function MapPage() {
                 setCustomMiles={setCustomMiles}
                 filteredCount={filteredLocations.length}
                 setGalleryPhotos={setGalleryPhotos}
+                onExploreArea={selected?.lat && selected?.lng ? () => {
+                  setDemoActive(true)
+                  setDemoLat(selected.lat)
+                  setDemoLng(selected.lng)
+                  setMyClubCollapsed(true)
+                } : null}
               />
             </div>
           )}
@@ -959,6 +1146,7 @@ export default function MapPage() {
           )}
 
         </div>
+        )} {/* end !panelCollapsed */}
       </div>
 
     </div>

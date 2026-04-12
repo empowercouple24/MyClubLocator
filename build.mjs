@@ -17,6 +17,7 @@ const define = {
   'import.meta.env.VITE_SUPABASE_ANON_KEY': 'window.__env.VITE_SUPABASE_ANON_KEY',
   'import.meta.env.VITE_BREVO_API_KEY': 'window.__env.VITE_BREVO_API_KEY',
   'import.meta.env.VITE_CENSUS_API_KEY': 'window.__env.VITE_CENSUS_API_KEY',
+  'import.meta.env.VITE_MAPBOX_TOKEN': 'window.__env.VITE_MAPBOX_TOKEN',
 }
 
 console.log('Building JS with esbuild...')
@@ -47,10 +48,11 @@ await esbuild.build({
 const cssFile = fs.readdirSync(outdir).find(f => f.endsWith('.css')) || ''
 
 // Env vars injected as inline window.__env before the app script runs
-const supabaseUrl = process.env.VITE_SUPABASE_URL || ''
-const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || ''
-const brevoKey    = process.env.VITE_BREVO_API_KEY || ''
-const censusKey   = process.env.VITE_CENSUS_API_KEY || ''
+const supabaseUrl  = process.env.VITE_SUPABASE_URL || ''
+const supabaseKey  = process.env.VITE_SUPABASE_ANON_KEY || ''
+const brevoKey     = process.env.VITE_BREVO_API_KEY || ''
+const censusKey    = process.env.VITE_CENSUS_API_KEY || ''
+const mapboxToken  = process.env.VITE_MAPBOX_TOKEN || ''
 
 const html = `<!DOCTYPE html>
 <html lang="en">
@@ -60,7 +62,7 @@ const html = `<!DOCTYPE html>
     <title>My Club Locator</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     ${cssFile ? `<link rel="stylesheet" crossorigin href="/assets/${cssFile}">` : ''}
-    <script>window.__env={VITE_SUPABASE_URL:"${supabaseUrl}",VITE_SUPABASE_ANON_KEY:"${supabaseKey}",VITE_BREVO_API_KEY:"${brevoKey}",VITE_CENSUS_API_KEY:"${censusKey}"};</script>
+    <script>window.__env={VITE_SUPABASE_URL:"${supabaseUrl}",VITE_SUPABASE_ANON_KEY:"${supabaseKey}",VITE_BREVO_API_KEY:"${brevoKey}",VITE_CENSUS_API_KEY:"${censusKey}",VITE_MAPBOX_TOKEN:"${mapboxToken}"};</script>
   </head>
   <body>
     <div id="root">
