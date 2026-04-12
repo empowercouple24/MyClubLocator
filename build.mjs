@@ -28,11 +28,9 @@ console.log('SUPABASE_URL set:', !!process.env.VITE_SUPABASE_URL)
 const jsResult = await esbuild.build({
   entryPoints: ['src/main.jsx'],
   bundle: true,
-  outdir,
+  outfile: `${outdir}/main-bundle.js`,
   format: 'esm',
-  splitting: true,
-  chunkNames: 'chunk-[hash]',
-  entryNames: 'main-[hash]',
+  splitting: false,
   jsx: 'automatic',
   loader: {
     '.jsx': 'jsx',
@@ -46,7 +44,6 @@ const jsResult = await esbuild.build({
   define,
   minify: true,
   target: 'es2020',
-  metafile: true,
   logLevel: 'info',
 })
 
@@ -61,10 +58,8 @@ await esbuild.build({
   logLevel: 'info',
 })
 
-// Find output files
-const mainJs = Object.keys(jsResult.metafile.outputs)
-  .find(f => f.includes('/main-') && f.endsWith('.js'))
-const mainJsFile = path.basename(mainJs)
+// Single bundle - fixed filename
+const mainJsFile = 'main-bundle.js'
 const cssFile = fs.readdirSync(outdir).find(f => f.endsWith('.css')) || ''
 
 // Write index.html
