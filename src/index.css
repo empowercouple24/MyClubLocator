@@ -5952,3 +5952,102 @@ body {
 .save-bar--sticky {
   align-items: center !important;
 }
+
+/* ── Tooltip owner rows ──────────────────────────────────────── */
+.ct-header-text { flex: 1; min-width: 0; }
+
+.ct-owner-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.ct-owner-photo {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 1px solid #e0ece6;
+}
+
+.ct-owner-initials {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #edf7f1;
+  border: 1px solid #c8e6d4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 8px;
+  font-weight: 700;
+  color: #1A3C2E;
+  flex-shrink: 0;
+}
+
+.ct-owner-name {
+  font-size: 11px;
+  color: #444;
+  white-space: nowrap;
+}
+
+/* ── Tooltip level pill ──────────────────────────────────────── */
+.ct-level-pill {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 7px;
+  border-radius: 20px;
+  background: #fdf6cc;
+  color: #7a5200;
+  border: 0.5px solid #c9a800;
+  margin-top: 2px;
+  white-space: nowrap;
+}
+
+/* ── Tooltip address ─────────────────────────────────────────── */
+.ct-addr {
+  font-size: 11px;
+  color: #777;
+  margin: 4px 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 220px;
+}
+
+/* ── Tooltip hours ───────────────────────────────────────────── */
+.ct-hours-block {
+  margin: 4px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ct-hours-row {
+  display: flex;
+  gap: 8px;
+  font-size: 11px;
+}
+
+.ct-hours-day  { color: #999; min-width: 36px; }
+.ct-hours-time { color: #444; }
+
+/* ── Tooltip directory link ──────────────────────────────────── */
+.ct-dir-link {
+  font-size: 11px;
+  font-weight: 600;
+  color: #1A3C2E;
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 0.5px solid #eee;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.ct-dir-link:hover { color: #4CAF82; }
+
+/* ── Tooltip min-width bump for richer content ───────────────── */
+.club-tooltip { min-width: 220px !important; max-width: 260px !important; }

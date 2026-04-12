@@ -1018,7 +1018,7 @@ export default function ProfilePage() {
       {/* CARD 7: Member Survey */}
       {(() => {
         const MONTHS_S = ['January','February','March','April','May','June','July','August','September','October','November','December']
-        const YEARS_S  = Array.from({length:30},(_,i)=>String(new Date().getFullYear()-i))
+        const YEARS_S  = Array.from({length: new Date().getFullYear() - 1979}, (_,i) => String(new Date().getFullYear()-i))
         const surveyComplete = !!(
           form.survey_upline && form.survey_hl_year &&
           form.survey_active_club !== null && form.survey_active_club !== '' &&
@@ -1185,27 +1185,29 @@ export default function ProfilePage() {
         )
       })()}
 
-      {/* Sticky Save Bar */}
-      <div className={`save-bar save-bar--sticky ${isDirty ? 'save-bar--dirty' : ''}`}>
-        {isDirty && (
-          <div className="save-bar-alert">
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-              <circle cx="8" cy="8" r="7" stroke="#B45309" strokeWidth="1.5"/>
-              <path d="M8 5v4" stroke="#B45309" strokeWidth="1.5" strokeLinecap="round"/>
-              <circle cx="8" cy="11.5" r="0.75" fill="#B45309"/>
-            </svg>
-            Unsaved changes
+      {/* Sticky Save Bar — always shown for new profiles, only shown when dirty for existing */}
+      {(isDirty || savedFormRef.current === null) && (
+        <div className={`save-bar save-bar--sticky ${isDirty && savedFormRef.current !== null ? 'save-bar--dirty' : ''}`}>
+          {isDirty && savedFormRef.current !== null && (
+            <div className="save-bar-alert">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                <circle cx="8" cy="8" r="7" stroke="#B45309" strokeWidth="1.5"/>
+                <path d="M8 5v4" stroke="#B45309" strokeWidth="1.5" strokeLinecap="round"/>
+                <circle cx="8" cy="11.5" r="0.75" fill="#B45309"/>
+              </svg>
+              Unsaved changes
+            </div>
+          )}
+          <div className="save-bar-btns">
+            <button className="btn-save" onClick={() => handleSave('save')} disabled={saving && saveAction === 'save'}>
+              {saving && saveAction === 'save' ? 'Saving…' : 'Save My Profile'}
+            </button>
+            <button className="btn-save-map" onClick={() => handleSave('map')} disabled={saving && saveAction === 'map'}>
+              {saving && saveAction === 'map' ? 'Saving…' : 'Save & Return to Map'}
+            </button>
           </div>
-        )}
-        <div className="save-bar-btns">
-          <button className="btn-save" onClick={() => handleSave('save')} disabled={saving && saveAction === 'save'}>
-            {saving && saveAction === 'save' ? 'Saving…' : 'Save My Profile'}
-          </button>
-          <button className="btn-save-map" onClick={() => handleSave('map')} disabled={saving && saveAction === 'map'}>
-            {saving && saveAction === 'map' ? 'Saving…' : 'Save & Return to Map'}
-          </button>
         </div>
-      </div>
+      )}
 
       {/* Spacer so last card clears the sticky bar */}
       <div style={{ height: 88 }} />

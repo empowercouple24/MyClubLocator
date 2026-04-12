@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 
@@ -284,13 +284,14 @@ function DirCard({ loc, isYours, defaultExpanded, navigate }) {
 export default function DirectoryPage() {
   const { user }    = useAuth()
   const navigate    = useNavigate()
+  const [searchParams] = useSearchParams()
   const [locations, setLocations] = useState([])
   const [loading, setLoading]     = useState(true)
-  const [search, setSearch]       = useState('')
+  const [search, setSearch]       = useState(searchParams.get('search') || '')
   const [sortBy, setSortBy]       = useState('name')
   const [filterState, setFilterState] = useState('')
   const [filterLevel, setFilterLevel] = useState('')
-  const [hasSearched, setHasSearched] = useState(false)
+  const [hasSearched, setHasSearched] = useState(!!(searchParams.get('search')))
 
   useEffect(() => {
     async function load() {

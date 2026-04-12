@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
-const YEARS  = Array.from({length:30},(_,i)=>String(new Date().getFullYear()-i))
+const YEARS  = Array.from({length: new Date().getFullYear() - 1979}, (_,i) => String(new Date().getFullYear()-i))
 
 const CARDS = [
   {id:'welcome'},

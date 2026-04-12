@@ -112,7 +112,7 @@ function MapRefCapture({ mapRef }) {
   return null
 }
 
-function ClubMarkers({ locations, selectedId, userId, onSelect }) {
+function ClubMarkers({ locations, selectedId, userId, onSelect, navigate }) {
   const map = useMap()
   const markersRef = useRef({})
 
@@ -125,32 +125,103 @@ function ClubMarkers({ locations, selectedId, userId, onSelect }) {
       const isSelected = loc.id === selectedId
       const icon = isSelected ? selectedIcon : (isOwn ? ownIcon : otherIcon)
 
-      // Build owner names list
-      const owners = [
-        [loc.first_name, loc.last_name].filter(Boolean).join(' '),
-        [loc.owner2_first_name, loc.owner2_last_name].filter(Boolean).join(' '),
-        [loc.owner3_first_name, loc.owner3_last_name].filter(Boolean).join(' '),
-      ].filter(Boolean)
+      // ── Owner rows with photo or initials ──
+      const ownerRows = [
+        { name: [loc.first_name, loc.last_name].filter(Boolean).join(' '), photo: loc.owner_photo_url },
+        { name: [loc.owner2_first_name, loc.owner2_last_name].filter(Boolean).join(' '), photo: loc.owner2_photo_url },
+        { name: [loc.owner3_first_name, loc.owner3_last_name].filter(Boolean).join(' '), photo: loc.owner3_photo_url },
+      ].filter(o => o.name)
 
-      const openSince = loc.opened_month && loc.opened_year
-        ? `Open since ${loc.opened_month} ${loc.opened_year}` : ''
+      const ownerHtml = ownerRows.map(o => {
+        const initials = o.name.split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase()
+        const avatar = o.photo
+          ? `<img src="${o.photo}" class="ct-owner-photo" alt="${o.name}" />`
+          : `<div class="ct-owner-initials">${initials}</div>`
+        return `<div class="ct-owner-row">${avatar}<span class="ct-owner-name">${o.name}</span></div>`
+      }).join('')
 
-      // Logo or initials
+      // ── Logo or initials ──
       const logoHtml = loc.logo_url
         ? `<img src="${loc.logo_url}" class="ct-logo-img" alt="logo" />`
         : `<div class="ct-logo-initials">${(loc.club_name || 'CL').slice(0,2).toUpperCase()}</div>`
 
-      const ownersHtml = owners.map(n => `<div class="ct-line">👤 ${n}</div>`).join('')
-      const sinceHtml  = openSince ? `<div class="ct-since">${openSince}</div>` : ''
+      // ── Level pill ──
+      const condenseLvl = (l) => {
+        if (!l) return ''
+        return l
+          .replace('Presidents Team', 'PT').replace('Chairmans Club', 'CC')
+          .replace('Founders Circle', 'FC').replace('Millionaire Team 7500', 'MP')
+          .replace('Millionaire Team', 'MT').replace('Get Team 2500', 'GP')
+          .replace('Get Team', 'GT').replace('Active World Team', 'AWT')
+          .replace('World Team', 'WT').replace('Supervisor', 'SP')
+          .replace('Success Builder', 'SB').replace('Distributor', 'DS')
+      }
+      const levelLabel = condenseLvl(loc.herbalife_level)
+      const levelHtml = levelLabel
+        ? `<div class="ct-level-pill">${levelLabel.replace(/ (\d+) 💎$/, ' $1 💎')}</div>`
+        : ''
+
+      // ── Address ──
+      const addrParts = [loc.address, loc.city, loc.state, loc.zip].filter(Boolean)
+      const addrHtml = addrParts.length
+        ? `<div class="ct-addr">${addrParts.join(', ')}</div>`
+        : ''
+
+      // ── Condensed hours ──
+      const DAYS = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday']
+      const DAY_LABELS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
+      const formatT = t => {
+        if (!t) return ''
+        const [h, m] = t.split(':').map(Number)
+        const p = h < 12 ? 'AM' : 'PM'
+        const hr = h === 0 ? 12 : h > 12 ? h - 12 : h
+        return `${hr}:${String(m).padStart(2,'0')} ${p}`
+      }
+      const openDays = DAYS.map((d,i) => ({
+        label: DAY_LABELS[i], open: !!(loc[`hours_${d}_open`] && loc[`hours_${d}_close`]),
+        o: loc[`hours_${d}_open`] || '', c: loc[`hours_${d}_close`] || ''
+      })).filter(d => d.open)
+
+      let hoursHtml = ''
+      if (openDays.length) {
+        const ranges = []
+        let run = [openDays[0]]
+        for (let i = 1; i < openDays.length; i++) {
+          const prev = run[run.length-1], curr = openDays[i]
+          const prevIdx = DAYS.indexOf(DAYS.find((_,j) => DAY_LABELS[j] === prev.label))
+          const currIdx = DAYS.indexOf(DAYS.find((_,j) => DAY_LABELS[j] === curr.label))
+          if (currIdx === prevIdx + 1 && prev.o === curr.o && prev.c === curr.c) run.push(curr)
+          else { ranges.push(run); run = [curr] }
+        }
+        ranges.push(run)
+        const hoursLines = ranges.map(r => {
+          const lbl = r.length === 1 ? r[0].label : `${r[0].label}–${r[r.length-1].label}`
+          return `<div class="ct-hours-row"><span class="ct-hours-day">${lbl}</span><span class="ct-hours-time">${formatT(r[0].o)} – ${formatT(r[0].c)}</span></div>`
+        }).join('')
+        hoursHtml = `<div class="ct-hours-block">${hoursLines}</div>`
+      }
+
+      // ── Open since ──
+      const sinceHtml = loc.opened_month && loc.opened_year
+        ? `<div class="ct-since">Since ${loc.opened_month} ${loc.opened_year}</div>` : ''
+
+      // ── Directory link ──
+      const dirLink = `<div class="ct-dir-link" data-clubname="${encodeURIComponent(loc.club_name || '')}">View in directory →</div>`
 
       const tooltipHtml = `
         <div class="ct-inner">
           <div class="ct-header">
             ${logoHtml}
-            <div class="ct-name">${loc.club_name || 'Unnamed Club'}</div>
+            <div class="ct-header-text">
+              <div class="ct-name">${loc.club_name || 'Unnamed Club'}</div>
+              ${levelHtml}
+            </div>
           </div>
-          ${ownersHtml}
+          ${ownerHtml}
+          ${addrHtml}
+          ${hoursHtml}
           ${sinceHtml}
+          ${dirLink}
         </div>`
 
       const tooltip = L.tooltip({
@@ -161,7 +232,22 @@ function ClubMarkers({ locations, selectedId, userId, onSelect }) {
       }).setContent(tooltipHtml)
 
       const marker = L.marker([loc.lat, loc.lng], { icon })
-        .addTo(map).bindTooltip(tooltip).on('click', () => onSelect(loc))
+        .addTo(map)
+        .bindTooltip(tooltip)
+        .on('click', () => onSelect(loc))
+        .on('tooltipopen', () => {
+          // Attach directory link click after tooltip renders
+          setTimeout(() => {
+            const el = document.querySelector('.ct-dir-link')
+            if (el) {
+              el.addEventListener('click', (e) => {
+                e.stopPropagation()
+                const name = decodeURIComponent(el.dataset.clubname || '')
+                navigate(`/app/directory?search=${encodeURIComponent(name)}`)
+              })
+            }
+          }, 50)
+        })
 
       markersRef.current[loc.id] = marker
     })
@@ -543,7 +629,7 @@ export default function MapPage() {
             <MapController center={mapCenter} zoom={mapZoom} panelPosition={panelPosition} />
             <MapClickHandler active={demoActive} onMapClick={(lat, lng) => { setDemoLat(lat); setDemoLng(lng) }} />
             <TileLayer key={activeBase.id} attribution={activeBase.attribution} url={activeBase.url} />
-            <ClubMarkers locations={filteredLocations} selectedId={selected?.id} userId={user?.id} onSelect={handleSelectClub} />
+            <ClubMarkers locations={filteredLocations} selectedId={selected?.id} userId={user?.id} onSelect={handleSelectClub} navigate={navigate} />
             {selected && radiusMiles && (
               <Circle center={[selected.lat, selected.lng]} radius={milesToMeters(radiusMiles)}
                 pathOptions={{ color: '#1A3C2E', fillColor: '#4CAF82', fillOpacity: 0.08, weight: 2 }} />

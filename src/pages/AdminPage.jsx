@@ -892,12 +892,12 @@ export default function AdminPage() {
                 ))}
               </div>
 
-              <div className="profile-actions" style={{ marginTop: 8, marginBottom: 80 }}>
+              <div className="profile-actions" style={{ marginTop: 8, marginBottom: isSettingsDirty ? 80 : 16 }}>
                 {savedSettings && <span className="save-confirm">✓ Settings saved</span>}
               </div>
-              {/* Sticky save bar */}
-              <div className={`save-bar save-bar--sticky ${isSettingsDirty ? 'save-bar--dirty' : ''}`}>
-                {isSettingsDirty && (
+              {/* Sticky save bar — only visible when dirty */}
+              {isSettingsDirty && (
+                <div className="save-bar save-bar--sticky save-bar--dirty">
                   <div className="save-bar-alert">
                     <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
                       <circle cx="8" cy="8" r="7" stroke="#B45309" strokeWidth="1.5"/>
@@ -906,13 +906,13 @@ export default function AdminPage() {
                     </svg>
                     Unsaved changes
                   </div>
-                )}
-                <div className="save-bar-btns">
-                  <button className="btn-save" onClick={handleSaveSettings} disabled={savingSettings}>
-                    {savingSettings ? 'Saving…' : 'Save Settings'}
-                  </button>
+                  <div className="save-bar-btns">
+                    <button className="btn-save" onClick={handleSaveSettings} disabled={savingSettings}>
+                      {savingSettings ? 'Saving…' : 'Save Settings'}
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
             </>
           )}
         </div>
