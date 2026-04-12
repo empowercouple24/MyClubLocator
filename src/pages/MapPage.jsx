@@ -63,22 +63,44 @@ function getDistanceMiles(lat1, lng1, lat2, lng2) {
 }
 
 function formatHoursDisplay(loc) {
-  const days = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday']
+  const days   = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday']
   const labels = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
-  const rows = []
-  days.forEach((d, i) => {
-    const o = loc[`hours_${d}_open`], c = loc[`hours_${d}_close`]
-    if (o && c) {
-      const fmt = t => {
-        const [h, m] = t.split(':').map(Number)
-        const period = h < 12 ? 'AM' : 'PM'
-        const hour = h === 0 ? 12 : h > 12 ? h - 12 : h
-        return `${hour}:${String(m).padStart(2,'0')} ${period}`
-      }
-      rows.push({ day: labels[i], hours: `${fmt(o)} – ${fmt(c)}` })
+
+  const fmt = t => {
+    if (!t) return ''
+    const [h, m] = t.split(':').map(Number)
+    const period = h < 12 ? 'AM' : 'PM'
+    const hour = h === 0 ? 12 : h > 12 ? h - 12 : h
+    return `${hour}:${String(m).padStart(2,'0')} ${period}`
+  }
+
+  // Build open-day objects with index for consecutive detection
+  const openDays = days.map((d, i) => ({
+    idx: i, label: labels[i],
+    o: loc[`hours_${d}_open`] || '',
+    c: loc[`hours_${d}_close`] || '',
+    open: !!(loc[`hours_${d}_open`] && loc[`hours_${d}_close`])
+  })).filter(d => d.open)
+
+  if (openDays.length === 0) return []
+
+  // Group consecutive days with identical hours
+  const ranges = []
+  let run = [openDays[0]]
+  for (let i = 1; i < openDays.length; i++) {
+    const prev = run[run.length - 1], curr = openDays[i]
+    if (curr.idx === prev.idx + 1 && curr.o === prev.o && curr.c === prev.c) {
+      run.push(curr)
+    } else {
+      ranges.push(run); run = [curr]
     }
+  }
+  ranges.push(run)
+
+  return ranges.map(r => {
+    const label = r.length === 1 ? r[0].label : `${r[0].label}–${r[r.length-1].label}`
+    return { day: label, hours: `${fmt(r[0].o)} – ${fmt(r[0].c)}` }
   })
-  return rows
 }
 
 function MapClickHandler({ onMapClick, active }) {
@@ -125,11 +147,11 @@ function ClubMarkers({ locations, selectedId, userId, onSelect, navigate }) {
       const isSelected = loc.id === selectedId
       const icon = isSelected ? selectedIcon : (isOwn ? ownIcon : otherIcon)
 
-      // ── Owner rows with photo or initials ──
+      // ── Owner rows with photo or initials + per-owner level pill ──
       const ownerRows = [
-        { name: [loc.first_name, loc.last_name].filter(Boolean).join(' '), photo: loc.owner_photo_url },
-        { name: [loc.owner2_first_name, loc.owner2_last_name].filter(Boolean).join(' '), photo: loc.owner2_photo_url },
-        { name: [loc.owner3_first_name, loc.owner3_last_name].filter(Boolean).join(' '), photo: loc.owner3_photo_url },
+        { name: [loc.first_name, loc.last_name].filter(Boolean).join(' '), photo: loc.owner_photo_url, level: loc.herbalife_level },
+        { name: [loc.owner2_first_name, loc.owner2_last_name].filter(Boolean).join(' '), photo: loc.owner2_photo_url, level: loc.owner2_herbalife_level },
+        { name: [loc.owner3_first_name, loc.owner3_last_name].filter(Boolean).join(' '), photo: loc.owner3_photo_url, level: loc.owner3_herbalife_level },
       ].filter(o => o.name)
 
       const ownerHtml = ownerRows.map(o => {
@@ -137,7 +159,9 @@ function ClubMarkers({ locations, selectedId, userId, onSelect, navigate }) {
         const avatar = o.photo
           ? `<img src="${o.photo}" class="ct-owner-photo" alt="${o.name}" />`
           : `<div class="ct-owner-initials">${initials}</div>`
-        return `<div class="ct-owner-row">${avatar}<span class="ct-owner-name">${o.name}</span></div>`
+        const lvlLabel = condenseLvl(o.level)
+        const pill = lvlLabel ? `<span class="ct-level-pill">${lvlLabel.replace(/ (\d+) 💎$/, ' $1 💎')}</span>` : ''
+        return `<div class="ct-owner-row">${avatar}<span class="ct-owner-name">${o.name}</span>${pill}</div>`
       }).join('')
 
       // ── Logo or initials ──
@@ -203,7 +227,7 @@ function ClubMarkers({ locations, selectedId, userId, onSelect, navigate }) {
 
       // ── Open since ──
       const sinceHtml = loc.opened_month && loc.opened_year
-        ? `<div class="ct-since">Since ${loc.opened_month} ${loc.opened_year}</div>` : ''
+        ? `<div class="ct-since">Club open since ${loc.opened_month} ${loc.opened_year}</div>` : ''
 
       // ── Directory link ──
       const dirLink = `<div class="ct-dir-link" data-clubname="${encodeURIComponent(loc.club_name || '')}">View in directory →</div>`
@@ -214,11 +238,10 @@ function ClubMarkers({ locations, selectedId, userId, onSelect, navigate }) {
             ${logoHtml}
             <div class="ct-header-text">
               <div class="ct-name">${loc.club_name || 'Unnamed Club'}</div>
-              ${levelHtml}
+              ${addrHtml}
             </div>
           </div>
           ${ownerHtml}
-          ${addrHtml}
           ${hoursHtml}
           ${sinceHtml}
           ${dirLink}
@@ -655,7 +678,16 @@ export default function MapPage() {
           {hasFilter && <button className="map-clear-btn" onClick={clearFilters}>✕ Clear</button>}
           <button
             className={`map-demo-btn ${demoActive ? 'active' : ''}`}
-            onClick={() => { setDemoActive(d => !d); if (!demoActive) { setDemoLat(null); setDemoLng(null) } }}
+            onClick={() => {
+              const next = !demoActive
+              setDemoActive(next)
+              if (next) {
+                setMyClubCollapsed(true) // collapse My Club when entering research mode
+                setDemoLat(null); setDemoLng(null)
+              } else {
+                setDemoLat(null); setDemoLng(null)
+              }
+            }}
             title="Toggle market data">
             📊 Market Data
           </button>
@@ -756,23 +788,25 @@ export default function MapPage() {
           {/* Divider */}
           <div className="cp-panel-divider" />
 
-          {/* Dynamic: selected club details */}
-          <div className="cp-detail-zone">
-            <div className="cp-zone-label">
-              {selected ? 'Club Details' : 'Club Details'}
+          {/* Dynamic: selected club details — hidden when research mode active */}
+          {!demoActive && (
+            <div className="cp-detail-zone">
+              <div className="cp-zone-label">
+                {selected ? 'Club Details' : 'Club Details'}
+              </div>
+              <ClubDetail
+                club={selected}
+                userId={user?.id}
+                onManage={() => navigate('/app/profile')}
+                radiusMiles={radiusMiles}
+                setRadiusMiles={setRadiusMiles}
+                customMiles={customMiles}
+                setCustomMiles={setCustomMiles}
+                filteredCount={filteredLocations.length}
+                setGalleryPhotos={setGalleryPhotos}
+              />
             </div>
-            <ClubDetail
-              club={selected}
-              userId={user?.id}
-              onManage={() => navigate('/app/profile')}
-              radiusMiles={radiusMiles}
-              setRadiusMiles={setRadiusMiles}
-              customMiles={customMiles}
-              setCustomMiles={setCustomMiles}
-              filteredCount={filteredLocations.length}
-              setGalleryPhotos={setGalleryPhotos}
-            />
-          </div>
+          )}
 
           {/* Photo gallery modal */}
           {galleryPhotos && (

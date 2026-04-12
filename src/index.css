@@ -2014,7 +2014,7 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 160px;
+  max-width: 220px;
 }
 
 .ct-line {
@@ -5961,6 +5961,7 @@ body {
   align-items: center;
   gap: 6px;
   margin-bottom: 4px;
+  flex-wrap: wrap;
 }
 
 .ct-owner-photo {
@@ -6011,11 +6012,11 @@ body {
 .ct-addr {
   font-size: 11px;
   color: #777;
-  margin: 4px 0;
+  margin: 3px 0 6px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 220px;
+  max-width: 293px;
 }
 
 /* ── Tooltip hours ───────────────────────────────────────────── */
@@ -6050,7 +6051,7 @@ body {
 .ct-dir-link:hover { color: #4CAF82; }
 
 /* ── Tooltip min-width bump for richer content ───────────────── */
-.club-tooltip { min-width: 220px !important; max-width: 260px !important; }
+.club-tooltip { min-width: 293px !important; max-width: 347px !important; }
 
 /* ── Demographics retry button ───────────────────────────────── */
 .demo-retry-btn {
@@ -6064,3 +6065,38 @@ body {
   cursor: pointer;
 }
 .demo-retry-btn:hover { opacity: 0.85; }
+
+/* ── Demographics compact widgets ───────────────────────────── */
+.demo-widgets {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin: 10px 0 14px;
+}
+
+.demo-widget {
+  background: #f0faf5;
+  border: 0.5px solid #c8e8d8;
+  border-radius: 8px;
+  padding: 8px 10px;
+  text-align: center;
+}
+
+.demo-widget-val {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1A3C2E;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.demo-widget-label {
+  font-size: 10px;
+  color: #4CAF82;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-top: 2px;
+}

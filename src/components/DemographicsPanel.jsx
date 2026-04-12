@@ -365,6 +365,36 @@ export default function DemographicsPanel({ lat, lng, locations, enabledFactors,
         </div>
       )}
 
+      {/* Compact metric widgets */}
+      {(zipData || countyData || marketScore) && (
+        <div className="demo-widgets">
+          {(zipData?.population || countyData?.totalPop) && (
+            <div className="demo-widget">
+              <div className="demo-widget-val">{formatNum(zipData?.population || countyData?.totalPop)}</div>
+              <div className="demo-widget-label">Population</div>
+            </div>
+          )}
+          {(zipData?.medianIncome || countyData?.medianIncome) && (
+            <div className="demo-widget">
+              <div className="demo-widget-val">{formatCurrency(zipData?.medianIncome || countyData?.medianIncome)}</div>
+              <div className="demo-widget-label">Median income</div>
+            </div>
+          )}
+          {countyData?.ageFitPct != null && (
+            <div className="demo-widget">
+              <div className="demo-widget-val">{countyData.ageFitPct.toFixed(0)}%</div>
+              <div className="demo-widget-label">Age 18–49</div>
+            </div>
+          )}
+          {nearbyClubs.length > 0 && (
+            <div className="demo-widget">
+              <div className="demo-widget-val">{nearbyClubs.length}</div>
+              <div className="demo-widget-label">Nearby clubs</div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Population */}
       {effectiveFactors.population && (
         <Section title="Population">

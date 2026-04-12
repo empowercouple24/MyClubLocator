@@ -29,8 +29,8 @@ function formatPhone(raw) {
 
 const DEFAULT_FORM = {
   first_name: '', last_name: '', owner_email: '',
-  owner2_first_name: '', owner2_last_name: '', owner2_email: '',
-  owner3_first_name: '', owner3_last_name: '', owner3_email: '',
+  owner2_first_name: '', owner2_last_name: '', owner2_email: '', owner2_herbalife_level: '',
+  owner3_first_name: '', owner3_last_name: '', owner3_email: '', owner3_herbalife_level: '',
   club_name: '', club_email: '', club_phone: '', website: '',
   address: '', city: '', state: '', zip: '',
   opened_month: '', opened_year: '',
@@ -78,6 +78,44 @@ async function lookupZip(zip) {
 }
 
 // ── Owner photo upload widget ─────────────────────────────────
+// Compact level picker for co-owners (no K/diamond sub-selection)
+function OwnerLevelPicker({ value, onChange }) {
+  const TIERS = [
+    { val: 'Distributor',       label: 'DS',  c: '#e3e3e3', cd: '#555' },
+    { val: 'Success Builder',   label: 'SB',  c: '#e3e3e3', cd: '#555' },
+    { val: 'Supervisor',        label: 'SP',  c: '#64ba44', cd: '#2a6b1a' },
+    { val: 'World Team',        label: 'WT',  c: '#767678', cd: '#3a3a3a' },
+    { val: 'Active World Team', label: 'AWT', c: '#767678', cd: '#3a3a3a' },
+    { val: 'Get Team',          label: 'GT',  c: '#e02054', cd: '#8a0020' },
+    { val: 'Get Team 2500',     label: 'GP',  c: '#f39519', cd: '#7a4200' },
+    { val: 'Millionaire Team',  label: 'MT',  c: '#3aac77', cd: '#0c5a32' },
+    { val: 'Millionaire Team 7500', label: 'MP', c: '#84c8d3', cd: '#1a5a60' },
+    { val: 'Presidents Team',   label: 'PT',  c: '#fde488', cd: '#7a5200' },
+    { val: 'Chairmans Club',    label: 'CC',  c: '#c8c8d8', cd: '#2a2a40' },
+    { val: 'Founders Circle',   label: 'FC',  c: '#e8e4ff', cd: '#2a1880' },
+  ]
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+      {TIERS.map(({ val, label, c, cd }) => (
+        <button key={val} type="button"
+          className={`lvl-btn ${value === val ? 'on' : ''}`}
+          style={{ '--lvlc': c, '--lvlcd': cd, fontSize: 12, padding: '4px 10px' }}
+          onClick={() => onChange(value === val ? '' : val)}>
+          {label}
+        </button>
+      ))}
+      {value && (
+        <button type="button"
+          style={{ fontSize: 11, padding: '4px 8px', background: 'none', border: '0.5px solid #ccc',
+            borderRadius: 6, color: '#888', cursor: 'pointer' }}
+          onClick={() => onChange('')}>
+          ✕ Clear
+        </button>
+      )}
+    </div>
+  )
+}
+
 function OwnerPhotoUpload({ label, photoUrl, onUpload, uploading }) {
   const inputRef = useRef()
   return (
@@ -546,6 +584,13 @@ export default function ProfilePage() {
               onUpload={e => handleOwnerPhotoUpload(2, e, setOwner2PhotoUrl, setUploadingOwner2Photo)}
               uploading={uploadingOwner2Photo}
             />
+            <div className="pf" style={{ marginTop: 8 }}>
+              <label>Herbalife Level <span className="optional-tag">optional</span></label>
+              <OwnerLevelPicker
+                value={form.owner2_herbalife_level}
+                onChange={v => setField('owner2_herbalife_level', v)}
+              />
+            </div>
           </div>
         )}
 
@@ -581,6 +626,13 @@ export default function ProfilePage() {
               onUpload={e => handleOwnerPhotoUpload(3, e, setOwner3PhotoUrl, setUploadingOwner3Photo)}
               uploading={uploadingOwner3Photo}
             />
+            <div className="pf" style={{ marginTop: 8 }}>
+              <label>Herbalife Level <span className="optional-tag">optional</span></label>
+              <OwnerLevelPicker
+                value={form.owner3_herbalife_level}
+                onChange={v => setField('owner3_herbalife_level', v)}
+              />
+            </div>
           </div>
         )}
 

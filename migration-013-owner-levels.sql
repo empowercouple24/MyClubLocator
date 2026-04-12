@@ -1,0 +1,2 @@
+ALTER TABLE locations ADD COLUMN IF NOT EXISTS owner2_herbalife_level TEXT DEFAULT NULL;
+ALTER TABLE locations ADD COLUMN IF NOT EXISTS owner3_herbalife_level TEXT DEFAULT NULL;
