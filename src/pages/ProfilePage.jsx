@@ -80,37 +80,190 @@ async function lookupZip(zip) {
 // ── Owner photo upload widget ─────────────────────────────────
 // Compact level picker for co-owners (no K/diamond sub-selection)
 function OwnerLevelPicker({ value, onChange }) {
-  const TIERS = [
-    { val: 'Distributor',       label: 'DS',  c: '#e3e3e3', cd: '#555' },
-    { val: 'Success Builder',   label: 'SB',  c: '#e3e3e3', cd: '#555' },
-    { val: 'Supervisor',        label: 'SP',  c: '#64ba44', cd: '#2a6b1a' },
-    { val: 'World Team',        label: 'WT',  c: '#767678', cd: '#3a3a3a' },
-    { val: 'Active World Team', label: 'AWT', c: '#767678', cd: '#3a3a3a' },
-    { val: 'Get Team',          label: 'GT',  c: '#e02054', cd: '#8a0020' },
-    { val: 'Get Team 2500',     label: 'GP',  c: '#f39519', cd: '#7a4200' },
-    { val: 'Millionaire Team',  label: 'MT',  c: '#3aac77', cd: '#0c5a32' },
-    { val: 'Millionaire Team 7500', label: 'MP', c: '#84c8d3', cd: '#1a5a60' },
-    { val: 'Presidents Team',   label: 'PT',  c: '#fde488', cd: '#7a5200' },
-    { val: 'Chairmans Club',    label: 'CC',  c: '#c8c8d8', cd: '#2a2a40' },
-    { val: 'Founders Circle',   label: 'FC',  c: '#e8e4ff', cd: '#2a1880' },
-  ]
+  const K_LEVELS    = ['PT','15K','20K','30K','40K','50K','60K','70K','80K','90K','100K','110K','120K','130K','140K','150K']
+  const CC_K_LEVELS = ['CC','FC','15K','20K','30K','40K','50K','60K','70K','80K','90K','100K','110K','120K','130K','140K','150K']
+
+  // Parse existing value back into tier/k/dia
+  function parseValue(v) {
+    if (!v) return { tier: '', k: '', dia: '', confirmed: false }
+    if (v.startsWith('Presidents Team')) {
+      const kMatch = v.match(/Presidents Team(?: (\d+K))?/)
+      const dMatch = v.match(/(\d+) 💎/)
+      return { tier: 'PT', k: kMatch?.[1] || 'PT', dia: dMatch?.[1] || '', confirmed: true }
+    }
+    if (v.startsWith('Chairmans Club') || v.startsWith('Founders Circle')) {
+      const kMatch = v.match(/(\d+K)/)
+      const dMatch = v.match(/(\d+) 💎/)
+      return { tier: 'FCCC', k: kMatch?.[1] || (v.startsWith('Chairmans Club') ? 'CC' : 'FC'), dia: dMatch?.[1] || '', confirmed: true }
+    }
+    return { tier: v, k: '', dia: '', confirmed: true }
+  }
+
+  const parsed = parseValue(value)
+  const [tier,      setTier]      = useState(parsed.tier)
+  const [k,         setK]         = useState(parsed.k)
+  const [dia,       setDia]       = useState(parsed.dia)
+  const [confirmed, setConfirmed] = useState(parsed.confirmed)
+
+  function buildValue(t, kv, dv) {
+    if (!t) return ''
+    if (t === 'PT') {
+      const ks = kv && kv !== 'PT' ? ` ${kv}` : ''
+      const ds = dv ? ` ${dv} 💎` : ''
+      return `Presidents Team${ks}${ds}`
+    }
+    if (t === 'FCCC') {
+      if (!kv) return ''
+      let prefix
+      if      (kv === 'CC') prefix = 'Chairmans Club'
+      else if (kv === 'FC') prefix = 'Founders Circle'
+      else    prefix = parseInt(dv) >= 10 ? 'Founders Circle' : 'Chairmans Club'
+      const ks = (kv !== 'CC' && kv !== 'FC') ? ` ${kv}` : ''
+      const ds = dv ? ` ${dv} 💎` : ''
+      return `${prefix}${ks}${ds}`
+    }
+    return t
+  }
+
+  function isComplete(t, kv, dv) {
+    if (!t) return false
+    if (t === 'PT')   return !!kv
+    if (t === 'FCCC') return !!kv && !!dv
+    return true
+  }
+
+  function pickTier(t) {
+    setTier(t); setK(''); setDia(''); setConfirmed(false)
+    if (t !== 'PT' && t !== 'FCCC') { onChange(t) }
+    else onChange('')
+  }
+
+  function confirm() {
+    const v = buildValue(tier, k, dia)
+    if (v) { setConfirmed(true); onChange(v) }
+  }
+
+  function clear() {
+    setTier(''); setK(''); setDia(''); setConfirmed(false); onChange('')
+  }
+
+  const displayVal = buildValue(tier, k, dia)
+
   return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-      {TIERS.map(({ val, label, c, cd }) => (
-        <button key={val} type="button"
-          className={`lvl-btn ${value === val ? 'on' : ''}`}
-          style={{ '--lvlc': c, '--lvlcd': cd, fontSize: 12, padding: '4px 10px' }}
-          onClick={() => onChange(value === val ? '' : val)}>
-          {label}
-        </button>
-      ))}
-      {value && (
-        <button type="button"
-          style={{ fontSize: 11, padding: '4px 8px', background: 'none', border: '0.5px solid #ccc',
-            borderRadius: 6, color: '#888', cursor: 'pointer' }}
-          onClick={() => onChange('')}>
-          ✕ Clear
-        </button>
+    <div className="lvl-picker" style={{ marginTop: 4 }}>
+      {confirmed ? (
+        <div className="lvl-locked-state" style={{ marginTop: 0 }}>
+          <div className="lvl-locked-check">
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+              <path d="M2 6.5l3.5 3.5 5.5-6" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </div>
+          <div className="lvl-locked-text">
+            <strong>{value.includes(' 💎') ? <>{value.replace(/ (\d+) 💎$/, (_, d) => ` ${d} `)}<span style={{ fontSize: 11 }}>💎</span></> : value}</strong>
+          </div>
+          <button className="lvl-change-btn" onClick={clear}>Change</button>
+        </div>
+      ) : (
+        <>
+          <div className="lvl-picker-inner">
+            <div className="lvl-group-label">Tab Team</div>
+            <div className="lvl-btn-row">
+              {[
+                { val: 'Distributor',       label: 'DS',  c: '#e3e3e3', cd: '#555' },
+                { val: 'Success Builder',   label: 'SB',  c: '#e3e3e3', cd: '#555' },
+                { val: 'Supervisor',        label: 'SP',  c: '#64ba44', cd: '#2a6b1a' },
+                { val: 'World Team',        label: 'WT',  c: '#767678', cd: '#3a3a3a' },
+                { val: 'Active World Team', label: 'AWT', c: '#767678', cd: '#3a3a3a' },
+              ].map(({ val, label, c, cd }) => (
+                <button key={val} type="button" className={`lvl-btn ${tier === val ? 'on' : ''}`}
+                  style={{ '--lvlc': c, '--lvlcd': cd }} onClick={() => pickTier(val)}>{label}</button>
+              ))}
+            </div>
+            <div className="lvl-group-label" style={{ marginTop: 10 }}>Future Pres Team 🚀</div>
+            <div className="lvl-btn-row">
+              {[
+                { val: 'Get Team',              label: 'GT', c: '#e02054', cd: '#8a0020' },
+                { val: 'Get Team 2500',         label: 'GP', c: '#f39519', cd: '#7a4200' },
+                { val: 'Millionaire Team',      label: 'MT', c: '#3aac77', cd: '#0c5a32' },
+                { val: 'Millionaire Team 7500', label: 'MP', c: '#84c8d3', cd: '#1a5a60' },
+              ].map(({ val, label, c, cd }) => (
+                <button key={val} type="button" className={`lvl-btn ${tier === val ? 'on' : ''}`}
+                  style={{ '--lvlc': c, '--lvlcd': cd }} onClick={() => pickTier(val)}>{label}</button>
+              ))}
+            </div>
+            <div className="lvl-group-label" style={{ marginTop: 10 }}>Pres Team 💎</div>
+            <div className="lvl-btn-row">
+              <button type="button" className={`lvl-btn ${tier === 'PT' ? 'on' : ''}`}
+                style={{ '--lvlc': '#fde488', '--lvlcd': '#7a5200' }} onClick={() => pickTier('PT')}>PT</button>
+            </div>
+            <div className="lvl-group-label" style={{ marginTop: 10 }}>Chairman's &amp; Founders 🥈✦</div>
+            <div className="lvl-btn-row">
+              <button type="button" className={`lvl-btn lvl-btn-cc ${tier === 'FCCC' ? 'on' : ''}`}
+                onClick={() => pickTier('FCCC')}>CC / FC</button>
+            </div>
+            {tier === 'PT' && (
+              <div className="lvl-diamond-wrap" style={{ marginTop: 8 }}>
+                <div className="lvl-diamond-label">K level — required</div>
+                <div className="lvl-btn-row">
+                  {K_LEVELS.map(kv => (
+                    <button key={kv} type="button" className={`lvl-dia-btn ${k === kv ? 'on' : ''}`}
+                      onClick={() => { setK(kv); setDia(''); setConfirmed(false) }}>{kv}</button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {tier === 'PT' && k && (
+              <div className="lvl-diamond-wrap" style={{ marginTop: 6 }}>
+                <div className="lvl-diamond-label">Diamonds — optional</div>
+                <div className="lvl-btn-row">
+                  {['1','2','3','4'].map(d => (
+                    <button key={d} type="button" className={`lvl-dia-btn ${dia === d ? 'on' : ''}`}
+                      onClick={() => { setDia(dia === d ? '' : d); setConfirmed(false) }}>
+                      {d} <span style={{ fontSize: 11 }}>💎</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {tier === 'FCCC' && (
+              <div className="lvl-diamond-wrap lvl-diamond-wrap--cc" style={{ marginTop: 8 }}>
+                <div className="lvl-diamond-label" style={{ color: '#5a5a72' }}>K level — required</div>
+                <div className="lvl-btn-row">
+                  {CC_K_LEVELS.map(kv => (
+                    <button key={kv} type="button" className={`lvl-dia-btn lvl-dia-btn--cc ${k === kv ? 'on' : ''}`}
+                      onClick={() => { setK(kv); setDia(''); setConfirmed(false) }}>{kv}</button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {tier === 'FCCC' && k && (
+              <div className="lvl-diamond-wrap lvl-diamond-wrap--cc" style={{ marginTop: 6 }}>
+                <div className="lvl-diamond-label" style={{ color: '#5a5a72' }}>Diamonds — required (5–15)</div>
+                <div className="lvl-btn-row">
+                  {['5','6','7','8','9','10','11','12','13','14','15'].map(d => (
+                    <button key={d} type="button" className={`lvl-dia-btn lvl-dia-btn--cc ${dia === d ? 'on' : ''}`}
+                      onClick={() => { setDia(d); setConfirmed(false) }}>
+                      {d} <span style={{ fontSize: 11 }}>💎</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          {isComplete(tier, k, dia) && (
+            <button className="lvl-confirm-btn" style={{ marginTop: 8 }} onClick={confirm}>
+              Confirm: {displayVal.replace(/ (\d+) 💎$/, '')}
+              {displayVal.includes(' 💎') && <> {displayVal.match(/ (\d+) 💎$/)?.[1]} <span style={{ fontSize: 11 }}>💎</span></>}
+            </button>
+          )}
+          {tier && (
+            <button type="button" onClick={clear}
+              style={{ marginTop: 6, fontSize: 11, padding: '3px 8px', background: 'none',
+                border: '0.5px solid #ccc', borderRadius: 6, color: '#888', cursor: 'pointer' }}>
+              ✕ Clear
+            </button>
+          )}
+        </>
       )}
     </div>
   )
@@ -164,6 +317,9 @@ export default function ProfilePage() {
     : false
   const [showOwner2, setShowOwner2] = useState(false)
   const [showOwner3, setShowOwner3] = useState(false)
+  const [owner1Collapsed, setOwner1Collapsed] = useState(false)
+  const [owner2Collapsed, setOwner2Collapsed] = useState(false)
+  const [owner3Collapsed, setOwner3Collapsed] = useState(false)
   const [surveyOpen, setSurveyOpen] = useState(false)
   const [zipLooking, setZipLooking] = useState(false)
 
@@ -526,72 +682,93 @@ export default function ProfilePage() {
 
       {/* CARD 1: Owners */}
       <div className="sec-card">
-        <div className="sec-label">Primary Owner</div>
-        <div className="fgrid">
-          <div className="pf">
-            <label>First name <span className="req-star">*</span></label>
-            <input type="text" value={form.first_name} onChange={e => setField('first_name', e.target.value)}
-              placeholder="First name" className={errors.first_name ? 'input-err' : ''} />
-            {errors.first_name && <span className="field-err">{errors.first_name}</span>}
-          </div>
-          <div className="pf">
-            <label>Last name <span className="req-star">*</span></label>
-            <input type="text" value={form.last_name} onChange={e => setField('last_name', e.target.value)}
-              placeholder="Last name" className={errors.last_name ? 'input-err' : ''} />
-            {errors.last_name && <span className="field-err">{errors.last_name}</span>}
-          </div>
+        {/* ── Owner 1 ── */}
+        <div className="owner2-header" style={{ marginBottom: owner1Collapsed ? 0 : 12 }}>
+          <span className="sec-label" style={{ margin: 0 }}>Primary Owner</span>
+          <button className="owner2-remove" style={{ color: '#888', borderColor: '#ddd' }}
+            onClick={() => setOwner1Collapsed(c => !c)}>
+            {owner1Collapsed ? '▼ Expand' : '▲ Collapse'}
+          </button>
         </div>
-        <div className="pf owner-email-full">
-          <label>Email <span className="optional-tag">optional</span></label>
-          <input type="email" value={form.owner_email} onChange={e => setField('owner_email', e.target.value)}
-            placeholder="your@email.com" />
-        </div>
-        <OwnerPhotoUpload
-          label="Primary Owner"
-          photoUrl={ownerPhotoUrl}
-          onUpload={e => handleOwnerPhotoUpload(1, e, setOwnerPhotoUrl, setUploadingOwnerPhoto)}
-          uploading={uploadingOwnerPhoto}
-        />
+        {!owner1Collapsed && (
+          <>
+            <div className="fgrid">
+              <div className="pf">
+                <label>First name <span className="req-star">*</span></label>
+                <input type="text" value={form.first_name} onChange={e => setField('first_name', e.target.value)}
+                  placeholder="First name" className={errors.first_name ? 'input-err' : ''} />
+                {errors.first_name && <span className="field-err">{errors.first_name}</span>}
+              </div>
+              <div className="pf">
+                <label>Last name <span className="req-star">*</span></label>
+                <input type="text" value={form.last_name} onChange={e => setField('last_name', e.target.value)}
+                  placeholder="Last name" className={errors.last_name ? 'input-err' : ''} />
+                {errors.last_name && <span className="field-err">{errors.last_name}</span>}
+              </div>
+            </div>
+            <div className="pf owner-email-full">
+              <label>Email <span className="optional-tag">optional</span></label>
+              <input type="email" value={form.owner_email} onChange={e => setField('owner_email', e.target.value)}
+                placeholder="your@email.com" />
+            </div>
+            <OwnerPhotoUpload
+              label="Primary Owner"
+              photoUrl={ownerPhotoUrl}
+              onUpload={e => handleOwnerPhotoUpload(1, e, setOwnerPhotoUrl, setUploadingOwnerPhoto)}
+              uploading={uploadingOwnerPhoto}
+            />
+          </>
+        )}
 
         {/* Owner 2 */}
         {showOwner2 && (
           <div className="owner2-block">
             <div className="owner2-header">
               <span>Owner 2</span>
-              <button className="owner2-remove" onClick={() => { setShowOwner2(false); clearOwner(2) }}>Remove</button>
-            </div>
-            <div className="fgrid">
-              <div className="pf">
-                <label>First name <span className="req-star">*</span></label>
-                <input type="text" value={form.owner2_first_name} onChange={e => setField('owner2_first_name', e.target.value)}
-                  placeholder="First name" className={errors.owner2_first_name ? 'input-err' : ''} />
-                {errors.owner2_first_name && <span className="field-err">{errors.owner2_first_name}</span>}
-              </div>
-              <div className="pf">
-                <label>Last name <span className="req-star">*</span></label>
-                <input type="text" value={form.owner2_last_name} onChange={e => setField('owner2_last_name', e.target.value)}
-                  placeholder="Last name" className={errors.owner2_last_name ? 'input-err' : ''} />
-                {errors.owner2_last_name && <span className="field-err">{errors.owner2_last_name}</span>}
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button className="owner2-remove" style={{ color: '#888', borderColor: '#ddd' }}
+                  onClick={() => setOwner2Collapsed(c => !c)}>
+                  {owner2Collapsed ? '▼ Expand' : '▲ Collapse'}
+                </button>
+                <button className="owner2-remove" onClick={() => { setShowOwner2(false); clearOwner(2) }}>Remove</button>
               </div>
             </div>
-            <div className="pf owner-email-full">
-              <label>Email <span className="optional-tag">optional</span></label>
-              <input type="email" value={form.owner2_email} onChange={e => setField('owner2_email', e.target.value)}
-                placeholder="owner2@email.com" />
-            </div>
-            <OwnerPhotoUpload
-              label="Owner 2"
-              photoUrl={owner2PhotoUrl}
-              onUpload={e => handleOwnerPhotoUpload(2, e, setOwner2PhotoUrl, setUploadingOwner2Photo)}
-              uploading={uploadingOwner2Photo}
-            />
-            <div className="pf" style={{ marginTop: 8 }}>
-              <label>Herbalife Level <span className="optional-tag">optional</span></label>
-              <OwnerLevelPicker
-                value={form.owner2_herbalife_level}
-                onChange={v => setField('owner2_herbalife_level', v)}
-              />
-            </div>
+            {!owner2Collapsed && (
+              <>
+                <div className="fgrid">
+                  <div className="pf">
+                    <label>First name <span className="req-star">*</span></label>
+                    <input type="text" value={form.owner2_first_name} onChange={e => setField('owner2_first_name', e.target.value)}
+                      placeholder="First name" className={errors.owner2_first_name ? 'input-err' : ''} />
+                    {errors.owner2_first_name && <span className="field-err">{errors.owner2_first_name}</span>}
+                  </div>
+                  <div className="pf">
+                    <label>Last name <span className="req-star">*</span></label>
+                    <input type="text" value={form.owner2_last_name} onChange={e => setField('owner2_last_name', e.target.value)}
+                      placeholder="Last name" className={errors.owner2_last_name ? 'input-err' : ''} />
+                    {errors.owner2_last_name && <span className="field-err">{errors.owner2_last_name}</span>}
+                  </div>
+                </div>
+                <div className="pf owner-email-full">
+                  <label>Email <span className="optional-tag">optional</span></label>
+                  <input type="email" value={form.owner2_email} onChange={e => setField('owner2_email', e.target.value)}
+                    placeholder="owner2@email.com" />
+                </div>
+                <OwnerPhotoUpload
+                  label="Owner 2"
+                  photoUrl={owner2PhotoUrl}
+                  onUpload={e => handleOwnerPhotoUpload(2, e, setOwner2PhotoUrl, setUploadingOwner2Photo)}
+                  uploading={uploadingOwner2Photo}
+                />
+                <div className="pf" style={{ marginTop: 8 }}>
+                  <label>Herbalife Level <span className="optional-tag">optional</span></label>
+                  <OwnerLevelPicker
+                    value={form.owner2_herbalife_level}
+                    onChange={v => setField('owner2_herbalife_level', v)}
+                  />
+                </div>
+              </>
+            )}
           </div>
         )}
 
@@ -600,40 +777,50 @@ export default function ProfilePage() {
           <div className="owner2-block">
             <div className="owner2-header">
               <span>Owner 3</span>
-              <button className="owner2-remove" onClick={() => { setShowOwner3(false); clearOwner(3) }}>Remove</button>
-            </div>
-            <div className="fgrid">
-              <div className="pf">
-                <label>First name <span className="req-star">*</span></label>
-                <input type="text" value={form.owner3_first_name} onChange={e => setField('owner3_first_name', e.target.value)}
-                  placeholder="First name" className={errors.owner3_first_name ? 'input-err' : ''} />
-                {errors.owner3_first_name && <span className="field-err">{errors.owner3_first_name}</span>}
-              </div>
-              <div className="pf">
-                <label>Last name <span className="req-star">*</span></label>
-                <input type="text" value={form.owner3_last_name} onChange={e => setField('owner3_last_name', e.target.value)}
-                  placeholder="Last name" className={errors.owner3_last_name ? 'input-err' : ''} />
-                {errors.owner3_last_name && <span className="field-err">{errors.owner3_last_name}</span>}
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button className="owner2-remove" style={{ color: '#888', borderColor: '#ddd' }}
+                  onClick={() => setOwner3Collapsed(c => !c)}>
+                  {owner3Collapsed ? '▼ Expand' : '▲ Collapse'}
+                </button>
+                <button className="owner2-remove" onClick={() => { setShowOwner3(false); clearOwner(3) }}>Remove</button>
               </div>
             </div>
-            <div className="pf owner-email-full">
-              <label>Email <span className="optional-tag">optional</span></label>
-              <input type="email" value={form.owner3_email} onChange={e => setField('owner3_email', e.target.value)}
-                placeholder="owner3@email.com" />
-            </div>
-            <OwnerPhotoUpload
-              label="Owner 3"
-              photoUrl={owner3PhotoUrl}
-              onUpload={e => handleOwnerPhotoUpload(3, e, setOwner3PhotoUrl, setUploadingOwner3Photo)}
-              uploading={uploadingOwner3Photo}
-            />
-            <div className="pf" style={{ marginTop: 8 }}>
-              <label>Herbalife Level <span className="optional-tag">optional</span></label>
-              <OwnerLevelPicker
-                value={form.owner3_herbalife_level}
-                onChange={v => setField('owner3_herbalife_level', v)}
-              />
-            </div>
+            {!owner3Collapsed && (
+              <>
+                <div className="fgrid">
+                  <div className="pf">
+                    <label>First name <span className="req-star">*</span></label>
+                    <input type="text" value={form.owner3_first_name} onChange={e => setField('owner3_first_name', e.target.value)}
+                      placeholder="First name" className={errors.owner3_first_name ? 'input-err' : ''} />
+                    {errors.owner3_first_name && <span className="field-err">{errors.owner3_first_name}</span>}
+                  </div>
+                  <div className="pf">
+                    <label>Last name <span className="req-star">*</span></label>
+                    <input type="text" value={form.owner3_last_name} onChange={e => setField('owner3_last_name', e.target.value)}
+                      placeholder="Last name" className={errors.owner3_last_name ? 'input-err' : ''} />
+                    {errors.owner3_last_name && <span className="field-err">{errors.owner3_last_name}</span>}
+                  </div>
+                </div>
+                <div className="pf owner-email-full">
+                  <label>Email <span className="optional-tag">optional</span></label>
+                  <input type="email" value={form.owner3_email} onChange={e => setField('owner3_email', e.target.value)}
+                    placeholder="owner3@email.com" />
+                </div>
+                <OwnerPhotoUpload
+                  label="Owner 3"
+                  photoUrl={owner3PhotoUrl}
+                  onUpload={e => handleOwnerPhotoUpload(3, e, setOwner3PhotoUrl, setUploadingOwner3Photo)}
+                  uploading={uploadingOwner3Photo}
+                />
+                <div className="pf" style={{ marginTop: 8 }}>
+                  <label>Herbalife Level <span className="optional-tag">optional</span></label>
+                  <OwnerLevelPicker
+                    value={form.owner3_herbalife_level}
+                    onChange={v => setField('owner3_herbalife_level', v)}
+                  />
+                </div>
+              </>
+            )}
           </div>
         )}
 

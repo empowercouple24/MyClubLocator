@@ -162,7 +162,7 @@ function ClubMarkers({ locations, selectedId, userId, onSelect, navigate }) {
       const icon = isSelected ? selectedIcon : (isOwn ? ownIcon : otherIcon)
 
       // ── Owner rows with photo or initials + per-owner level pill ──
-      // ── Level condensing helper ──
+      // ── Level condensing helper — produces "PT 30K 2💎", "MT", "CC 7💎" etc ──
       const condenseLvl = (l) => {
         if (!l) return ''
         return l
@@ -172,6 +172,7 @@ function ClubMarkers({ locations, selectedId, userId, onSelect, navigate }) {
           .replace('Get Team', 'GT').replace('Active World Team', 'AWT')
           .replace('World Team', 'WT').replace('Supervisor', 'SP')
           .replace('Success Builder', 'SB').replace('Distributor', 'DS')
+          .replace(/ (\d+) 💎$/, ' $1💎')
       }
 
       const ownerRows = [
@@ -186,7 +187,7 @@ function ClubMarkers({ locations, selectedId, userId, onSelect, navigate }) {
           ? `<img src="${o.photo}" class="ct-owner-photo" alt="${o.name}" />`
           : `<div class="ct-owner-initials">${initials}</div>`
         const lvlLabel = condenseLvl(o.level)
-        const pill = lvlLabel ? `<span class="ct-level-pill">${lvlLabel.replace(/ (\d+) 💎$/, ' $1 💎')}</span>` : ''
+        const pill = lvlLabel ? `<span class="ct-level-pill">${lvlLabel}</span>` : ''
         return `<div class="ct-owner-row">${avatar}<span class="ct-owner-name">${o.name}</span>${pill}</div>`
       }).join('')
 
@@ -198,7 +199,7 @@ function ClubMarkers({ locations, selectedId, userId, onSelect, navigate }) {
       // ── Level pill ──
       const levelLabel = condenseLvl(loc.herbalife_level)
       const levelHtml = levelLabel
-        ? `<div class="ct-level-pill">${levelLabel.replace(/ (\d+) 💎$/, ' $1 💎')}</div>`
+        ? `<div class="ct-level-pill">${levelLabel}</div>`
         : ''
 
       // ── Address ──
@@ -278,7 +279,7 @@ function ClubMarkers({ locations, selectedId, userId, onSelect, navigate }) {
         marker.openTooltip()
       }
       const scheduleClose = () => {
-        closeTimer = setTimeout(() => { marker.closeTooltip() }, 1800)
+        closeTimer = setTimeout(() => { marker.closeTooltip() }, 3000)
       }
       const cancelClose = () => {
         if (closeTimer) { clearTimeout(closeTimer); closeTimer = null }
