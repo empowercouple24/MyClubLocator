@@ -485,7 +485,12 @@ export default function AdminPage() {
                         <div className="amt-detail-name">{m.club_name || 'Unnamed Club'} {isMe && <span className="amr-you-badge">You</span>}</div>
                         <div className="amt-detail-sub">{ownerName}
                           {m.herbalife_level && (
-                            <span className="amt-level-badge">{m.herbalife_level}</span>
+                            <span className="amt-level-badge">
+                              {m.herbalife_level.includes(' 💎')
+                                ? <>{m.herbalife_level.replace(/ (\d+) 💎$/, (_, d) => ` ${d} `)}<span style={{ fontSize: 10 }}>💎</span></>
+                                : m.herbalife_level
+                              }
+                            </span>
                           )}
                         </div>
                       </div>

@@ -136,7 +136,70 @@ export default function ProfilePage() {
   // Drag-to-reorder state
   const dragIdx = useRef(null)
 
-  // Owner profile photos
+  // Herbalife level picker state
+  const [lvlTier,      setLvlTier]      = useState('')   // 'PT' | 'FCCC' | base tier
+  const [lvlK,         setLvlK]         = useState('')   // 'PT' | '15K' | '20K' ... | 'CC' | 'FC'
+  const [lvlDia,       setLvlDia]       = useState('')   // '1'–'15'
+  const [lvlConfirmed, setLvlConfirmed] = useState(false)
+
+  const K_LEVELS = ['PT','15K','20K','30K','40K','50K','60K','70K','80K','90K','100K','110K','120K','130K','140K','150K']
+  const CC_K_LEVELS = ['CC','FC','15K','20K','30K','40K','50K','60K','70K','80K','90K','100K','110K','120K','130K','140K','150K']
+
+  function lvlNeedsK()   { return lvlTier === 'PT' || lvlTier === 'FCCC' }
+  function lvlNeedsDia() {
+    if (lvlTier === 'PT' && lvlK) return true
+    if (lvlTier === 'FCCC' && lvlK) return true
+    return false
+  }
+  function lvlIsComplete() {
+    if (!lvlTier) return false
+    if (lvlTier === 'PT')   return !!lvlK   // diamonds optional for PT
+    if (lvlTier === 'FCCC') return !!lvlK && !!lvlDia  // diamonds required for FCCC
+    return true // tab team / future pres — no K or dia needed
+  }
+
+  function buildLvlValue() {
+    if (!lvlTier) return ''
+    if (lvlTier === 'PT') {
+      const k = lvlK && lvlK !== 'PT' ? ` ${lvlK}` : ''
+      const d = lvlDia ? ` ${lvlDia} 💎` : ''
+      return `Presidents Team${k}${d}`
+    }
+    if (lvlTier === 'FCCC') {
+      if (!lvlK) return ''
+      let prefix
+      if      (lvlK === 'CC') prefix = 'Chairmans Club'
+      else if (lvlK === 'FC') prefix = 'Founders Circle'
+      else    prefix = parseInt(lvlDia) >= 10 ? 'Founders Circle' : 'Chairmans Club'
+      const k = (lvlK !== 'CC' && lvlK !== 'FC') ? ` ${lvlK}` : ''
+      const d = lvlDia ? ` ${lvlDia} 💎` : ''
+      return `${prefix}${k}${d}`
+    }
+    return lvlTier
+  }
+
+  function buildLvlDisplay(val) {
+    if (!val) return ''
+    return val.replace(/ (\d+) 💎$/, ' $1 💎')
+  }
+
+  function pickLvlTier(t) {
+    setLvlTier(t); setLvlK(''); setLvlDia(''); setLvlConfirmed(false)
+    // For non-PT/FCCC tiers, set herbalife_level immediately
+    if (t !== 'PT' && t !== 'FCCC') setField('herbalife_level', t)
+    else setField('herbalife_level', '')
+  }
+
+  function confirmLevel() {
+    const val = buildLvlValue()
+    setField('herbalife_level', val)
+    setLvlConfirmed(true)
+  }
+
+  function changeLevel() {
+    setLvlConfirmed(false)
+    setField('herbalife_level', '')
+  }
   const [ownerPhotoUrl,  setOwnerPhotoUrl]  = useState(null)
   const [owner2PhotoUrl, setOwner2PhotoUrl] = useState(null)
   const [owner3PhotoUrl, setOwner3PhotoUrl] = useState(null)
@@ -163,6 +226,25 @@ export default function ProfilePage() {
         if (data.owner_photo_url)  setOwnerPhotoUrl(data.owner_photo_url)
         if (data.owner2_photo_url) setOwner2PhotoUrl(data.owner2_photo_url)
         if (data.owner3_photo_url) setOwner3PhotoUrl(data.owner3_photo_url)
+        // Restore level picker state from saved value
+        if (data.herbalife_level) {
+          const lv = data.herbalife_level
+          const dMatch = lv.match(/ (\d+) 💎$/)
+          const kMatch = lv.match(/ (\d+K)/)
+          if (/^Presidents Team/.test(lv)) {
+            setLvlTier('PT')
+            setLvlK(kMatch ? kMatch[1] : 'PT')
+            if (dMatch) setLvlDia(dMatch[1])
+          } else if (/^Chairmans Club|^Founders Circle/.test(lv)) {
+            setLvlTier('FCCC')
+            if (kMatch) setLvlK(kMatch[1])
+            else setLvlK(/^Chairmans/.test(lv) ? 'CC' : 'FC')
+            if (dMatch) setLvlDia(dMatch[1])
+          } else {
+            setLvlTier(lv)
+          }
+          setLvlConfirmed(true)
+        }
       } else {
         // New user — pre-fill club_email and owner_email from their auth email
         if (user.email) {
@@ -740,84 +822,168 @@ export default function ProfilePage() {
         <div className="sec-label">Herbalife Level <span className="req-star">*</span></div>
         <p className="upload-hint" style={{ marginBottom: 14 }}>Select your current level in the Herbalife sales &amp; marketing plan.</p>
 
-        {/* Future Tab Team */}
-        <div className="lvl-group-label">Future Tab Team</div>
-        <div className="lvl-btn-row">
-          {[
-            { val: 'Distributor',       label: 'DS',  c: '#e3e3e3', cd: '#555' },
-            { val: 'Success Builder',   label: 'SB',  c: '#e3e3e3', cd: '#555' },
-            { val: 'Supervisor',        label: 'SP',  c: '#64ba44', cd: '#2a6b1a' },
-            { val: 'World Team',        label: 'WT',  c: '#767678', cd: '#3a3a3a' },
-            { val: 'Active World Team', label: 'AWT', c: '#767678', cd: '#3a3a3a' },
-          ].map(({ val, label, c, cd }) => (
-            <button key={val} type="button"
-              className={`lvl-btn ${form.herbalife_level === val ? 'on' : ''}`}
-              style={{ '--lvlc': c, '--lvlcd': cd }}
-              onClick={() => setField('herbalife_level', val)}>
-              {label}
-            </button>
-          ))}
-        </div>
+        <div style={{ position: 'relative' }}>
+          {/* Locked overlay */}
+          {lvlConfirmed && (
+            <div style={{
+              position: 'absolute', inset: 0, background: 'rgba(255,255,255,0.55)',
+              borderRadius: 8, zIndex: 2, pointerEvents: 'none'
+            }} />
+          )}
 
-        {/* Future Pres Team */}
-        <div className="lvl-group-label" style={{ marginTop: 12 }}>Future Pres Team 🚀</div>
-        <div className="lvl-btn-row">
-          {[
-            { val: 'Get Team',              label: 'GT', c: '#e02054', cd: '#8a0020' },
-            { val: 'Get Team 2500',         label: 'GP', c: '#f39519', cd: '#7a4200' },
-            { val: 'Millionaire Team',      label: 'MT', c: '#3aac77', cd: '#0c5a32' },
-            { val: 'Millionaire Team 7500', label: 'MP', c: '#84c8d3', cd: '#1a5a60' },
-          ].map(({ val, label, c, cd }) => (
-            <button key={val} type="button"
-              className={`lvl-btn ${form.herbalife_level === val ? 'on' : ''}`}
-              style={{ '--lvlc': c, '--lvlcd': cd }}
-              onClick={() => setField('herbalife_level', val)}>
-              {label}
-            </button>
-          ))}
-        </div>
+          {/* Future Tab Team */}
+          <div className="lvl-group-label">Future Tab Team</div>
+          <div className="lvl-btn-row">
+            {[
+              { val: 'Distributor',       label: 'DS',  c: '#e3e3e3', cd: '#555' },
+              { val: 'Success Builder',   label: 'SB',  c: '#e3e3e3', cd: '#555' },
+              { val: 'Supervisor',        label: 'SP',  c: '#64ba44', cd: '#2a6b1a' },
+              { val: 'World Team',        label: 'WT',  c: '#767678', cd: '#3a3a3a' },
+              { val: 'Active World Team', label: 'AWT', c: '#767678', cd: '#3a3a3a' },
+            ].map(({ val, label, c, cd }) => (
+              <button key={val} type="button"
+                className={`lvl-btn ${lvlTier === val ? 'on' : ''}`}
+                style={{ '--lvlc': c, '--lvlcd': cd }}
+                onClick={() => pickLvlTier(val)}>
+                {label}
+              </button>
+            ))}
+          </div>
 
-        {/* Pres Team */}
-        <div className="lvl-group-label" style={{ marginTop: 12 }}>Pres Team 💎</div>
-        <div className="lvl-btn-row">
-          {[
-            { val: 'Presidents Team',     label: 'PT',      c: '#fde488', cd: '#7a5200' },
-            { val: 'Presidents Team 15K', label: 'PT 15K',  c: '#fde488', cd: '#7a5200' },
-            { val: 'Presidents Team 20K', label: 'PT 20K',  c: '#fde488', cd: '#7a5200' },
-            { val: 'Presidents Team 30K', label: 'PT 30K',  c: '#fde488', cd: '#7a5200' },
-          ].map(({ val, label, c, cd }) => (
-            <button key={val} type="button"
-              className={`lvl-btn ${form.herbalife_level === val ? 'on' : ''}`}
-              style={{ '--lvlc': c, '--lvlcd': cd }}
-              onClick={() => { setField('herbalife_level', val) }}>
-              {label}
-            </button>
-          ))}
-        </div>
+          {/* Future Pres Team */}
+          <div className="lvl-group-label" style={{ marginTop: 12 }}>Future Pres Team 🚀</div>
+          <div className="lvl-btn-row">
+            {[
+              { val: 'Get Team',              label: 'GT', c: '#e02054', cd: '#8a0020' },
+              { val: 'Get Team 2500',         label: 'GP', c: '#f39519', cd: '#7a4200' },
+              { val: 'Millionaire Team',      label: 'MT', c: '#3aac77', cd: '#0c5a32' },
+              { val: 'Millionaire Team 7500', label: 'MP', c: '#84c8d3', cd: '#1a5a60' },
+            ].map(({ val, label, c, cd }) => (
+              <button key={val} type="button"
+                className={`lvl-btn ${lvlTier === val ? 'on' : ''}`}
+                style={{ '--lvlc': c, '--lvlcd': cd }}
+                onClick={() => pickLvlTier(val)}>
+                {label}
+              </button>
+            ))}
+          </div>
 
-        {/* Diamonds — shown when any PT variant selected */}
-        {form.herbalife_level && form.herbalife_level.startsWith('Presidents Team') && (
-          <div className="lvl-diamond-wrap">
-            <div className="lvl-diamond-label">Diamonds</div>
-            <div className="lvl-btn-row">
-              {['1','2','3','4'].map(d => {
-                const val = `Presidents Team · ${d}◆`
-                return (
-                  <button key={d} type="button"
-                    className={`lvl-dia-btn ${form.herbalife_level === val ? 'on' : ''}`}
-                    onClick={() => setField('herbalife_level', val)}>
-                    {d}◆
+          {/* Pres Team */}
+          <div className="lvl-group-label" style={{ marginTop: 12 }}>Pres Team 💎</div>
+          <div className="lvl-btn-row">
+            <button type="button"
+              className={`lvl-btn ${lvlTier === 'PT' ? 'on' : ''}`}
+              style={{ '--lvlc': '#fde488', '--lvlcd': '#7a5200' }}
+              onClick={() => pickLvlTier('PT')}>
+              PT
+            </button>
+          </div>
+
+          {/* Chairman's & Founders */}
+          <div className="lvl-group-label" style={{ marginTop: 12 }}>Chairman's &amp; Founders 🥈✦</div>
+          <div className="lvl-btn-row">
+            <button type="button"
+              className={`lvl-btn lvl-btn-cc ${lvlTier === 'FCCC' ? 'on' : ''}`}
+              onClick={() => pickLvlTier('FCCC')}>
+              CC / FC
+            </button>
+          </div>
+
+          {/* PT K level */}
+          {lvlTier === 'PT' && (
+            <div className="lvl-diamond-wrap" style={{ marginTop: 10 }}>
+              <div className="lvl-diamond-label">K level — required</div>
+              <div className="lvl-btn-row">
+                {K_LEVELS.map(k => (
+                  <button key={k} type="button"
+                    className={`lvl-dia-btn ${lvlK === k ? 'on' : ''}`}
+                    onClick={() => { setLvlK(k); setLvlDia(''); setLvlConfirmed(false); setField('herbalife_level', '') }}>
+                    {k}
                   </button>
-                )
-              })}
+                ))}
+              </div>
             </div>
+          )}
+
+          {/* PT Diamonds — optional */}
+          {lvlTier === 'PT' && lvlK && (
+            <div className="lvl-diamond-wrap" style={{ marginTop: 8 }}>
+              <div className="lvl-diamond-label">Diamonds — optional</div>
+              <div className="lvl-btn-row">
+                {['1','2','3','4'].map(d => (
+                  <button key={d} type="button"
+                    className={`lvl-dia-btn ${lvlDia === d ? 'on' : ''}`}
+                    onClick={() => { setLvlDia(lvlDia === d ? '' : d); setLvlConfirmed(false); setField('herbalife_level', '') }}>
+                    {d} <span style={{ fontSize: 11 }}>💎</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* FCCC K level */}
+          {lvlTier === 'FCCC' && (
+            <div className="lvl-diamond-wrap lvl-diamond-wrap--cc" style={{ marginTop: 10 }}>
+              <div className="lvl-diamond-label" style={{ color: '#5a5a72' }}>K level — required</div>
+              <div className="lvl-btn-row">
+                {CC_K_LEVELS.map(k => (
+                  <button key={k} type="button"
+                    className={`lvl-dia-btn lvl-dia-btn--cc ${lvlK === k ? 'on' : ''}`}
+                    onClick={() => { setLvlK(k); setLvlDia(''); setLvlConfirmed(false); setField('herbalife_level', '') }}>
+                    {k}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* FCCC Diamonds — required */}
+          {lvlTier === 'FCCC' && lvlK && (
+            <div className="lvl-diamond-wrap lvl-diamond-wrap--cc" style={{ marginTop: 8 }}>
+              <div className="lvl-diamond-label" style={{ color: '#5a5a72' }}>Diamonds — required (5–15)</div>
+              <div className="lvl-btn-row">
+                {['5','6','7','8','9','10','11','12','13','14','15'].map(d => (
+                  <button key={d} type="button"
+                    className={`lvl-dia-btn lvl-dia-btn--cc ${lvlDia === d ? 'on' : ''}`}
+                    onClick={() => { setLvlDia(d); setLvlConfirmed(false); setField('herbalife_level', '') }}>
+                    {d} <span style={{ fontSize: 11 }}>💎</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Confirm button — appears when complete, not yet confirmed */}
+        {lvlIsComplete() && !lvlConfirmed && (
+          <button className="lvl-confirm-btn" onClick={confirmLevel}>
+            Confirm level: {buildLvlDisplay(buildLvlValue()).replace(/ (\d+) 💎$/, '')}
+            {buildLvlValue().includes(' 💎') && <> {buildLvlValue().match(/ (\d+) 💎$/)?.[1]} <span style={{ fontSize: 11 }}>💎</span></>}
+          </button>
+        )}
+
+        {/* Locked confirmed state */}
+        {lvlConfirmed && (
+          <div className="lvl-locked-state">
+            <div className="lvl-locked-check">
+              <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+                <path d="M2 6.5l3.5 3.5 5.5-6" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </div>
+            <div className="lvl-locked-text">
+              Level confirmed:{' '}
+              <strong>
+                {form.herbalife_level.includes(' 💎')
+                  ? <>{form.herbalife_level.replace(/ (\d+) 💎$/, (_, d) => ` ${d} `)}<span style={{ fontSize: 11 }}>💎</span></>
+                  : form.herbalife_level
+                }
+              </strong>
+            </div>
+            <button className="lvl-change-btn" onClick={changeLevel}>Change</button>
           </div>
         )}
 
         {errors.herbalife_level && <span className="field-err">{errors.herbalife_level}</span>}
-        {form.herbalife_level && (
-          <div className="lvl-selected-label">Selected: <strong>{form.herbalife_level}</strong></div>
-        )}
       </div>
 
       {/* CARD 6: Your Story */}

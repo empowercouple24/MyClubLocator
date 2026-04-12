@@ -5325,3 +5325,109 @@ body {
   vertical-align: middle;
   white-space: nowrap;
 }
+
+/* ── Chairman's Club button ──────────────────────────────────── */
+.lvl-btn-cc {
+  --lvlc: #c8c8d8;
+  --lvlcd: #2a2a40;
+  background: #f0f0f4;
+  color: #3a3a50;
+  border: 0.5px solid #b0b0c8;
+}
+.lvl-btn-cc:hover { background: #e2e2ec; }
+.lvl-btn-cc.on { background: #c8c8d8; color: #2a2a40; border: 2px solid #9090a8; }
+
+.lvl-diamond-wrap--cc {
+  background: #f4f4f8;
+  border-color: #b0b0c8;
+}
+.lvl-diamond-wrap--cc .lvl-diamond-label { color: #5a5a72; }
+
+.lvl-dia-btn--cc {
+  border-color: #9090a8;
+  color: #4a4a60;
+}
+.lvl-dia-btn--cc:hover { background: #e8e8f2; }
+.lvl-dia-btn--cc.on { background: #c8c8d8; color: #2a2a40; border-color: #c8c8d8; }
+
+/* ── Founders Circle button ──────────────────────────────────── */
+.lvl-btn-fc {
+  --lvlc: #e8e4ff;
+  --lvlcd: #2a1880;
+  background: #f8f8ff;
+  color: #3a3060;
+  border: 1px solid #c8c0e8;
+}
+.lvl-btn-fc:hover { background: #eeecff; }
+.lvl-btn-fc.on { background: #e8e4ff; color: #2a1880; border: 2px solid #9080d0; }
+
+.lvl-diamond-wrap--fc {
+  background: #f8f8ff;
+  border-color: #c0b8e0;
+}
+.lvl-diamond-wrap--fc .lvl-diamond-label { color: #6050a0; }
+
+.lvl-dia-btn--fc {
+  border-color: #9080d0;
+  color: #5040a0;
+}
+.lvl-dia-btn--fc:hover { background: #eeecff; }
+.lvl-dia-btn--fc.on { background: #e0d8ff; color: #2a1880; border-color: #9080d0; }
+
+/* ── Level picker confirm / locked ───────────────────────────── */
+.lvl-confirm-btn {
+  width: 100%;
+  margin-top: 12px;
+  padding: 10px 16px;
+  background: #1A3C2E;
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+}
+.lvl-confirm-btn:hover { opacity: 0.88; }
+
+.lvl-locked-state {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  background: #E1F5EE;
+  border: 1px solid #4CAF82;
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+
+.lvl-locked-check {
+  width: 24px;
+  height: 24px;
+  background: #4CAF82;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.lvl-locked-text {
+  flex: 1;
+  font-size: 13px;
+  color: #0F6E56;
+  font-weight: 500;
+}
+.lvl-locked-text strong { color: #0a4a30; }
+
+.lvl-change-btn {
+  font-size: 12px;
+  color: #0F6E56;
+  background: none;
+  border: 1px solid #4CAF82;
+  border-radius: 6px;
+  padding: 4px 10px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.lvl-change-btn:hover { background: #c5ebd8; }
