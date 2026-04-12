@@ -8,8 +8,6 @@ import DemographicsPanel from '../components/DemographicsPanel'
 import MapSearchAutocomplete from '../components/MapSearchAutocomplete'
 import PhotoGallery from '../components/PhotoGallery'
 
-delete L.Icon.Default.prototype._getIconUrl
-
 // ── Circle markers via DivIcon ────────────────────────────
 // own = warm red, other = periwinkle blue, selected = gold
 // Each has a white stroke on light map, white stroke on aerial
@@ -118,13 +116,21 @@ function MapController({ center, zoom, panelPosition }) {
   const map = useMap()
   useEffect(() => {
     if (center) {
-      setTimeout(() => {
+      const t = setTimeout(() => {
+        if (!map._container) return
         map.invalidateSize()
         map.setView(center, zoom || map.getZoom(), { animate: true })
       }, 320)
+      return () => clearTimeout(t)
     }
   }, [center, zoom])
-  useEffect(() => { setTimeout(() => map.invalidateSize(), 320) }, [panelPosition])
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (!map._container) return
+      map.invalidateSize()
+    }, 320)
+    return () => clearTimeout(t)
+  }, [panelPosition])
   return null
 }
 
