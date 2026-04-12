@@ -268,17 +268,36 @@ function ClubMarkers({ locations, selectedId, userId, onSelect, navigate }) {
         direction: 'top',
         offset: [0, -28],
         className: 'club-tooltip',
+        sticky: false,
       }).setContent(tooltipHtml)
+
+      let closeTimer = null
+
+      const openTooltip = () => {
+        if (closeTimer) { clearTimeout(closeTimer); closeTimer = null }
+        marker.openTooltip()
+      }
+      const scheduleClose = () => {
+        closeTimer = setTimeout(() => { marker.closeTooltip() }, 1800)
+      }
+      const cancelClose = () => {
+        if (closeTimer) { clearTimeout(closeTimer); closeTimer = null }
+      }
 
       const marker = leafletMarker([loc.lat, loc.lng], { icon })
         .addTo(map)
         .bindTooltip(tooltip)
         .on('click', () => onSelect(loc))
+        .on('mouseover', openTooltip)
+        .on('mouseout', scheduleClose)
         .on('tooltipopen', () => {
           // Attach directory link click after tooltip renders
           setTimeout(() => {
             const el = document.querySelector('.ct-dir-link')
             if (el) {
+              // Keep tooltip open while hovering the link
+              el.addEventListener('mouseenter', cancelClose)
+              el.addEventListener('mouseleave', scheduleClose)
               el.addEventListener('click', (e) => {
                 e.stopPropagation()
                 const name = decodeURIComponent(el.dataset.clubname || '')
