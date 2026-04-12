@@ -66,6 +66,13 @@ export default function SignupPage() {
       // Record terms acceptance
       if (data?.user?.id) {
         await supabase.from('user_terms_acceptance').insert({ user_id: data.user.id })
+        // Notify admin
+        await supabase.from('notifications').insert({
+          type: 'new_signup',
+          title: 'New member signed up',
+          body: `${email} just created an account.`,
+          user_id: data.user.id,
+        })
       }
       navigate('/app/map')
     }

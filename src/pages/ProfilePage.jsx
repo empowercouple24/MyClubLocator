@@ -283,6 +283,7 @@ export default function ProfilePage() {
       lng: coords ? coords.lng : null,
     }
 
+    const isFirstSave = !hasProfile
     const result = hasProfile
       ? await supabase.from('locations').update(record).eq('user_id', user.id)
       : await supabase.from('locations').insert(record)
@@ -292,6 +293,17 @@ export default function ProfilePage() {
       setSaving(false); setSaveAction(null)
       return
     }
+
+    // Notify admin on first profile save
+    if (isFirstSave) {
+      await supabase.from('notifications').insert({
+        type: 'new_profile',
+        title: 'New club profile submitted',
+        body: `${form.club_name || 'A new club'} just set up their profile${form.city ? ` in ${form.city}${form.state ? `, ${form.state}` : ''}` : ''}.`,
+        user_id: user.id,
+      })
+    }
+
     setHasProfile(true)
     if (action === 'map') {
       navigate('/app/map')

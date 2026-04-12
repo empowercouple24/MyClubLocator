@@ -180,9 +180,38 @@ export default function AdminPage() {
   const [previewModal, setPreviewModal]       = useState(null) // 'message' | 'disclaimer' | null
 
   // Contacts state
-  const [contacts, setContacts]           = useState([])
+  const [contacts, setContacts]             = useState([])
   const [loadingContacts, setLoadingContacts] = useState(false)
   const [contactsLoaded, setContactsLoaded]   = useState(false)
+  const [notifications, setNotifications]     = useState([])
+  const [notifLoaded, setNotifLoaded]         = useState(false)
+  const [msgSubTab, setMsgSubTab]             = useState('contact') // 'contact' | 'members'
+
+  // Unread counts
+  const unreadContacts = contacts.filter(c => !c.is_read).length
+  const unreadNotifs   = notifications.filter(n => !n.is_read).length
+  const totalUnread    = unreadContacts + unreadNotifs
+
+  // Real-time subscriptions
+  useEffect(() => {
+    if (!isAdmin) return
+    // Subscribe to contact_submissions
+    const contactSub = supabase.channel('admin-contacts')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'contact_submissions' }, payload => {
+        setContacts(prev => [{ ...payload.new, replies: [] }, ...prev])
+      })
+      .subscribe()
+    // Subscribe to notifications
+    const notifSub = supabase.channel('admin-notifications')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications' }, payload => {
+        setNotifications(prev => [payload.new, ...prev])
+      })
+      .subscribe()
+    return () => {
+      supabase.removeChannel(contactSub)
+      supabase.removeChannel(notifSub)
+    }
+  }, [isAdmin])
 
   useEffect(() => {
     if (!isAdmin) { navigate('/app/map'); return }
@@ -196,7 +225,27 @@ export default function AdminPage() {
       .from('locations')
       .select('*')
       .order('created_at', { ascending: false })
-    if (data) setMembers(data)
+    if (data) {
+      // Fire pending_approval notifications for any newly pending members not yet notified
+      const pending = data.filter(m => m.approved === false)
+      for (const m of pending) {
+        const { data: existing } = await supabase
+          .from('notifications')
+          .select('id')
+          .eq('type', 'pending_approval')
+          .eq('user_id', m.user_id)
+          .single()
+        if (!existing) {
+          await supabase.from('notifications').insert({
+            type: 'pending_approval',
+            title: 'New member awaiting approval',
+            body: `${m.club_name || 'A new club'} from ${m.city || 'unknown location'} is pending your approval.`,
+            user_id: m.user_id,
+          })
+        }
+      }
+      setMembers(data)
+    }
     setLoadingMembers(false)
   }
 
@@ -217,9 +266,41 @@ export default function AdminPage() {
     setContactsLoaded(true)
   }
 
+  async function loadNotifications() {
+    const { data } = await supabase
+      .from('notifications')
+      .select('*')
+      .order('created_at', { ascending: false })
+    if (data) setNotifications(data)
+    setNotifLoaded(true)
+  }
+
+  async function markContactRead(id) {
+    await supabase.from('contact_submissions').update({ is_read: true }).eq('id', id)
+    setContacts(prev => prev.map(c => c.id === id ? { ...c, is_read: true } : c))
+  }
+
+  async function markNotifRead(id) {
+    await supabase.from('notifications').update({ is_read: true }).eq('id', id)
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n))
+  }
+
+  async function markAllContactsRead() {
+    await supabase.from('contact_submissions').update({ is_read: true }).eq('is_read', false)
+    setContacts(prev => prev.map(c => ({ ...c, is_read: true })))
+  }
+
+  async function markAllNotifsRead() {
+    await supabase.from('notifications').update({ is_read: true }).eq('is_read', false)
+    setNotifications(prev => prev.map(n => ({ ...n, is_read: true })))
+  }
+
   function handleTabChange(t) {
     setTab(t)
-    if (t === 'contacts' && !contactsLoaded) loadContacts()
+    if (t === 'contacts') {
+      if (!contactsLoaded) loadContacts()
+      if (!notifLoaded) loadNotifications()
+    }
   }
 
   async function handleApprove(member) {
@@ -299,7 +380,17 @@ export default function AdminPage() {
         {TABS.map(t => (
           <button key={t} className={`admin-tab ${tab === t ? 'active' : ''}`}
             onClick={() => handleTabChange(t)}>
-            {t === 'members' ? 'Members' : t === 'settings' ? 'Settings' : `Messages ${contacts.length > 0 ? `(${contacts.length})` : ''}`}
+            {t === 'members' ? 'Members' : t === 'settings' ? 'Settings' : (
+              <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                Messages
+                {totalUnread > 0 && (
+                  <span style={{
+                    background: '#e53e3e', color: '#fff', borderRadius: '10px',
+                    fontSize: 10, fontWeight: 600, padding: '1px 6px', lineHeight: '16px'
+                  }}>{totalUnread}</span>
+                )}
+              </span>
+            )}
           </button>
         ))}
       </div>
@@ -730,30 +821,113 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* ── CONTACTS TAB ── */}
+      {/* ── MESSAGES TAB ── */}
       {tab === 'contacts' && (
         <div className="admin-contacts">
-          {loadingContacts ? (
-            <div className="admin-loading">Loading messages…</div>
-          ) : contacts.length === 0 ? (
-            <div className="admin-empty">No messages yet.</div>
-          ) : (
-            <div className="contact-submissions-list">
-              {contacts.map(c => (
-                <ContactCard
-                  key={c.id}
-                  submission={c}
-                  onReplySent={(reply) => {
-                    setContacts(prev => prev.map(x =>
-                      x.id === c.id
-                        ? { ...x, replies: [...(x.replies || []), reply] }
-                        : x
-                    ))
-                  }}
-                />
-              ))}
+
+          {/* Sub-tabs */}
+          <div className="msg-subtabs">
+            <button
+              className={`msg-subtab ${msgSubTab === 'contact' ? 'active' : ''}`}
+              onClick={() => setMsgSubTab('contact')}
+            >
+              Contact messages
+              {unreadContacts > 0 && <span className="msg-unread-badge">{unreadContacts}</span>}
+            </button>
+            <button
+              className={`msg-subtab ${msgSubTab === 'members' ? 'active' : ''}`}
+              onClick={() => setMsgSubTab('members')}
+            >
+              Member activity
+              {unreadNotifs > 0 && <span className="msg-unread-badge">{unreadNotifs}</span>}
+            </button>
+          </div>
+
+          {/* ── Contact messages sub-tab ── */}
+          {msgSubTab === 'contact' && (
+            <div>
+              {unreadContacts > 0 && (
+                <div className="msg-mark-all-row">
+                  <button className="msg-mark-all-btn" onClick={markAllContactsRead}>
+                    Mark all as read
+                  </button>
+                </div>
+              )}
+              {loadingContacts ? (
+                <div className="admin-loading">Loading messages…</div>
+              ) : contacts.length === 0 ? (
+                <div className="admin-empty">No contact messages yet.</div>
+              ) : (
+                <div className="contact-submissions-list">
+                  {contacts.map(c => (
+                    <div key={c.id} className={`msg-contact-wrap ${!c.is_read ? 'unread' : ''}`}
+                      onClick={() => { if (!c.is_read) markContactRead(c.id) }}>
+                      {!c.is_read && <div className="msg-unread-dot" />}
+                      <ContactCard
+                        submission={c}
+                        onReplySent={(reply) => {
+                          setContacts(prev => prev.map(x =>
+                            x.id === c.id
+                              ? { ...x, replies: [...(x.replies || []), reply], is_read: true }
+                              : x
+                          ))
+                        }}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
+
+          {/* ── Member activity sub-tab ── */}
+          {msgSubTab === 'members' && (
+            <div>
+              {unreadNotifs > 0 && (
+                <div className="msg-mark-all-row">
+                  <button className="msg-mark-all-btn" onClick={markAllNotifsRead}>
+                    Mark all as read
+                  </button>
+                </div>
+              )}
+              {!notifLoaded ? (
+                <div className="admin-loading">Loading activity…</div>
+              ) : notifications.length === 0 ? (
+                <div className="admin-empty">No member activity yet.</div>
+              ) : (
+                <div className="notif-list">
+                  {notifications.map(n => (
+                    <div key={n.id}
+                      className={`notif-card ${!n.is_read ? 'unread' : ''}`}
+                      onClick={() => { if (!n.is_read) markNotifRead(n.id) }}
+                    >
+                      {!n.is_read && <div className="msg-unread-dot" />}
+                      <div className="notif-icon">
+                        {n.type === 'new_signup'   && <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="5" r="3" stroke="#1A3C2E" strokeWidth="1.3"/><path d="M2 14c0-3.3 2.7-5 6-5s6 1.7 6 5" stroke="#1A3C2E" strokeWidth="1.3" strokeLinecap="round"/></svg>}
+                        {n.type === 'new_profile'  && <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="12" height="12" rx="2" stroke="#1A3C2E" strokeWidth="1.3"/><line x1="5" y1="6" x2="11" y2="6" stroke="#1A3C2E" strokeWidth="1.3" strokeLinecap="round"/><line x1="5" y1="9" x2="9" y2="9" stroke="#1A3C2E" strokeWidth="1.3" strokeLinecap="round"/></svg>}
+                        {n.type === 'pending_approval' && <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="#F59E0B" strokeWidth="1.3"/><line x1="8" y1="5" x2="8" y2="8.5" stroke="#F59E0B" strokeWidth="1.3" strokeLinecap="round"/><circle cx="8" cy="10.5" r="0.8" fill="#F59E0B"/></svg>}
+                      </div>
+                      <div className="notif-body">
+                        <div className="notif-title">{n.title}</div>
+                        {n.body && <div className="notif-text">{n.body}</div>}
+                        <div className="notif-time">
+                          {new Date(n.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          {' · '}
+                          {new Date(n.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                        </div>
+                      </div>
+                      {n.type === 'pending_approval' && (
+                        <button className="notif-action-btn" onClick={e => { e.stopPropagation(); setTab('members') }}>
+                          Review →
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
         </div>
       )}
 
