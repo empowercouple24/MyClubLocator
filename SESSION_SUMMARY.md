@@ -350,3 +350,44 @@ K levels: PT=base,15K-150K | CC/FC=CC,FC,15K-150K
 - Working directory: /home/claude/MyClubLocator-main/
 - Build command: cd /home/claude/MyClubLocator-main && node build.mjs
 - Always build and zip before presenting file to user
+
+---
+
+## Teams Feature (built April 12, 2026 — second session)
+
+### DB tables (already migrated)
+- `teams` — id, owner_user_id, name, created_at
+- `team_members` — id, team_id, location_id, status ('pending'|'accepted'|'declined'), invited_at, responded_at
+- `app_settings` new columns: `team_creation_enabled BOOLEAN DEFAULT true`, `team_creation_min_level TEXT DEFAULT 'Active World Team'`
+
+### Level hierarchy (LEVEL_ORDER constant in ProfilePage.jsx)
+Distributor → Success Builder → Supervisor → World Team → Active World Team → Get Team → Get Team 2500 → Millionaire Team → Millionaire Team 7500 → Presidents Team → Chairmans Club → Founders Circle
+
+### ProfilePage — MyTeamSection component
+- Checks `app_settings.team_creation_enabled` and `team_creation_min_level` 
+- Shows pending invites banner with Accept/Decline buttons
+- Shows "Teams I belong to" with Leave button
+- Shows "Teams I manage" — collapsible cards with member list + invite search
+- Invite search queries locations by club name, city, first name — sends in-app notification to invited user
+- Create team form — only visible when level >= min level
+
+### MapPage — Team filter
+- `teamLocationIds` Set loaded on mount from teams owned by current user
+- "My Team" button appears in bottom controls bar ONLY when user has accepted team members
+- When active: team club markers show as purple `#7C3AED` with small ambient pulse (same as own-club pulse)
+- Non-team clubs remain on map unchanged
+- `teamFilter` state toggles the purple markers on/off
+
+### AdminPage — Teams tab
+- 5th tab: Settings | Access Controls | Messages | Members | Teams
+- Lists all teams with owner name, created date, member count, pending count
+- Dissolve button (with confirmation) — deletes entire team
+- Remove individual member button
+- Team Creation section in Settings tab — enable/disable toggle + min level dropdown
+
+### Pending SQL for teams (run these if not already done)
+```sql
+ALTER TABLE app_settings
+  ADD COLUMN IF NOT EXISTS team_creation_enabled BOOLEAN DEFAULT true,
+  ADD COLUMN IF NOT EXISTS team_creation_min_level TEXT DEFAULT 'Active World Team';
+```

@@ -10,14 +10,24 @@ import PhotoGallery from '../components/PhotoGallery'
 
 // ── Circle markers via DivIcon ────────────────────────────
 // own = warm red with ambient pulse, other = periwinkle blue, selected = gold with big pulse
-function makeCircleIcon(type) {
-  const configs = {
-    own:      { fill: '#D94F4F', stroke: '#a83535', size: 22 },
-    other:    { fill: '#6B8DD6', stroke: '#4060b0', size: 18 },
-    selected: { fill: '#F59E0B', stroke: '#c47d00', size: 26 },
+// colors can be overridden via the colors param
+function darken(hex) {
+  // Simple darkening — multiply each channel by 0.7
+  const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16)
+  const d = v => Math.max(0,Math.floor(v*0.65)).toString(16).padStart(2,'0')
+  return `#${d(r)}${d(g)}${d(b)}`
+}
+
+function makeCircleIcon(type, colors = {}) {
+  const defaults = {
+    own:      { fill: '#D94F4F', size: 22 },
+    other:    { fill: '#6B8DD6', size: 18 },
+    selected: { fill: '#F59E0B', size: 26 },
+    team:     { fill: '#7C3AED', size: 20 },
   }
-  const { fill, stroke, size } = configs[type]
-  const r = size / 2
+  const fill = colors[type] || defaults[type].fill
+  const size = defaults[type].size
+  const r    = size / 2
 
   if (type === 'selected') {
     const html = `
@@ -32,7 +42,6 @@ function makeCircleIcon(type) {
   }
 
   if (type === 'own') {
-    // Small ambient pulse — always running, soft and subtle
     const html = `
       <div style="position:relative;width:${size}px;height:${size}px;cursor:pointer;transform:translate(-50%,-50%);">
         <div class="marker-own-pulse" style="--pulse-color:${fill};"></div>
@@ -43,6 +52,18 @@ function makeCircleIcon(type) {
     return divIcon({ className: '', html, iconSize: [size, size], iconAnchor: [r, r], popupAnchor: [0, -r] })
   }
 
+  if (type === 'team') {
+    const html = `
+      <div style="position:relative;width:${size}px;height:${size}px;cursor:pointer;transform:translate(-50%,-50%);">
+        <div class="marker-own-pulse" style="--pulse-color:${fill};"></div>
+        <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg" style="position:relative;z-index:2;">
+          <circle cx="${r}" cy="${r}" r="${r - 1.5}" fill="${fill}" stroke="white" stroke-width="2"/>
+        </svg>
+      </div>`
+    return divIcon({ className: '', html, iconSize: [size, size], iconAnchor: [r, r], popupAnchor: [0, -r] })
+  }
+
+  // other
   const svg = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg"><circle cx="${r}" cy="${r}" r="${r - 1.5}" fill="${fill}" stroke="white" stroke-width="2"/></svg>`
   return divIcon({
     className: '',
@@ -53,15 +74,19 @@ function makeCircleIcon(type) {
   })
 }
 
-// Icons created lazily to avoid calling L.divIcon at module parse time
-let _ownIcon, _otherIcon, _selectedIcon
-function getIcons() {
-  if (!_ownIcon) {
-    _ownIcon      = makeCircleIcon('own')
-    _otherIcon    = makeCircleIcon('other')
-    _selectedIcon = makeCircleIcon('selected')
+// Icons cached per color signature — bust cache when colors change
+let _iconCache = {}
+function getIcons(colors = {}) {
+  const sig = JSON.stringify(colors)
+  if (!_iconCache[sig]) {
+    _iconCache[sig] = {
+      ownIcon:      makeCircleIcon('own',      colors),
+      otherIcon:    makeCircleIcon('other',    colors),
+      selectedIcon: makeCircleIcon('selected', colors),
+      teamIcon:     makeCircleIcon('team',     colors),
+    }
   }
-  return { ownIcon: _ownIcon, otherIcon: _otherIcon, selectedIcon: _selectedIcon }
+  return _iconCache[sig]
 }
 
 const BASE_MAPS = [
@@ -181,19 +206,20 @@ function ScrollZoomController({ enabled }) {
   return null
 }
 
-function ClubMarkers({ locations, selectedId, userId, onSelect, navigate }) {
+function ClubMarkers({ locations, selectedId, userId, onSelect, navigate, teamFilter, teamLocationIds, markerColors }) {
   const map = useMap()
   const markersRef = useRef({})
 
   useEffect(() => {
     Object.values(markersRef.current).forEach(m => m.remove())
     markersRef.current = {}
-    const { ownIcon, otherIcon, selectedIcon } = getIcons()
+    const { ownIcon, otherIcon, selectedIcon, teamIcon } = getIcons(markerColors || {})
 
     locations.forEach(loc => {
       const isOwn      = loc.user_id === userId
       const isSelected = loc.id === selectedId
-      const icon = isSelected ? selectedIcon : (isOwn ? ownIcon : otherIcon)
+      const isTeam     = teamFilter && teamLocationIds?.has(loc.id)
+      const icon = isSelected ? selectedIcon : (isOwn ? ownIcon : (isTeam ? teamIcon : otherIcon))
 
       // ── Owner rows with photo or initials + per-owner level pill ──
       // ── Level condensing helper — produces "PT 30K 2💎", "MT", "CC 7💎" etc ──
@@ -351,7 +377,7 @@ function ClubMarkers({ locations, selectedId, userId, onSelect, navigate }) {
     })
 
     return () => { Object.values(markersRef.current).forEach(m => m.remove()); markersRef.current = {} }
-  }, [locations, selectedId, userId])
+  }, [locations, selectedId, userId, teamFilter, teamLocationIds, markerColors])
 
   return null
 }
@@ -665,6 +691,14 @@ export default function MapPage() {
         commute:     data.demo_commute     !== false,
         competitors: data.demo_competitors !== false,
       })
+      if (data.marker_color_own || data.marker_color_other || data.marker_color_selected || data.marker_color_team) {
+        setMarkerColors({
+          own:      data.marker_color_own      || '#D94F4F',
+          other:    data.marker_color_other    || '#6B8DD6',
+          selected: data.marker_color_selected || '#F59E0B',
+          team:     data.marker_color_team     || '#7C3AED',
+        })
+      }
     }
     loadSettings()
   }, [])
@@ -678,6 +712,11 @@ export default function MapPage() {
   const [panelWidth,     setPanelWidth]     = useState('normal')   // 'normal' | 'wide'
   const [panelCollapsed, setPanelCollapsed] = useState(false)
   const [clickBehavior,  setClickBehavior]  = useState('zoom')     // 'zoom' | 'pan' | 'stay'
+  const [teamFilter, setTeamFilter]           = useState(false)      // show my team clubs highlighted
+  const [teamLocationIds, setTeamLocationIds] = useState(new Set()) // location IDs in my teams
+  const [markerColors, setMarkerColors]       = useState({
+    own: '#D94F4F', other: '#6B8DD6', selected: '#F59E0B', team: '#7C3AED'
+  })
 
   function updatePanelPosition(pos) {
     setPanelPosition(pos)
@@ -698,6 +737,23 @@ export default function MapPage() {
       if (data?.preferences?.clickBehavior)  setClickBehavior(data.preferences.clickBehavior)
     }
     loadPanelPrefs()
+  }, [user])
+
+  // Load team location IDs for the team filter
+  useEffect(() => {
+    if (!user) return
+    async function loadTeamIds() {
+      const { data: teams } = await supabase
+        .from('teams')
+        .select('team_members(location_id, status)')
+        .eq('owner_user_id', user.id)
+      if (teams) {
+        const ids = new Set()
+        teams.forEach(t => t.team_members?.forEach(m => { if (m.status === 'accepted') ids.add(m.location_id) }))
+        setTeamLocationIds(ids)
+      }
+    }
+    loadTeamIds()
   }, [user])
 
   async function savePanelPrefs(width, collapsed) {
@@ -908,7 +964,7 @@ export default function MapPage() {
             <MapController center={mapCenter} zoom={mapZoom} panelPosition={panelPosition} />
             <MapClickHandler active={demoActive} onMapClick={(lat, lng) => { setDemoLat(lat); setDemoLng(lng) }} />
             <TileLayer key={activeBase.id} attribution={activeBase.attribution} url={activeBase.url} />
-            <ClubMarkers locations={filteredLocations} selectedId={selected?.id} userId={user?.id} onSelect={handleSelectClub} navigate={navigate} />
+            <ClubMarkers locations={filteredLocations} selectedId={selected?.id} userId={user?.id} onSelect={handleSelectClub} navigate={navigate} teamFilter={teamFilter} teamLocationIds={teamLocationIds} markerColors={markerColors} />
             {selected && radiusMiles && (
               <Circle center={[selected.lat, selected.lng]} radius={milesToMeters(radiusMiles)}
                 pathOptions={{ color: '#1A3C2E', fillColor: '#4CAF82', fillOpacity: 0.08, weight: 2 }} />
@@ -998,6 +1054,21 @@ export default function MapPage() {
               <button key={b.id} className={`basemap-btn ${baseMap === b.id ? 'active' : ''}`} onClick={() => setBaseMap(b.id)}>{b.label}</button>
             ))}
           </div>
+          {teamLocationIds.size > 0 && (
+            <button
+              className={`map-team-filter-btn ${teamFilter ? 'active' : ''}`}
+              onClick={() => setTeamFilter(f => !f)}
+              title={teamFilter ? 'Showing team clubs — click to clear' : 'Highlight my team clubs'}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+                <circle cx="9" cy="7" r="4" stroke="currentColor" strokeWidth="1.8"/>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+              </svg>
+              My Team
+              {teamFilter && <span className="map-team-count">{teamLocationIds.size}</span>}
+            </button>
+          )}
           <div className="map-click-behavior" title="What happens when you click a club marker">
             <span className="map-click-behavior-label">On click:</span>
             {[

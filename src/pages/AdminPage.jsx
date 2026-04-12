@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 
-const TABS = ['settings', 'access', 'contacts', 'members']
+const TABS = ['settings', 'access', 'contacts', 'members', 'teams']
 
 const BREVO_API_KEY = import.meta.env.VITE_BREVO_API_KEY
 
@@ -211,6 +211,12 @@ export default function AdminPage() {
     public_finder_welcome: 'Find a nutrition club near you',
     public_finder_disclaimer_enabled: true,
     public_finder_disclaimer: 'This directory is provided for informational purposes only. My Club Locator is not affiliated with or endorsed by Herbalife International. Club hours and availability may vary — contact the club directly to confirm.',
+    team_creation_enabled: true,
+    team_creation_min_level: 'Active World Team',
+    marker_color_own:      '#D94F4F',
+    marker_color_other:    '#6B8DD6',
+    marker_color_selected: '#F59E0B',
+    marker_color_team:     '#7C3AED',
     demo_population: true,
     demo_income: true,
     demo_age_fit: true,
@@ -237,6 +243,7 @@ export default function AdminPage() {
   const [welcomeModalOpen, setWelcomeModalOpen] = useState(false)
   const [loginMsgsOpen, setLoginMsgsOpen]       = useState(false)
   const [finderMsgsOpen, setFinderMsgsOpen]     = useState(false)
+  const [markerColorsOpen, setMarkerColorsOpen] = useState(false)
 
   // Contacts state
   const [contacts, setContacts]             = useState([])
@@ -248,6 +255,10 @@ export default function AdminPage() {
   const [clubNotes, setClubNotes]             = useState([])
   const [notesLoaded, setNotesLoaded]         = useState(false)
   const [forwardingNoteId, setForwardingNoteId] = useState(null)
+
+  // Teams state
+  const [allTeams, setAllTeams]         = useState([])
+  const [teamsLoaded, setTeamsLoaded]   = useState(false)
 
   // Unread counts
   const unreadContacts = contacts.filter(c => !c.is_read).length
@@ -409,12 +420,37 @@ export default function AdminPage() {
     setForwardingNoteId(null)
   }
 
+  async function loadTeams() {
+    const { data } = await supabase
+      .from('teams')
+      .select('id, name, created_at, owner_user_id, team_members(id, status, location_id, locations(club_name, city, state, user_id, first_name, last_name))')
+      .order('created_at', { ascending: false })
+    if (data) setAllTeams(data)
+    setTeamsLoaded(true)
+  }
+
+  async function handleDissolveTeam(teamId) {
+    await supabase.from('teams').delete().eq('id', teamId)
+    setAllTeams(prev => prev.filter(t => t.id !== teamId))
+  }
+
+  async function handleRemoveTeamMember(memberId, teamId) {
+    await supabase.from('team_members').delete().eq('id', memberId)
+    setAllTeams(prev => prev.map(t => t.id !== teamId ? t : {
+      ...t,
+      team_members: t.team_members.filter(m => m.id !== memberId)
+    }))
+  }
+
   function handleTabChange(t) {
     setTab(t)
     if (t === 'contacts') {
       if (!contactsLoaded) loadContacts()
       if (!notifLoaded) loadNotifications()
       if (!notesLoaded) loadClubNotes()
+    }
+    if (t === 'teams') {
+      if (!teamsLoaded) loadTeams()
     }
   }
 
@@ -475,6 +511,12 @@ export default function AdminPage() {
       public_finder_welcome:             settings.public_finder_welcome,
       public_finder_disclaimer_enabled:  settings.public_finder_disclaimer_enabled,
       public_finder_disclaimer:          settings.public_finder_disclaimer,
+      team_creation_enabled:             settings.team_creation_enabled,
+      team_creation_min_level:           settings.team_creation_min_level,
+      marker_color_own:                  settings.marker_color_own,
+      marker_color_other:                settings.marker_color_other,
+      marker_color_selected:             settings.marker_color_selected,
+      marker_color_team:                 settings.marker_color_team,
       demo_population:            settings.demo_population,
       demo_income:                settings.demo_income,
       demo_age_fit:               settings.demo_age_fit,
@@ -542,6 +584,7 @@ export default function AdminPage() {
               onClick={() => handleTabChange(t)}>
               {t === 'members' ? 'Members'
                 : t === 'settings' ? 'Settings'
+                : t === 'teams' ? 'Teams'
                 : t === 'access' ? (
                   <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     Access Controls
@@ -1113,6 +1156,128 @@ export default function AdminPage() {
                 )}
               </div>
 
+              {/* Marker Colors */}
+              <div className="admin-section" style={{ padding: 0, overflow: 'hidden' }}>
+                <button type="button" className="survey-toggle-btn" style={{ padding: '14px 20px' }} onClick={() => setMarkerColorsOpen(o => !o)}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1 }}>
+                    <h3 className="admin-section-title" style={{ margin: 0 }}>Map Marker Colors</h3>
+                    <div style={{ display: 'flex', gap: 5 }}>
+                      {[settings.marker_color_own, settings.marker_color_other, settings.marker_color_selected, settings.marker_color_team].map((c, i) => (
+                        <span key={i} style={{ width: 14, height: 14, borderRadius: '50%', background: c || '#ccc', border: '1.5px solid rgba(0,0,0,0.1)', display: 'inline-block' }} />
+                      ))}
+                    </div>
+                  </div>
+                  <svg className={`survey-chevron ${markerColorsOpen ? 'open' : ''}`} width="14" height="14" viewBox="0 0 16 16" fill="none">
+                    <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+                {markerColorsOpen && (
+                  <div style={{ padding: '0 20px 20px' }}>
+                    <p className="admin-section-desc" style={{ marginBottom: 16 }}>Customize the color of each marker type on the map. Changes take effect immediately after saving.</p>
+
+                    {/* Live preview */}
+                    <div className="mc-preview-wrap">
+                      <div className="mc-preview-label">Preview</div>
+                      <div className="mc-preview-map">
+                        {/* Faux map tiles */}
+                        <div className="mc-map-bg">
+                          <div className="mc-road mc-road--h" style={{ top: '38%' }} />
+                          <div className="mc-road mc-road--h" style={{ top: '65%' }} />
+                          <div className="mc-road mc-road--v" style={{ left: '30%' }} />
+                          <div className="mc-road mc-road--v" style={{ left: '62%' }} />
+                          <div className="mc-road mc-road--v" style={{ left: '80%' }} />
+                        </div>
+                        {/* Markers */}
+                        {[
+                          { label: 'My club',      color: settings.marker_color_own,      x: '28%', y: '35%', size: 22, pulse: true },
+                          { label: 'Other club',   color: settings.marker_color_other,    x: '58%', y: '55%', size: 18, pulse: false },
+                          { label: 'Other club',   color: settings.marker_color_other,    x: '78%', y: '32%', size: 18, pulse: false },
+                          { label: 'Team club',    color: settings.marker_color_team,     x: '45%', y: '70%', size: 20, pulse: true },
+                          { label: 'Selected',     color: settings.marker_color_selected, x: '68%', y: '25%', size: 26, pulse: false, ring: true },
+                        ].map(({ label, color, x, y, size, pulse, ring }, i) => (
+                          <div key={i} className="mc-marker-wrap" style={{ left: x, top: y }}>
+                            {ring && (
+                              <div className="mc-marker-ring" style={{ width: size + 14, height: size + 14, borderColor: color, marginLeft: -(size+14)/2, marginTop: -(size+14)/2 }} />
+                            )}
+                            {pulse && (
+                              <div className="mc-marker-pulse" style={{ width: size + 10, height: size + 10, borderColor: color, marginLeft: -(size+10)/2, marginTop: -(size+10)/2 }} />
+                            )}
+                            <div className="mc-marker-dot" style={{ width: size, height: size, background: color, marginLeft: -size/2, marginTop: -size/2 }} />
+                            <div className="mc-marker-tooltip">{label}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Color pickers */}
+                    <div className="mc-pickers-grid">
+                      {[
+                        { key: 'marker_color_own',      label: 'My club',    desc: 'Your own club(s) on the map' },
+                        { key: 'marker_color_other',    label: 'Other clubs', desc: 'All other approved clubs' },
+                        { key: 'marker_color_selected', label: 'Selected',   desc: 'Club currently selected in the panel' },
+                        { key: 'marker_color_team',     label: 'Team clubs', desc: 'Clubs in your team (when team filter is on)' },
+                      ].map(({ key, label, desc }) => {
+                        const presets = ['#D94F4F','#6B8DD6','#F59E0B','#7C3AED','#4CAF82','#E24B4A','#185FA5','#854F0B','#0F6E56','#D4537E','#888780','#1A3C2E']
+                        return (
+                          <div key={key} className="mc-picker-card">
+                            <div className="mc-picker-label">{label}</div>
+                            <div className="mc-picker-desc">{desc}</div>
+                            <div className="mc-presets">
+                              {presets.map(c => (
+                                <button
+                                  key={c}
+                                  className={`mc-preset-swatch ${settings[key] === c ? 'active' : ''}`}
+                                  style={{ background: c }}
+                                  onClick={() => setSettings(s => ({ ...s, [key]: c }))}
+                                  title={c}
+                                />
+                              ))}
+                            </div>
+                            <div className="mc-custom-row">
+                              <input
+                                type="color"
+                                className="mc-color-input"
+                                value={settings[key] || '#000000'}
+                                onChange={e => setSettings(s => ({ ...s, [key]: e.target.value }))}
+                              />
+                              <span className="mc-hex-value">{settings[key]}</span>
+                              <div className="mc-current-dot" style={{ background: settings[key] }} />
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Team Creation Settings */}
+              <div className="admin-section">
+                <h3 className="admin-section-title">Team Creation</h3>
+                <p className="admin-section-desc">Control which members can create and manage teams.</p>
+                <div className="admin-toggle-row" style={{ marginBottom: 14 }}>
+                  <div>
+                    <div className="admin-toggle-label">Allow team creation</div>
+                    <div className="admin-toggle-hint">When off, no member can create new teams</div>
+                  </div>
+                  <ToggleSwitch on={settings.team_creation_enabled}
+                    onChange={v => setSettings(s => ({ ...s, team_creation_enabled: v }))} />
+                </div>
+                <div className="field">
+                  <label>Minimum level to create a team</label>
+                  <select
+                    value={settings.team_creation_min_level}
+                    onChange={e => setSettings(s => ({ ...s, team_creation_min_level: e.target.value }))}
+                    disabled={!settings.team_creation_enabled}
+                  >
+                    {['Distributor','Success Builder','Supervisor','World Team','Active World Team','Get Team','Get Team 2500','Millionaire Team','Millionaire Team 7500','Presidents Team','Chairmans Club','Founders Circle'].map(l => (
+                      <option key={l} value={l}>{l}</option>
+                    ))}
+                  </select>
+                  <span className="field-hint">Members below this level will not see the team creation option</span>
+                </div>
+              </div>
+
               {/* Demographics */}
               {(() => {
                 const DEMO_KEYS = ['demo_population','demo_income','demo_age_fit','demo_median_age','demo_poverty','demo_competition','demo_health','demo_spending','demo_growth','demo_commute','demo_competitors','demo_unemployment','demo_households']
@@ -1315,6 +1480,81 @@ export default function AdminPage() {
           </div>
         )
       })()}
+
+      {/* ── TEAMS TAB ── */}
+      {tab === 'teams' && (
+        <div>
+          <div className="admin-section" style={{ marginBottom: 16 }}>
+            <h3 className="admin-section-title">All Teams</h3>
+            <p className="admin-section-desc">Every team in the system — who created it, its members, and their status. You can dissolve a team or remove individual members.</p>
+          </div>
+          {!teamsLoaded ? (
+            <div className="admin-loading">Loading teams…</div>
+          ) : allTeams.length === 0 ? (
+            <div className="admin-empty">No teams have been created yet.</div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {allTeams.map(team => {
+                const accepted = team.team_members?.filter(m => m.status === 'accepted') || []
+                const pending  = team.team_members?.filter(m => m.status === 'pending')  || []
+                const ownerMember = members.find(m => m.user_id === team.owner_user_id)
+                const ownerName = ownerMember ? [ownerMember.first_name, ownerMember.last_name].filter(Boolean).join(' ') || ownerMember.club_name : 'Unknown'
+                return (
+                  <div key={team.id} className="admin-section" style={{ padding: '14px 18px' }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 10 }}>
+                      <div>
+                        <div style={{ fontSize: 15, fontWeight: 600, color: '#1A3C2E', marginBottom: 2 }}>{team.name}</div>
+                        <div style={{ fontSize: 12, color: '#888' }}>
+                          Created by {ownerName} · {new Date(team.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontSize: 11, fontWeight: 500, background: '#E1F5EE', color: '#085041', padding: '2px 8px', borderRadius: 10 }}>
+                          {accepted.length} member{accepted.length !== 1 ? 's' : ''}
+                        </span>
+                        {pending.length > 0 && (
+                          <span style={{ fontSize: 11, fontWeight: 500, background: '#FEF3C7', color: '#854F0B', padding: '2px 8px', borderRadius: 10 }}>
+                            {pending.length} pending
+                          </span>
+                        )}
+                        <button
+                          onClick={() => { if (window.confirm(`Dissolve "${team.name}"? This removes all members and cannot be undone.`)) handleDissolveTeam(team.id) }}
+                          style={{ fontSize: 11, color: '#A32D2D', background: '#FCEBEB', border: '0.5px solid #f09595', borderRadius: 5, padding: '3px 10px', cursor: 'pointer' }}
+                        >
+                          Dissolve
+                        </button>
+                      </div>
+                    </div>
+                    {team.team_members?.length > 0 && (
+                      <div style={{ borderTop: '0.5px solid #f0f0f0', paddingTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        {team.team_members.map(m => (
+                          <div key={m.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, fontSize: 12 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <span style={{
+                                fontSize: 10, fontWeight: 600, padding: '1px 6px', borderRadius: 8,
+                                background: m.status === 'accepted' ? '#E1F5EE' : m.status === 'pending' ? '#FEF3C7' : '#FCEBEB',
+                                color:      m.status === 'accepted' ? '#085041' : m.status === 'pending' ? '#854F0B' : '#791F1F',
+                              }}>{m.status}</span>
+                              <span style={{ color: '#333', fontWeight: 500 }}>{m.locations?.club_name || 'Unknown club'}</span>
+                              <span style={{ color: '#888' }}>{[m.locations?.city, m.locations?.state].filter(Boolean).join(', ')}</span>
+                            </div>
+                            <button
+                              onClick={() => handleRemoveTeamMember(m.id, team.id)}
+                              style={{ fontSize: 10, color: '#666', background: '#f5f5f5', border: '0.5px solid #ddd', borderRadius: 4, padding: '2px 8px', cursor: 'pointer' }}
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ── MESSAGES TAB ── */}
       {tab === 'contacts' && (

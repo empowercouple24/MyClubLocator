@@ -9,6 +9,334 @@ import CropModal from '../components/CropModal'
 const DAYS = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday']
 const DAY_LABELS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']
 const WEEKDAYS = ['monday','tuesday','wednesday','thursday','friday']
+
+const LEVEL_ORDER = [
+  'Distributor','Success Builder','Supervisor','World Team','Active World Team',
+  'Get Team','Get Team 2500','Millionaire Team','Millionaire Team 7500',
+  'Presidents Team','Chairmans Club','Founders Circle'
+]
+
+function levelRank(level) {
+  if (!level) return -1
+  const base = LEVEL_ORDER.find(l => level.startsWith(l))
+  return base ? LEVEL_ORDER.indexOf(base) : -1
+}
+
+// ── My Team Section ───────────────────────────────────────
+function MyTeamSection({ userId, userLevel }) {
+  const [appSettings, setAppSettings]     = useState(null)
+  const [myTeams, setMyTeams]             = useState([])       // teams I own
+  const [memberOf, setMemberOf]           = useState([])       // teams I'm invited to/member of
+  const [pendingInvites, setPendingInvites] = useState([])     // incoming invites to my club
+  const [loading, setLoading]             = useState(true)
+  const [showCreate, setShowCreate]       = useState(false)
+  const [newTeamName, setNewTeamName]     = useState('')
+  const [creating, setCreating]           = useState(false)
+  const [inviteQuery, setInviteQuery]     = useState('')
+  const [inviteResults, setInviteResults] = useState([])
+  const [inviting, setInviting]           = useState(null)
+  const [inviteTeamId, setInviteTeamId]   = useState(null)
+  const [expandedTeamId, setExpandedTeamId] = useState(null)
+  const [myLocationId, setMyLocationId]   = useState(null)
+
+  useEffect(() => {
+    if (!userId) return
+    loadAll()
+  }, [userId])
+
+  async function loadAll() {
+    setLoading(true)
+    const [{ data: s }, { data: myLoc }] = await Promise.all([
+      supabase.from('app_settings').select('team_creation_enabled, team_creation_min_level').eq('id', 1).single(),
+      supabase.from('locations').select('id').eq('user_id', userId).eq('club_index', 0).single(),
+    ])
+    setAppSettings(s)
+    if (myLoc) setMyLocationId(myLoc.id)
+
+    // Teams I own
+    const { data: owned } = await supabase
+      .from('teams')
+      .select('id, name, created_at, team_members(id, status, location_id, locations(id, club_name, city, state, first_name, last_name))')
+      .eq('owner_user_id', userId)
+      .order('created_at', { ascending: false })
+    if (owned) setMyTeams(owned)
+
+    // Teams my club is a member of (accepted)
+    if (myLoc) {
+      const { data: memberships } = await supabase
+        .from('team_members')
+        .select('id, status, team_id, teams(id, name, owner_user_id)')
+        .eq('location_id', myLoc.id)
+        .in('status', ['accepted', 'pending'])
+      if (memberships) {
+        setPendingInvites(memberships.filter(m => m.status === 'pending'))
+        setMemberOf(memberships.filter(m => m.status === 'accepted'))
+      }
+    }
+    setLoading(false)
+  }
+
+  const canCreateTeam = appSettings?.team_creation_enabled &&
+    levelRank(userLevel) >= levelRank(appSettings?.team_creation_min_level || 'Active World Team')
+
+  async function handleCreateTeam(e) {
+    e.preventDefault()
+    if (!newTeamName.trim()) return
+    setCreating(true)
+    const { data } = await supabase.from('teams').insert({ owner_user_id: userId, name: newTeamName.trim() }).select().single()
+    if (data) {
+      setMyTeams(prev => [{ ...data, team_members: [] }, ...prev])
+      setNewTeamName('')
+      setShowCreate(false)
+      setExpandedTeamId(data.id)
+    }
+    setCreating(false)
+  }
+
+  async function handleSearchInvite(query) {
+    setInviteQuery(query)
+    if (query.length < 2) { setInviteResults([]); return }
+    const { data } = await supabase
+      .from('locations')
+      .select('id, club_name, city, state, first_name, last_name, user_id')
+      .eq('approved', true)
+      .eq('club_index', 0)
+      .neq('user_id', userId)
+      .or(`club_name.ilike.%${query}%,city.ilike.%${query}%,first_name.ilike.%${query}%`)
+      .limit(8)
+    if (data) setInviteResults(data)
+  }
+
+  async function handleInvite(locationId, teamId) {
+    setInviting(locationId)
+    // Check not already invited
+    const { data: existing } = await supabase
+      .from('team_members')
+      .select('id')
+      .eq('team_id', teamId)
+      .eq('location_id', locationId)
+      .single()
+    if (existing) { setInviting(null); return }
+
+    const { data: inv } = await supabase.from('team_members')
+      .insert({ team_id: teamId, location_id: locationId, status: 'pending' })
+      .select('id, status, location_id, locations(id, club_name, city, state, first_name, last_name)')
+      .single()
+
+    if (inv) {
+      setMyTeams(prev => prev.map(t => t.id !== teamId ? t : {
+        ...t, team_members: [...(t.team_members || []), inv]
+      }))
+      // Send in-app notification to the invited club owner
+      const { data: invLoc } = await supabase.from('locations').select('user_id').eq('id', locationId).single()
+      const team = myTeams.find(t => t.id === teamId)
+      if (invLoc?.user_id) {
+        await supabase.from('notifications').insert({
+          type: 'team_invite',
+          title: 'Team invitation',
+          body: `You've been invited to join "${team?.name || 'a team'}". Check My Profile → My Team to accept or decline.`,
+          user_id: invLoc.user_id,
+        })
+      }
+    }
+    setInviteResults([])
+    setInviteQuery('')
+    setInviting(null)
+  }
+
+  async function handleRemoveMember(memberId, teamId) {
+    await supabase.from('team_members').delete().eq('id', memberId)
+    setMyTeams(prev => prev.map(t => t.id !== teamId ? t : {
+      ...t, team_members: t.team_members.filter(m => m.id !== memberId)
+    }))
+  }
+
+  async function handleRespondInvite(inviteId, accept) {
+    const status = accept ? 'accepted' : 'declined'
+    await supabase.from('team_members').update({ status, responded_at: new Date().toISOString() }).eq('id', inviteId)
+    setPendingInvites(prev => prev.filter(i => i.id !== inviteId))
+    if (accept) await loadAll()
+  }
+
+  async function handleLeaveTeam(memberId) {
+    await supabase.from('team_members').delete().eq('id', memberId)
+    setMemberOf(prev => prev.filter(m => m.id !== memberId))
+  }
+
+  if (loading) return <div className="team-loading">Loading team info…</div>
+
+  return (
+    <div className="my-team-section">
+      <div className="survey-toggle-btn" style={{ borderRadius: 10, marginBottom: 0, cursor: 'default', pointerEvents: 'none' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
+          <span style={{ fontSize: 14, fontWeight: 600, color: '#1A3C2E' }}>My Team</span>
+          {myTeams.length > 0 && <span className="survey-complete-badge">{myTeams.length} team{myTeams.length !== 1 ? 's' : ''}</span>}
+        </div>
+      </div>
+
+      {/* Pending invites */}
+      {pendingInvites.length > 0 && (
+        <div className="team-invites-banner">
+          <div className="team-invites-title">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.5" stroke="#854F0B" strokeWidth="1.2"/><path d="M8 5v4" stroke="#854F0B" strokeWidth="1.2" strokeLinecap="round"/><circle cx="8" cy="11" r="0.75" fill="#854F0B"/></svg>
+            {pendingInvites.length} pending team invitation{pendingInvites.length !== 1 ? 's' : ''}
+          </div>
+          {pendingInvites.map(inv => (
+            <div key={inv.id} className="team-invite-row">
+              <div className="team-invite-info">
+                <span className="team-invite-name">{inv.teams?.name || 'A team'}</span>
+              </div>
+              <div className="team-invite-actions">
+                <button className="team-btn-accept" onClick={() => handleRespondInvite(inv.id, true)}>Accept</button>
+                <button className="team-btn-decline" onClick={() => handleRespondInvite(inv.id, false)}>Decline</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Teams I belong to */}
+      {memberOf.length > 0 && (
+        <div className="team-member-of">
+          <div className="team-section-label">Teams I belong to</div>
+          {memberOf.map(m => (
+            <div key={m.id} className="team-member-of-row">
+              <span className="team-name-pill">{m.teams?.name}</span>
+              <button className="team-leave-btn" onClick={() => { if (window.confirm('Leave this team?')) handleLeaveTeam(m.id) }}>Leave</button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Teams I own */}
+      {myTeams.length > 0 && (
+        <div className="team-owned-list">
+          <div className="team-section-label">Teams I manage</div>
+          {myTeams.map(team => {
+            const accepted = team.team_members?.filter(m => m.status === 'accepted') || []
+            const pending  = team.team_members?.filter(m => m.status === 'pending')  || []
+            const isOpen   = expandedTeamId === team.id
+            return (
+              <div key={team.id} className="team-card">
+                <div className="team-card-header" onClick={() => setExpandedTeamId(isOpen ? null : team.id)}>
+                  <div>
+                    <span className="team-card-name">{team.name}</span>
+                    <span className="team-card-meta">
+                      {accepted.length} member{accepted.length !== 1 ? 's' : ''}
+                      {pending.length > 0 && ` · ${pending.length} pending`}
+                    </span>
+                  </div>
+                  <svg className={`survey-chevron ${isOpen ? 'open' : ''}`} width="14" height="14" viewBox="0 0 16 16" fill="none">
+                    <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </div>
+
+                {isOpen && (
+                  <div className="team-card-body">
+                    {/* Member list */}
+                    {team.team_members?.length > 0 && (
+                      <div className="team-members-list">
+                        {team.team_members.map(m => (
+                          <div key={m.id} className="team-member-row">
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                              <span className={`team-status-dot team-status-dot--${m.status}`} />
+                              <span className="team-member-name">{m.locations?.club_name || 'Club'}</span>
+                              <span className="team-member-city">{[m.locations?.city, m.locations?.state].filter(Boolean).join(', ')}</span>
+                            </div>
+                            <button className="team-remove-btn" onClick={() => handleRemoveMember(m.id, team.id)}>✕</button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Invite search */}
+                    <div className="team-invite-search-wrap">
+                      <div className="team-invite-label">Invite a club</div>
+                      <div className="team-invite-row-input">
+                        <input
+                          className="team-invite-input"
+                          type="text"
+                          placeholder="Search club name, city, or owner…"
+                          value={inviteTeamId === team.id ? inviteQuery : ''}
+                          onChange={e => { setInviteTeamId(team.id); handleSearchInvite(e.target.value) }}
+                          onFocus={() => setInviteTeamId(team.id)}
+                        />
+                      </div>
+                      {inviteTeamId === team.id && inviteResults.length > 0 && (
+                        <div className="team-invite-results">
+                          {inviteResults.map(r => {
+                            const alreadyAdded = team.team_members?.some(m => m.location_id === r.id)
+                            return (
+                              <div key={r.id} className="team-invite-result-row">
+                                <div>
+                                  <span className="team-invite-result-name">{r.club_name}</span>
+                                  <span className="team-invite-result-city">{[r.city, r.state].filter(Boolean).join(', ')}</span>
+                                </div>
+                                {alreadyAdded ? (
+                                  <span className="team-invite-already">Already added</span>
+                                ) : (
+                                  <button
+                                    className="team-invite-btn"
+                                    disabled={inviting === r.id}
+                                    onClick={() => handleInvite(r.id, team.id)}
+                                  >
+                                    {inviting === r.id ? '…' : 'Invite'}
+                                  </button>
+                                )}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Create team */}
+      {canCreateTeam && (
+        <div style={{ marginTop: 12 }}>
+          {!showCreate ? (
+            <button className="team-create-btn" onClick={() => setShowCreate(true)}>
+              + Create a new team
+            </button>
+          ) : (
+            <form className="team-create-form" onSubmit={handleCreateTeam}>
+              <input
+                className="team-name-input"
+                type="text"
+                placeholder="Team name (e.g. Team Empowerment)"
+                value={newTeamName}
+                onChange={e => setNewTeamName(e.target.value)}
+                autoFocus
+                maxLength={60}
+              />
+              <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                <button className="btn-save" type="submit" disabled={creating || !newTeamName.trim()}>
+                  {creating ? 'Creating…' : 'Create team'}
+                </button>
+                <button type="button" className="btn-outline" onClick={() => { setShowCreate(false); setNewTeamName('') }}>
+                  Cancel
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
+      )}
+
+      {!canCreateTeam && myTeams.length === 0 && memberOf.length === 0 && pendingInvites.length === 0 && (
+        <div className="team-no-access">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="#aaa" strokeWidth="1.5" strokeLinecap="round"/><circle cx="9" cy="7" r="4" stroke="#aaa" strokeWidth="1.5"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" stroke="#aaa" strokeWidth="1.5" strokeLinecap="round"/></svg>
+          <span>Team creation is available at {appSettings?.team_creation_min_level || 'Active World Team'} and above.</span>
+        </div>
+      )}
+    </div>
+  )
+}
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
 
 function buildYears() {
@@ -1697,6 +2025,11 @@ export default function ProfilePage() {
           </div>
         )
       })()}
+
+      <div style={{ height: 32 }} />
+
+      {/* My Team */}
+      <MyTeamSection userId={user?.id} userLevel={personForm.herbalife_level} />
 
       <div style={{ height: 32 }} />
       <div className="profile-privacy-link">
