@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from './lib/AuthContext'
 import Layout from './components/Layout'
@@ -6,12 +7,14 @@ import LoginPage from './pages/LoginPage'
 import SignupPage from './pages/SignupPage'
 import OnboardingPage from './pages/OnboardingPage'
 import PrivacyPage from './pages/PrivacyPage'
-import MapPage from './pages/MapPage'
 import DirectoryPage from './pages/DirectoryPage'
 import ProfilePage from './pages/ProfilePage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
 import ForgotPasswordPage from './pages/ForgotPasswordPage'
 import AdminPage from './pages/AdminPage'
+
+// Lazy load MapPage so Leaflet only initializes when the map route renders
+const MapPage = lazy(() => import('./pages/MapPage'))
 
 function RequireAuth({ children }) {
   const { session } = useAuth()
@@ -38,7 +41,11 @@ export default function App() {
         }
       >
         <Route index element={<Navigate to="map" replace />} />
-        <Route path="map" element={<MapPage />} />
+        <Route path="map" element={
+          <Suspense fallback={<div className="loading">Loading map…</div>}>
+            <MapPage />
+          </Suspense>
+        } />
         <Route path="directory" element={<DirectoryPage />} />
         <Route path="profile" element={<ProfilePage />} />
         <Route path="admin" element={<AdminPage />} />
