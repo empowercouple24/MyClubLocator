@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
@@ -138,6 +138,43 @@ export default function AdminPage() {
   const navigate = useNavigate()
   const [tab, setTab] = useState('settings')
 
+  // Resizable columns — default widths in px
+  const defaultColWidths = [48, 160, 130, 120, 120, 180, 80, 90, 120, 90, 100]
+  const [colWidths, setColWidths] = useState(defaultColWidths)
+  const resizingCol = useRef(null)
+  const resizeStartX = useRef(0)
+  const resizeStartW = useRef(0)
+
+  const onResizeMouseDown = useCallback((e, colIdx) => {
+    e.preventDefault()
+    resizingCol.current = colIdx
+    resizeStartX.current = e.clientX
+    resizeStartW.current = colWidths[colIdx]
+    const onMove = (ev) => {
+      const delta = ev.clientX - resizeStartX.current
+      setColWidths(prev => {
+        const next = [...prev]
+        next[resizingCol.current] = Math.max(40, resizeStartW.current + delta)
+        return next
+      })
+    }
+    const onUp = () => {
+      resizingCol.current = null
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+      // Save to database after drag ends
+      setColWidths(prev => {
+        supabase.from('app_settings').upsert(
+          { id: 1, col_widths: JSON.stringify(prev) },
+          { onConflict: 'id' }
+        )
+        return prev
+      })
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }, [colWidths])
+
   // Members state
   const [members, setMembers]           = useState([])
   const [allUsers, setAllUsers]         = useState([])
@@ -251,7 +288,12 @@ export default function AdminPage() {
 
   async function loadSettings() {
     const { data } = await supabase.from('app_settings').select('*').eq('id', 1).single()
-    if (data) setSettings(s => ({ ...s, ...data }))
+    if (data) {
+      setSettings(s => ({ ...s, ...data }))
+      if (data.col_widths) {
+        try { setColWidths(JSON.parse(data.col_widths)) } catch {}
+      }
+    }
     setLoadingSettings(false)
   }
 
@@ -584,20 +626,21 @@ export default function AdminPage() {
 
                 {/* ── Desktop table ── */}
                 <div className="amt-table-wrap">
-                  <table className="amt-table">
+                  <table className="amt-table" style={{ tableLayout: 'fixed', width: colWidths.reduce((a,b) => a+b, 0) }}>
+                    <colgroup>
+                      {colWidths.map((w, i) => <col key={i} style={{ width: w }} />)}
+                    </colgroup>
                     <thead>
                       <tr>
-                        <th>Logo</th>
-                        <th>Club name</th>
-                        <th>Owner</th>
-                        <th>City / State</th>
-                        <th>Phone</th>
-                        <th>Email</th>
-                        <th>Opened</th>
-                        <th>Hours</th>
-                        <th>Status</th>
-                        <th>Joined</th>
-                        <th>Actions</th>
+                        {['Logo','Club name','Owner','City / State','Phone','Email','Opened','Hours','Status','Joined','Actions'].map((label, i) => (
+                          <th key={i} style={{ position: 'relative', userSelect: 'none' }}>
+                            {label}
+                            <span
+                              className="amt-col-resizer"
+                              onMouseDown={e => onResizeMouseDown(e, i)}
+                            />
+                          </th>
+                        ))}
                       </tr>
                     </thead>
                     <tbody>

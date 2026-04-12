@@ -4118,14 +4118,13 @@ body {
   border: 1px solid #e4e9e6;
   border-radius: 10px;
   margin-top: 8px;
+  max-width: 100%;
 }
 
 .amt-table {
-  width: 100%;
   border-collapse: collapse;
   font-size: 13px;
   table-layout: fixed;
-  min-width: 900px;
 }
 
 .amt-table th {
@@ -4139,6 +4138,8 @@ body {
   border-bottom: 1px solid #e4e9e6;
   background: #f8faf9;
   white-space: nowrap;
+  position: relative;
+  overflow: hidden;
 }
 
 .amt-table td {
@@ -4149,6 +4150,22 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.amt-col-resizer {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: col-resize;
+  z-index: 1;
+  background: transparent;
+}
+.amt-col-resizer:hover,
+.amt-col-resizer:active {
+  background: #4CAF82;
+  opacity: 0.5;
 }
 
 .amt-table tr:last-child td { border-bottom: none; }
