@@ -5,6 +5,117 @@ import { useAuth } from '../lib/AuthContext'
 
 const TABS = ['members', 'settings', 'contacts']
 
+const BREVO_API_KEY = import.meta.env.VITE_BREVO_API_KEY
+
+function ContactCard({ submission: c, onReplySent }) {
+  const [replyBody, setReplyBody] = useState('')
+  const [sending, setSending]     = useState(false)
+  const [sendError, setSendError] = useState('')
+  const replies = c.replies || []
+
+  async function handleSendReply(e) {
+    e.preventDefault()
+    if (!replyBody.trim()) return
+    setSending(true)
+    setSendError('')
+
+    try {
+      // Send via Brevo API
+      const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'api-key': BREVO_API_KEY,
+        },
+        body: JSON.stringify({
+          sender: { name: 'My Club Locator', email: 'hello@myclublocator.com' },
+          to: [{ email: c.email, name: c.name }],
+          subject: `Re: ${c.name}`,
+          textContent: replyBody,
+          htmlContent: `<p style="font-family:sans-serif;font-size:15px;line-height:1.7;color:#333;">${replyBody.replace(/\n/g, '<br/>')}</p><hr style="border:none;border-top:1px solid #eee;margin:24px 0"/><p style="font-size:12px;color:#aaa;">My Club Locator · hello@myclublocator.com</p>`,
+        }),
+      })
+
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.message || 'Send failed')
+      }
+
+      // Save reply to Supabase
+      const { data: saved, error: dbErr } = await supabase
+        .from('contact_replies')
+        .insert({ submission_id: c.id, reply_body: replyBody })
+        .select()
+        .single()
+
+      if (dbErr) throw new Error(dbErr.message)
+
+      onReplySent(saved)
+      setReplyBody('')
+    } catch (err) {
+      setSendError(err.message || 'Something went wrong. Please try again.')
+    }
+
+    setSending(false)
+  }
+
+  return (
+    <div className="contact-submission-card">
+      <div className="csub-header">
+        <div className="csub-avatar">{(c.name || '?').slice(0,1).toUpperCase()}</div>
+        <div className="csub-meta">
+          <div className="csub-name">{c.name}</div>
+          <div className="csub-email">{c.email}</div>
+        </div>
+        <div className="csub-date">
+          {new Date(c.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+        </div>
+      </div>
+
+      <div className="csub-message">{c.message}</div>
+
+      {/* Sent replies */}
+      {replies.length > 0 && (
+        <div className="csub-replies">
+          {replies
+            .sort((a, b) => new Date(a.sent_at) - new Date(b.sent_at))
+            .map(r => (
+              <div key={r.id} className="csub-sent-reply">
+                <div className="csub-sent-label">Your reply</div>
+                <div className="csub-sent-text">{r.reply_body}</div>
+                <div className="csub-sent-time">
+                  {new Date(r.sent_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} · hello@myclublocator.com
+                </div>
+              </div>
+            ))
+          }
+        </div>
+      )}
+
+      {/* Reply form */}
+      <form className="csub-reply-form" onSubmit={handleSendReply}>
+        <div className="csub-reply-label">{replies.length > 0 ? 'Send another reply' : 'Reply'}</div>
+        <div className="csub-reply-subject">Subject: <span>Re: {c.name}</span></div>
+        {sendError && <div className="error-msg" style={{ marginBottom: 8 }}>{sendError}</div>}
+        <textarea
+          className="csub-reply-textarea"
+          placeholder="Type your reply…"
+          value={replyBody}
+          onChange={e => setReplyBody(e.target.value)}
+          rows={4}
+          required
+        />
+        <div className="csub-reply-footer">
+          <div className="csub-reply-from">From: <span>hello@myclublocator.com</span></div>
+          <button className="csub-send-btn" type="submit" disabled={sending || !replyBody.trim()}>
+            {sending ? 'Sending…' : 'Send reply'}
+          </button>
+        </div>
+      </form>
+    </div>
+  )
+}
+
 function ToggleSwitch({ on, onChange }) {
   return (
     <button className={`toggle-btn ${on ? 'on' : 'off'}`} onClick={() => onChange(!on)}>
@@ -90,7 +201,7 @@ export default function AdminPage() {
     setLoadingContacts(true)
     const { data } = await supabase
       .from('contact_submissions')
-      .select('*')
+      .select('*, replies:contact_replies(*)')
       .order('created_at', { ascending: false })
     if (data) setContacts(data)
     setLoadingContacts(false)
@@ -406,22 +517,17 @@ export default function AdminPage() {
           ) : (
             <div className="contact-submissions-list">
               {contacts.map(c => (
-                <div key={c.id} className="contact-submission-card">
-                  <div className="csub-header">
-                    <div className="csub-avatar">{(c.name || '?').slice(0,1).toUpperCase()}</div>
-                    <div className="csub-meta">
-                      <div className="csub-name">{c.name}</div>
-                      <div className="csub-email">{c.email}</div>
-                    </div>
-                    <div className="csub-date">
-                      {new Date(c.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                    </div>
-                  </div>
-                  <div className="csub-message">{c.message}</div>
-                  <a href={`mailto:${c.email}?subject=Re: Your message to My Club Locator`} className="csub-reply-btn">
-                    Reply by email →
-                  </a>
-                </div>
+                <ContactCard
+                  key={c.id}
+                  submission={c}
+                  onReplySent={(reply) => {
+                    setContacts(prev => prev.map(x =>
+                      x.id === c.id
+                        ? { ...x, replies: [...(x.replies || []), reply] }
+                        : x
+                    ))
+                  }}
+                />
               ))}
             </div>
           )}

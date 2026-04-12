@@ -33,7 +33,6 @@ const selectedIcon = makePinIcon('selected')
 
 const BASE_MAPS = [
   { id: 'carto',     label: 'Clean',  url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', attribution: '&copy; OpenStreetMap &copy; CARTO' },
-  { id: 'street',    label: 'Street', url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', attribution: '&copy; OpenStreetMap' },
   { id: 'satellite', label: 'Aerial', url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', attribution: '&copy; Esri' },
 ]
 
@@ -353,6 +352,7 @@ export default function MapPage() {
   const [radiusMiles, setRadiusMiles] = useState(null)
   const [customMiles, setCustomMiles] = useState('')
   const [saveViewToast, setSaveViewToast] = useState(false)
+  const [myClubCollapsed, setMyClubCollapsed] = useState(true)
   const mapRef = useRef(null)
 
   // Demographics
@@ -567,10 +567,32 @@ export default function MapPage() {
       <div className="club-panel">
         <div className="club-panel-inner">
 
-          {/* Pinned: My Club card — always at top */}
+          {/* Pinned: My Club card — collapsible */}
           <div className="cp-my-club-zone">
-            <div className="cp-zone-label">My Club</div>
-            <MyClubCard myClub={myClub} onManage={() => navigate('/app/profile')} />
+            <button
+              className="cp-my-club-header"
+              onClick={() => setMyClubCollapsed(c => !c)}
+            >
+              {/* Collapsed: show logo/initials + name inline */}
+              <div className="cp-my-club-collapsed-row">
+                {myClub?.logo_url
+                  ? <img src={myClub.logo_url} alt="logo" className="cp-mcc-thumb" />
+                  : <div className="cp-mcc-initials">{(myClub?.business_name || 'MC').slice(0,2).toUpperCase()}</div>
+                }
+                <span className="cp-mcc-name">{myClub?.business_name || 'Your Club'}</span>
+              </div>
+              <svg
+                className={`cp-mcc-chevron ${myClubCollapsed ? '' : 'open'}`}
+                width="14" height="14" viewBox="0 0 16 16" fill="none"
+              >
+                <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+            {!myClubCollapsed && (
+              <div className="cp-my-club-expanded">
+                <MyClubCard myClub={myClub} onManage={() => navigate('/app/profile')} />
+              </div>
+            )}
           </div>
 
           {/* Divider */}

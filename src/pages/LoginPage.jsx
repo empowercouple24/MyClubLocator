@@ -72,19 +72,6 @@ export default function LoginPage() {
 
         {error && <div className="error-msg">{error}</div>}
 
-        <div className="oauth-btns">
-          <button className="oauth-btn oauth-btn--google" onClick={() => handleOAuth('google')} disabled={!!oauthLoading}>
-            <GoogleIcon />
-            {oauthLoading === 'google' ? 'Redirecting…' : 'Continue with Google'}
-          </button>
-          <button className="oauth-btn oauth-btn--facebook" onClick={() => handleOAuth('facebook')} disabled={!!oauthLoading}>
-            <FacebookIcon />
-            {oauthLoading === 'facebook' ? 'Redirecting…' : 'Continue with Facebook'}
-          </button>
-        </div>
-
-        <div className="oauth-divider"><span>or</span></div>
-
         <form onSubmit={handleSubmit}>
           <div className="field">
             <label>Email address</label>
@@ -106,6 +93,19 @@ export default function LoginPage() {
             <Link to="/forgot-password">Forgot password?</Link>
           </div>
         </form>
+
+        <div className="oauth-divider"><span>or</span></div>
+
+        <div className="oauth-btns">
+          <button className="oauth-btn oauth-btn--google" onClick={() => handleOAuth('google')} disabled={!!oauthLoading}>
+            <GoogleIcon />
+            {oauthLoading === 'google' ? 'Redirecting…' : 'Continue with Google'}
+          </button>
+          <button className="oauth-btn oauth-btn--facebook" onClick={() => handleOAuth('facebook')} disabled={!!oauthLoading}>
+            <FacebookIcon />
+            {oauthLoading === 'facebook' ? 'Redirecting…' : 'Continue with Facebook'}
+          </button>
+        </div>
 
         <div className="auth-toggle">
           No account? <Link to="/signup">Sign up free</Link>

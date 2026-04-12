@@ -225,6 +225,8 @@ clubregistry-main/
 - **Demographics: health indicators** (CDC PLACES obesity/inactivity data) — discussed, not yet added
 - **Demographics: spending behavior** (Census consumer expenditure) — discussed, not yet added
 - ✅ **Map search bar address autocomplete** — done (MapSearchAutocomplete component)
+- ✅ **Remove Street base map** — only Clean and Aerial remain
+- ✅ **My Club card collapsible** — collapsed by default showing logo + name, expands on click
 - **Welcome message preview button** in Admin Settings
 - ✅ **Contact form on landing page** — modal form saves to contact_submissions table; admin Messages tab shows all submissions with reply-by-email link
 - **Welcome message entry box larger** — match YouTube embed field width

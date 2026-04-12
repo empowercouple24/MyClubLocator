@@ -3,6 +3,15 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 
+function formatPhone(raw) {
+  if (!raw) return ''
+  const digits = raw.replace(/\D/g, '').slice(0, 10)
+  if (digits.length === 0) return raw
+  if (digits.length <= 3) return `(${digits}`
+  if (digits.length <= 6) return `(${digits.slice(0,3)}) ${digits.slice(3)}`
+  return `(${digits.slice(0,3)}) ${digits.slice(3,6)}-${digits.slice(6)}`
+}
+
 function formatTime(t) {
   if (!t) return ''
   const [h, m] = t.split(':').map(Number)
@@ -150,7 +159,7 @@ export default function DirectoryPage() {
                   )}
                   {loc.club_phone && (
                     <a href={`tel:${loc.club_phone}`} className="dc-contact-link" onClick={e => e.stopPropagation()}>
-                      ✆ {loc.club_phone}
+                      ✆ {formatPhone(loc.club_phone)}
                     </a>
                   )}
                 </div>

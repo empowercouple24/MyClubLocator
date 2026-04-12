@@ -3628,3 +3628,180 @@ body {
   color: #aaa;
   font-size: 14px;
 }
+
+/* ── Contact card reply form ─────────────────────────────── */
+.csub-replies {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.csub-sent-reply {
+  background: #f8faf9;
+  border-left: 3px solid #1A3C2E;
+  padding: 10px 12px;
+}
+
+.csub-sent-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: #0F6E56;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 5px;
+}
+
+.csub-sent-text {
+  font-size: 13px;
+  color: #444;
+  line-height: 1.65;
+  white-space: pre-wrap;
+}
+
+.csub-sent-time {
+  font-size: 11px;
+  color: #aaa;
+  margin-top: 5px;
+}
+
+.csub-reply-form {
+  border-top: 0.5px solid #eee;
+  padding-top: 14px;
+  margin-top: 4px;
+}
+
+.csub-reply-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 6px;
+}
+
+.csub-reply-subject {
+  font-size: 13px;
+  color: #aaa;
+  margin-bottom: 8px;
+}
+
+.csub-reply-subject span {
+  color: #555;
+  font-weight: 500;
+}
+
+.csub-reply-textarea {
+  width: 100%;
+  min-height: 90px;
+  border: 1px solid #dde4e0;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 14px;
+  font-family: inherit;
+  resize: vertical;
+  box-sizing: border-box;
+  outline: none;
+  color: #111;
+  line-height: 1.5;
+}
+.csub-reply-textarea:focus {
+  border-color: #1A3C2E;
+  box-shadow: 0 0 0 3px rgba(26,60,46,0.08);
+}
+
+.csub-reply-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 10px;
+}
+
+.csub-reply-from {
+  font-size: 12px;
+  color: #aaa;
+}
+
+.csub-reply-from span {
+  color: #666;
+  font-weight: 500;
+}
+
+.csub-send-btn {
+  background: #1A3C2E;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 9px 18px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.csub-send-btn:hover:not(:disabled) { opacity: 0.88; }
+.csub-send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ── My Club collapsible zone ────────────────────────────── */
+.cp-my-club-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 10px 0;
+  gap: 8px;
+}
+.cp-my-club-header:hover { opacity: 0.8; }
+
+.cp-my-club-collapsed-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+
+.cp-mcc-thumb {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.cp-mcc-initials {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: #1A3C2E;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.cp-mcc-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: #1A3C2E;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cp-mcc-chevron {
+  flex-shrink: 0;
+  color: #888;
+  transition: transform 0.2s;
+}
+.cp-mcc-chevron.open {
+  transform: rotate(180deg);
+}
+
+.cp-my-club-expanded {
+  padding-bottom: 8px;
+}
