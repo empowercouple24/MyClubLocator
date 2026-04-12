@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 
-const TABS = ['settings', 'contacts', 'members']
+const TABS = ['settings', 'access', 'contacts', 'members']
 
 const BREVO_API_KEY = import.meta.env.VITE_BREVO_API_KEY
 
@@ -202,6 +202,12 @@ export default function AdminPage() {
     public_search_enabled: true,
     public_accounts_enabled: true,
     public_login_enabled: true,
+    login_msg_approved_enabled: true,
+    login_msg_approved: 'Welcome back, {name}! {club} is live on the map.',
+    login_msg_pending_enabled: true,
+    login_msg_pending: "Welcome back, {name}! {club} is pending approval. You'll appear on the map once approved.",
+    login_msg_no_profile_enabled: true,
+    login_msg_no_profile: "Welcome back! Your club profile isn't set up yet. Finish setting it up to appear on the map.",
     demo_population: true,
     demo_income: true,
     demo_age_fit: true,
@@ -224,6 +230,7 @@ export default function AdminPage() {
     ? JSON.stringify(settings) !== JSON.stringify(savedSettingsRef.current)
     : false
   const [previewModal, setPreviewModal]       = useState(null) // 'message' | 'disclaimer' | null
+  const [demoOpen, setDemoOpen]               = useState(false)
 
   // Contacts state
   const [contacts, setContacts]             = useState([])
@@ -404,6 +411,12 @@ export default function AdminPage() {
       public_search_enabled:      settings.public_search_enabled,
       public_accounts_enabled:    settings.public_accounts_enabled,
       public_login_enabled:       settings.public_login_enabled,
+      login_msg_approved_enabled:    settings.login_msg_approved_enabled,
+      login_msg_approved:            settings.login_msg_approved,
+      login_msg_pending_enabled:     settings.login_msg_pending_enabled,
+      login_msg_pending:             settings.login_msg_pending,
+      login_msg_no_profile_enabled:  settings.login_msg_no_profile_enabled,
+      login_msg_no_profile:          settings.login_msg_no_profile,
       demo_population:            settings.demo_population,
       demo_income:                settings.demo_income,
       demo_age_fit:               settings.demo_age_fit,
@@ -463,22 +476,39 @@ export default function AdminPage() {
 
       {/* Tabs */}
       <div className="admin-tabs">
-        {TABS.map(t => (
-          <button key={t} className={`admin-tab ${tab === t ? 'active' : ''}`}
-            onClick={() => handleTabChange(t)}>
-            {t === 'members' ? 'Members' : t === 'settings' ? 'Settings' : (
-              <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                Messages
-                {totalUnread > 0 && (
-                  <span style={{
-                    background: '#e53e3e', color: '#fff', borderRadius: '10px',
-                    fontSize: 10, fontWeight: 600, padding: '1px 6px', lineHeight: '16px'
-                  }}>{totalUnread}</span>
-                )}
-              </span>
-            )}
-          </button>
-        ))}
+        {TABS.map(t => {
+          const ACCESS_KEYS = ['member_signups_enabled','member_login_enabled','public_search_enabled','public_accounts_enabled','public_login_enabled']
+          const anyPaused = ACCESS_KEYS.some(k => settings[k] === false)
+          return (
+            <button key={t} className={`admin-tab ${tab === t ? 'active' : ''}`}
+              onClick={() => handleTabChange(t)}>
+              {t === 'members' ? 'Members'
+                : t === 'settings' ? 'Settings'
+                : t === 'access' ? (
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    Access Controls
+                    {anyPaused && (
+                      <span style={{
+                        width: 7, height: 7, borderRadius: '50%',
+                        background: '#F59E0B', display: 'inline-block', flexShrink: 0
+                      }} />
+                    )}
+                  </span>
+                ) : (
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    Messages
+                    {totalUnread > 0 && (
+                      <span style={{
+                        background: '#e53e3e', color: '#fff', borderRadius: '10px',
+                        fontSize: 10, fontWeight: 600, padding: '1px 6px', lineHeight: '16px'
+                      }}>{totalUnread}</span>
+                    )}
+                  </span>
+                )
+              }
+            </button>
+          )
+        })}
       </div>
 
       {/* ── MEMBERS TAB ── */}
@@ -873,103 +903,129 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              {/* Access Controls */}
+              {/* Login Welcome Messages */}
               <div className="admin-section">
-                <h3 className="admin-section-title">Access Controls</h3>
-                <p className="admin-section-desc">Master switches for platform access. Turning off login or signups never deletes data — it just pauses access. Your admin account is unaffected by all toggles.</p>
-
-                <div className="ac-group-label ac-group-member">Club owners</div>
-                <div className="ac-switches-grid">
-                  {[
-                    { key: 'member_signups_enabled', label: 'New member signups',  hint: 'Allow new club owners to create an account', onStatus: 'Open',   offStatus: 'Paused' },
-                    { key: 'member_login_enabled',   label: 'Member login',        hint: 'Allow existing club owners to log in',       onStatus: 'Active', offStatus: 'Paused' },
-                  ].map(({ key, label, hint, onStatus, offStatus }) => {
-                    const on = settings[key]
-                    return (
-                      <div key={key} className={`ac-switch-card ${on ? 'on' : 'off'}`} onClick={() => setSettings(s => ({ ...s, [key]: !on }))}>
-                        <div className="ac-switch-top">
-                          <div className="ac-switch-text">
-                            <div className="ac-switch-label">{label}</div>
-                            <div className="ac-switch-hint">{hint}</div>
-                            <div className={`ac-status-pill ${on ? 'on' : 'off'}`}>
-                              <span className={`ac-status-dot ${on ? 'on' : 'off'}`} />
-                              {on ? onStatus : offStatus}
-                            </div>
-                          </div>
-                          <div className={`ac-ls-body ${on ? 'on' : 'off'}`}>
-                            {on  && <span className="ac-ls-label">ON</span>}
-                            {!on && <span className="ac-ls-spacer" />}
-                            <div className="ac-ls-plate"><div className="ac-ls-rocker" /></div>
-                            {on  && <span className="ac-ls-spacer" />}
-                            {!on && <span className="ac-ls-label">OFF</span>}
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-
-                <div className="ac-group-label ac-group-public">Public users</div>
-                <div className="ac-switches-grid">
-                  {[
-                    { key: 'public_search_enabled',   label: 'Public club search',     hint: 'Allow visitors to search and find clubs',         onStatus: 'Visible', offStatus: 'Hidden'  },
-                    { key: 'public_accounts_enabled', label: 'Public account signups', hint: 'Allow visitors to create a public account',        onStatus: 'Open',    offStatus: 'Paused'  },
-                    { key: 'public_login_enabled',    label: 'Public account login',   hint: 'Allow existing public accounts to log in',         onStatus: 'Active',  offStatus: 'Paused'  },
-                  ].map(({ key, label, hint, onStatus, offStatus }) => {
-                    const on = settings[key]
-                    return (
-                      <div key={key} className={`ac-switch-card ${on ? 'on' : 'off'}`} onClick={() => setSettings(s => ({ ...s, [key]: !on }))}>
-                        <div className="ac-switch-top">
-                          <div className="ac-switch-text">
-                            <div className="ac-switch-label">{label}</div>
-                            <div className="ac-switch-hint">{hint}</div>
-                            <div className={`ac-status-pill ${on ? 'on' : 'off'}`}>
-                              <span className={`ac-status-dot ${on ? 'on' : 'off'}`} />
-                              {on ? onStatus : offStatus}
-                            </div>
-                          </div>
-                          <div className={`ac-ls-body ${on ? 'on' : 'off'}`}>
-                            {on  && <span className="ac-ls-label">ON</span>}
-                            {!on && <span className="ac-ls-spacer" />}
-                            <div className="ac-ls-plate"><div className="ac-ls-rocker" /></div>
-                            {on  && <span className="ac-ls-spacer" />}
-                            {!on && <span className="ac-ls-label">OFF</span>}
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-
-              {/* Demographics */}
-              <div className="admin-section">
-                <h3 className="admin-section-title">Demographics — Market Data</h3>
-                <p className="admin-section-desc">Control which data categories are visible to members. Members can further customize their own view within what you enable here.</p>
+                <h3 className="admin-section-title">Login Welcome Messages</h3>
+                <p className="admin-section-desc">Customize what members see on the screen immediately after logging in. Use <code>{'{name}'}</code> for the owner's first name and <code>{'{club}'}</code> for their club name. Toggle each message on or off independently.</p>
 
                 {[
-                  { key: 'demo_population',  label: 'Population',            hint: 'Total population, household count, and average household size for the ZIP code. Higher population means more potential customers walking past your door.' },
-                  { key: 'demo_income',      label: 'Income & Economics',    hint: 'Median household income, per capita income, poverty rate, and unemployment rate. Higher income areas tend to support premium nutrition products better.' },
-                  { key: 'demo_age_fit',     label: 'Age Fit (18–49)',       hint: 'The percentage of the population aged 18–49 — the core demographic for nutrition clubs. A higher percentage means more of your ideal customers live nearby.' },
-                  { key: 'demo_median_age',  label: 'Median Age',            hint: 'The median age of the local population. Useful context alongside the 18–49 age fit percentage to understand the full age profile of an area.' },
-                  { key: 'demo_poverty',     label: 'Poverty Rate',          hint: 'The percentage of residents living below the poverty line. Lower poverty rates generally indicate stronger discretionary spending on health products.' },
-                  { key: 'demo_competition', label: 'Club Competition',      hint: 'The number of registered nutrition clubs within a 10-mile radius, plus a saturation score. Fewer clubs = more opportunity for your location.' },
-                  { key: 'demo_health',      label: 'Health Indicators',     hint: 'CDC PLACES data showing obesity rate, physical inactivity, diabetes, and high blood pressure rates. Higher rates often indicate stronger demand for nutrition interventions.' },
-                  { key: 'demo_spending',    label: 'Consumer Spending',     hint: 'Estimated household spending on health, fitness, and food. Higher health spending signals a more receptive market for nutrition products.' },
-                  { key: 'demo_growth',      label: 'Population Growth',     hint: 'Whether the local population is growing, stable, or declining. Growing areas represent expanding future customer bases.' },
-                  { key: 'demo_commute',     label: 'Commute & Walkability', hint: 'How residents get to work — walking, driving, transit. High foot-traffic and walkable areas tend to drive more spontaneous drop-ins.' },
-                  { key: 'demo_competitors', label: 'Nearby Competitors',    hint: 'Gyms, fitness centers, yoga studios, and health food stores from OpenStreetMap. More fitness businesses nearby = more health-conscious population.' },
-                ].map(({ key, label, hint }) => (
-                  <div className="admin-toggle-row" key={key} style={{ paddingBottom: 12, marginBottom: 12, borderBottom: '1px solid #f4f4f4' }}>
-                    <div style={{ flex: 1, paddingRight: 12 }}>
-                      <div className="admin-toggle-label">{label}</div>
-                      <div className="admin-toggle-hint">{hint}</div>
+                  {
+                    enabledKey: 'login_msg_approved_enabled',
+                    textKey:    'login_msg_approved',
+                    label:      'Approved member message',
+                    audience:   'Shown to members whose club profile is complete and has been approved by you. These are your fully active club owners — the ones already live on the map. This is the most common login scenario.',
+                    placeholder: 'Welcome back, {name}! {club} is live on the map.',
+                    color:      '#0F6E56',
+                    bg:         '#E1F5EE',
+                  },
+                  {
+                    enabledKey: 'login_msg_pending_enabled',
+                    textKey:    'login_msg_pending',
+                    label:      'Pending approval message',
+                    audience:   'Shown to members who have set up their club profile but are still waiting for your approval. They can log in and use the app but won\'t appear on the map yet. Use this to set expectations while you review.',
+                    placeholder: "Welcome back, {name}! {club} is pending approval. You'll appear on the map once approved.",
+                    color:      '#854F0B',
+                    bg:         '#FEF3C7',
+                  },
+                  {
+                    enabledKey: 'login_msg_no_profile_enabled',
+                    textKey:    'login_msg_no_profile',
+                    label:      'No profile yet message',
+                    audience:   "Shown to members who completed the onboarding survey but haven't filled in their club profile yet. They signed up and answered the intro questions but stopped before adding their club's address, hours, and details.",
+                    placeholder: "Welcome back! Your club profile isn't set up yet. Finish setting it up to appear on the map.",
+                    color:      '#185FA5',
+                    bg:         '#EFF6FF',
+                  },
+                ].map(({ enabledKey, textKey, label, audience, placeholder, color, bg }) => (
+                  <div key={textKey} className="login-msg-block">
+                    <div className="login-msg-header">
+                      <div className="login-msg-label-wrap">
+                        <span className="login-msg-dot" style={{ background: color }} />
+                        <span className="admin-toggle-label">{label}</span>
+                      </div>
+                      <ToggleSwitch
+                        on={settings[enabledKey]}
+                        onChange={v => setSettings(s => ({ ...s, [enabledKey]: v }))}
+                      />
                     </div>
-                    <ToggleSwitch on={settings[key] !== false}
-                      onChange={v => setSettings(s => ({ ...s, [key]: v }))} />
+                    <div className="login-msg-audience" style={{ borderLeftColor: color, background: bg }}>
+                      <svg width="13" height="13" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0, marginTop: 1 }}>
+                        <circle cx="8" cy="8" r="6.5" stroke={color} strokeWidth="1.2"/>
+                        <circle cx="8" cy="5.5" r="1" fill={color}/>
+                        <line x1="8" y1="8" x2="8" y2="11.5" stroke={color} strokeWidth="1.2" strokeLinecap="round"/>
+                      </svg>
+                      <span style={{ color }}>{audience}</span>
+                    </div>
+                    {settings[enabledKey] && (
+                      <div style={{ marginTop: 8 }}>
+                        <textarea
+                          rows={3}
+                          className="admin-tall-textarea"
+                          value={settings[textKey]}
+                          onChange={e => setSettings(s => ({ ...s, [textKey]: e.target.value }))}
+                          placeholder={placeholder}
+                        />
+                        <span className="field-hint">Use <code style={{ fontSize: 11 }}>{'{name}'}</code> for first name · <code style={{ fontSize: 11 }}>{'{club}'}</code> for club name</span>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
+
+              {/* Demographics */}
+              {(() => {
+                const DEMO_KEYS = ['demo_population','demo_income','demo_age_fit','demo_median_age','demo_poverty','demo_competition','demo_health','demo_spending','demo_growth','demo_commute','demo_competitors','demo_unemployment','demo_households']
+                const enabledCount = DEMO_KEYS.filter(k => settings[k] !== false).length
+                const totalCount   = DEMO_KEYS.length
+                return (
+                  <div className="admin-section" style={{ padding: 0, overflow: 'hidden' }}>
+                    <button
+                      type="button"
+                      className="survey-toggle-btn"
+                      style={{ padding: '14px 20px' }}
+                      onClick={() => setDemoOpen(o => !o)}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
+                        <h3 className="admin-section-title" style={{ margin: 0 }}>Demographics — Market Data</h3>
+                        {enabledCount === totalCount
+                          ? <span className="survey-complete-badge">All enabled</span>
+                          : <span className="survey-progress-badge">{enabledCount} of {totalCount} enabled</span>
+                        }
+                      </div>
+                      <svg className={`survey-chevron ${demoOpen ? 'open' : ''}`} width="14" height="14" viewBox="0 0 16 16" fill="none">
+                        <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </button>
+                    {demoOpen && (
+                      <div style={{ padding: '0 20px 16px' }}>
+                        <p className="admin-section-desc" style={{ marginBottom: 14 }}>Control which data categories are visible to members. Members can further customize their own view within what you enable here.</p>
+                        {[
+                          { key: 'demo_population',  label: 'Population',            hint: 'Total population, household count, and average household size for the ZIP code. Higher population means more potential customers walking past your door.' },
+                          { key: 'demo_income',      label: 'Income & Economics',    hint: 'Median household income, per capita income, poverty rate, and unemployment rate. Higher income areas tend to support premium nutrition products better.' },
+                          { key: 'demo_age_fit',     label: 'Age Fit (18–49)',       hint: 'The percentage of the population aged 18–49 — the core demographic for nutrition clubs. A higher percentage means more of your ideal customers live nearby.' },
+                          { key: 'demo_median_age',  label: 'Median Age',            hint: 'The median age of the local population. Useful context alongside the 18–49 age fit percentage to understand the full age profile of an area.' },
+                          { key: 'demo_poverty',     label: 'Poverty Rate',          hint: 'The percentage of residents living below the poverty line. Lower poverty rates generally indicate stronger discretionary spending on health products.' },
+                          { key: 'demo_competition', label: 'Club Competition',      hint: 'The number of registered nutrition clubs within a 10-mile radius, plus a saturation score. Fewer clubs = more opportunity for your location.' },
+                          { key: 'demo_health',      label: 'Health Indicators',     hint: 'CDC PLACES data showing obesity rate, physical inactivity, diabetes, and high blood pressure rates. Higher rates often indicate stronger demand for nutrition interventions.' },
+                          { key: 'demo_spending',    label: 'Consumer Spending',     hint: 'Estimated household spending on health, fitness, and food. Higher health spending signals a more receptive market for nutrition products.' },
+                          { key: 'demo_growth',      label: 'Population Growth',     hint: 'Whether the local population is growing, stable, or declining. Growing areas represent expanding future customer bases.' },
+                          { key: 'demo_commute',     label: 'Commute & Walkability', hint: 'How residents get to work — walking, driving, transit. High foot-traffic and walkable areas tend to drive more spontaneous drop-ins.' },
+                          { key: 'demo_competitors', label: 'Nearby Competitors',    hint: 'Gyms, fitness centers, yoga studios, and health food stores from OpenStreetMap. More fitness businesses nearby = more health-conscious population.' },
+                        ].map(({ key, label, hint }) => (
+                          <div className="admin-toggle-row" key={key} style={{ paddingBottom: 12, marginBottom: 12, borderBottom: '1px solid #f4f4f4' }}>
+                            <div style={{ flex: 1, paddingRight: 12 }}>
+                              <div className="admin-toggle-label">{label}</div>
+                              <div className="admin-toggle-hint">{hint}</div>
+                            </div>
+                            <ToggleSwitch on={settings[key] !== false}
+                              onChange={v => setSettings(s => ({ ...s, [key]: v }))} />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )
+              })()}
 
               <div className="profile-actions" style={{ marginTop: 8, marginBottom: isSettingsDirty ? 80 : 16 }}>
                 {savedSettings && <span className="save-confirm">✓ Settings saved</span>}
@@ -996,6 +1052,128 @@ export default function AdminPage() {
           )}
         </div>
       )}
+
+      {/* ── ACCESS CONTROLS TAB ── */}
+      {tab === 'access' && (() => {
+        const ACCESS_SWITCHES = [
+          { key: 'member_signups_enabled', label: 'New member signups',  hint: 'Allow new club owners to create an account', onStatus: 'Open',    offStatus: 'Paused', group: 'member' },
+          { key: 'member_login_enabled',   label: 'Member login',        hint: 'Allow existing club owners to log in',       onStatus: 'Active',  offStatus: 'Paused', group: 'member' },
+          { key: 'public_search_enabled',  label: 'Public club search',  hint: 'Allow visitors to search and find clubs',    onStatus: 'Visible', offStatus: 'Hidden',  group: 'public' },
+          { key: 'public_accounts_enabled',label: 'Public account signups', hint: 'Allow visitors to create a public account', onStatus: 'Open',  offStatus: 'Paused', group: 'public' },
+          { key: 'public_login_enabled',   label: 'Public account login', hint: 'Allow existing public accounts to log in',  onStatus: 'Active',  offStatus: 'Paused', group: 'public' },
+        ]
+        const paused = ACCESS_SWITCHES.filter(s => settings[s.key] === false)
+        const anyPaused = paused.length > 0
+        return (
+          <div>
+            {/* Status card */}
+            <div className="admin-section" style={{ border: anyPaused ? '0.5px solid #EF9F27' : '0.5px solid #4CAF82', background: anyPaused ? '#FFFBEB' : '#f7fdf9', padding: '14px 18px', marginBottom: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                {anyPaused ? (
+                  <>
+                    <svg width="18" height="18" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
+                      <circle cx="8" cy="8" r="6.5" stroke="#854F0B" strokeWidth="1.2"/>
+                      <path d="M8 5v4" stroke="#854F0B" strokeWidth="1.2" strokeLinecap="round"/>
+                      <circle cx="8" cy="11" r="0.75" fill="#854F0B"/>
+                    </svg>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 500, color: '#633806' }}>{paused.length} control{paused.length > 1 ? 's' : ''} currently paused</div>
+                      <div style={{ fontSize: 11, color: '#854F0B', marginTop: 2 }}>{paused.map(s => s.label).join(' · ')}</div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <svg width="18" height="18" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
+                      <circle cx="8" cy="8" r="6.5" stroke="#0F6E56" strokeWidth="1.2"/>
+                      <path d="M4.5 8l2 2 4-4" stroke="#0F6E56" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                    <div style={{ fontSize: 13, fontWeight: 500, color: '#085041' }}>All access controls active</div>
+                  </>
+                )}
+              </div>
+            </div>
+
+            <div style={{ padding: '20px 0 8px' }}>
+              <p className="admin-section-desc">Master switches for platform access. Turning anything off never deletes data — it just pauses access. Your admin account is unaffected by all toggles.</p>
+            </div>
+
+            <div className="ac-group-label ac-group-member">Club owners</div>
+            <div className="ac-switches-grid">
+              {ACCESS_SWITCHES.filter(s => s.group === 'member').map(({ key, label, hint, onStatus, offStatus }) => {
+                const on = settings[key]
+                return (
+                  <div key={key} className={`ac-switch-card ${on ? 'on' : 'off'}`} onClick={() => setSettings(s => ({ ...s, [key]: !on }))}>
+                    <div className="ac-switch-top">
+                      <div className="ac-switch-text">
+                        <div className="ac-switch-label">{label}</div>
+                        <div className="ac-switch-hint">{hint}</div>
+                        <div className={`ac-status-pill ${on ? 'on' : 'off'}`}>
+                          <span className={`ac-status-dot ${on ? 'on' : 'off'}`} />
+                          {on ? onStatus : offStatus}
+                        </div>
+                      </div>
+                      <div className={`ac-ls-body ${on ? 'on' : 'off'}`}>
+                        {on  && <span className="ac-ls-label">ON</span>}
+                        {!on && <span className="ac-ls-spacer" />}
+                        <div className="ac-ls-plate"><div className="ac-ls-rocker" /></div>
+                        {on  && <span className="ac-ls-spacer" />}
+                        {!on && <span className="ac-ls-label">OFF</span>}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
+            <div className="ac-group-label ac-group-public">Public users</div>
+            <div className="ac-switches-grid">
+              {ACCESS_SWITCHES.filter(s => s.group === 'public').map(({ key, label, hint, onStatus, offStatus }) => {
+                const on = settings[key]
+                return (
+                  <div key={key} className={`ac-switch-card ${on ? 'on' : 'off'}`} onClick={() => setSettings(s => ({ ...s, [key]: !on }))}>
+                    <div className="ac-switch-top">
+                      <div className="ac-switch-text">
+                        <div className="ac-switch-label">{label}</div>
+                        <div className="ac-switch-hint">{hint}</div>
+                        <div className={`ac-status-pill ${on ? 'on' : 'off'}`}>
+                          <span className={`ac-status-dot ${on ? 'on' : 'off'}`} />
+                          {on ? onStatus : offStatus}
+                        </div>
+                      </div>
+                      <div className={`ac-ls-body ${on ? 'on' : 'off'}`}>
+                        {on  && <span className="ac-ls-label">ON</span>}
+                        {!on && <span className="ac-ls-spacer" />}
+                        <div className="ac-ls-plate"><div className="ac-ls-rocker" /></div>
+                        {on  && <span className="ac-ls-spacer" />}
+                        {!on && <span className="ac-ls-label">OFF</span>}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Sticky save bar */}
+            {isSettingsDirty && (
+              <div className="save-bar save-bar--sticky save-bar--dirty">
+                <div className="save-bar-alert">
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                    <circle cx="8" cy="8" r="7" stroke="#B45309" strokeWidth="1.5"/>
+                    <path d="M8 5v4" stroke="#B45309" strokeWidth="1.5" strokeLinecap="round"/>
+                    <circle cx="8" cy="11.5" r="0.75" fill="#B45309"/>
+                  </svg>
+                  Unsaved changes
+                </div>
+                <div className="save-bar-btns">
+                  <button className="btn-save" onClick={handleSaveSettings} disabled={savingSettings}>
+                    {savingSettings ? 'Saving…' : 'Save Settings'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )
+      })()}
 
       {/* ── MESSAGES TAB ── */}
       {tab === 'contacts' && (

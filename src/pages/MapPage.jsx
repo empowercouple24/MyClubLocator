@@ -633,6 +633,7 @@ export default function MapPage() {
   })
   const [panelWidth,     setPanelWidth]     = useState('normal')   // 'normal' | 'wide'
   const [panelCollapsed, setPanelCollapsed] = useState(false)
+  const [clickBehavior,  setClickBehavior]  = useState('zoom')     // 'zoom' | 'pan' | 'stay'
 
   function updatePanelPosition(pos) {
     setPanelPosition(pos)
@@ -650,6 +651,7 @@ export default function MapPage() {
         .single()
       if (data?.preferences?.panelWidth)     setPanelWidth(data.preferences.panelWidth)
       if (data?.preferences?.panelCollapsed !== undefined) setPanelCollapsed(data.preferences.panelCollapsed)
+      if (data?.preferences?.clickBehavior)  setClickBehavior(data.preferences.clickBehavior)
     }
     loadPanelPrefs()
   }, [user])
@@ -662,6 +664,19 @@ export default function MapPage() {
       .eq('user_id', user.id)
       .single()
     const merged = { ...(existing?.preferences || {}), panelWidth: width, panelCollapsed: collapsed }
+    await supabase.from('user_demo_preferences')
+      .upsert({ user_id: user.id, preferences: merged }, { onConflict: 'user_id' })
+  }
+
+  async function saveClickBehavior(behavior) {
+    setClickBehavior(behavior)
+    if (!user) return
+    const { data: existing } = await supabase
+      .from('user_demo_preferences')
+      .select('preferences')
+      .eq('user_id', user.id)
+      .single()
+    const merged = { ...(existing?.preferences || {}), clickBehavior: behavior }
     await supabase.from('user_demo_preferences')
       .upsert({ user_id: user.id, preferences: merged }, { onConflict: 'user_id' })
   }
@@ -737,8 +752,14 @@ export default function MapPage() {
     setSelected(loc)
     setRadiusMiles(null)
     setCustomMiles('')
-    setMapCenter([loc.lat, loc.lng])
-    setMapZoom(14)
+    if (clickBehavior === 'zoom') {
+      setMapCenter([loc.lat, loc.lng])
+      setMapZoom(14)
+    } else if (clickBehavior === 'pan') {
+      setMapCenter([loc.lat, loc.lng])
+      // no zoom change — MapController will pan without zooming
+    }
+    // 'stay' — do nothing to the map view
   }
 
   async function handleCitySearch(e) {
@@ -931,6 +952,21 @@ export default function MapPage() {
           <div className="map-basemap-toggle">
             {BASE_MAPS.map(b => (
               <button key={b.id} className={`basemap-btn ${baseMap === b.id ? 'active' : ''}`} onClick={() => setBaseMap(b.id)}>{b.label}</button>
+            ))}
+          </div>
+          <div className="map-click-behavior" title="What happens when you click a club marker">
+            <span className="map-click-behavior-label">On click:</span>
+            {[
+              { val: 'zoom', label: 'Zoom in',  title: 'Fly to club and zoom in' },
+              { val: 'pan',  label: 'Pan only', title: 'Center on club, keep current zoom' },
+              { val: 'stay', label: 'Stay put', title: 'Open club in panel, map stays' },
+            ].map(({ val, label, title }) => (
+              <button
+                key={val}
+                className={`click-behavior-btn ${clickBehavior === val ? 'active' : ''}`}
+                onClick={() => saveClickBehavior(val)}
+                title={title}
+              >{label}</button>
             ))}
           </div>
           <div className="map-controls-right">

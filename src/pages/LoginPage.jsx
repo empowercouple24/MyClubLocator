@@ -66,7 +66,7 @@ export default function LoginPage() {
 
     // Check member_login_enabled
     const { data: settings } = await supabase
-      .from('app_settings').select('member_login_enabled').eq('id', 1).single()
+      .from('app_settings').select('member_login_enabled, login_msg_approved_enabled, login_msg_approved, login_msg_pending_enabled, login_msg_pending, login_msg_no_profile_enabled, login_msg_no_profile').eq('id', 1).single()
     if (settings && settings.member_login_enabled === false) {
       await supabase.auth.signOut()
       setError('Access is temporarily unavailable. Please try again later.')
@@ -90,27 +90,39 @@ export default function LoginPage() {
 
     // Route based on state
     if (!uta?.onboarding_done) {
-      // Never completed onboarding — send there now
       navigate('/onboarding')
       return
     }
 
+    // Helper to replace {name} and {club} tokens
+    const applyTokens = (template, name, club) =>
+      (template || '')
+        .replace(/\{name\}/g, name || '')
+        .replace(/\{club\}/g, club || '')
+        .trim()
+
     if (!loc) {
-      // Completed onboarding but no profile yet
-      setWelcome({ type: 'no_profile', name: null })
+      const msgEnabled = settings?.login_msg_no_profile_enabled !== false
+      const msgText    = applyTokens(settings?.login_msg_no_profile, null, null) ||
+        "Welcome back! Your club profile isn't set up yet. Finish setting it up to appear on the map."
+      setWelcome({ type: 'no_profile', name: null, msg: msgEnabled ? msgText : null })
       setLoading(false)
       return
     }
 
     if (loc.approved === false) {
-      // Has profile but pending approval
-      setWelcome({ type: 'pending', name: loc.first_name, clubName: loc.club_name })
+      const msgEnabled = settings?.login_msg_pending_enabled !== false
+      const msgText    = applyTokens(settings?.login_msg_pending, loc.first_name, loc.club_name) ||
+        `Welcome back${loc.first_name ? `, ${loc.first_name}` : ''}! ${loc.club_name || 'Your club'} is pending approval.`
+      setWelcome({ type: 'pending', name: loc.first_name, clubName: loc.club_name, msg: msgEnabled ? msgText : null })
       setLoading(false)
       return
     }
 
-    // Has profile and approved — show welcome back message briefly then go to map
-    setWelcome({ type: 'approved', name: loc.first_name, clubName: loc.club_name })
+    const msgEnabled = settings?.login_msg_approved_enabled !== false
+    const msgText    = applyTokens(settings?.login_msg_approved, loc.first_name, loc.club_name) ||
+      `Welcome back${loc.first_name ? `, ${loc.first_name}` : ''}! ${loc.club_name || 'Your club'} is live on the map.`
+    setWelcome({ type: 'approved', name: loc.first_name, clubName: loc.club_name, msg: msgEnabled ? msgText : null })
     setLoading(false)
     setTimeout(() => navigate('/app/map'), 2200)
   }
@@ -137,13 +149,10 @@ export default function LoginPage() {
                   <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="#4CAF82"/>
                 </svg>
               </div>
-              <h1 className="welcome-title">Welcome back{welcome.name ? `, ${welcome.name}` : ''}!</h1>
-              <p className="welcome-msg">
-                {welcome.clubName
-                  ? <><strong>{welcome.clubName}</strong> is live on the map.</>
-                  : 'Your club is live on the map.'
-                }
-              </p>
+              {welcome.msg
+                ? <p className="welcome-msg" style={{ marginBottom: '0.5rem' }}>{welcome.msg}</p>
+                : <h1 className="welcome-title">Welcome back{welcome.name ? `, ${welcome.name}` : ''}!</h1>
+              }
               <p className="welcome-sub">Taking you to the map…</p>
             </>
           )}
@@ -156,13 +165,13 @@ export default function LoginPage() {
                   <circle cx="12" cy="16.5" r="0.75" fill="#F59E0B"/>
                 </svg>
               </div>
-              <h1 className="welcome-title">Welcome back{welcome.name ? `, ${welcome.name}` : ''}!</h1>
-              <p className="welcome-msg">
-                {welcome.clubName
-                  ? <><strong>{welcome.clubName}</strong> is pending approval.</>
-                  : 'Your club is pending approval.'
-                } You'll appear on the map once approved.
-              </p>
+              {welcome.msg
+                ? <p className="welcome-msg">{welcome.msg}</p>
+                : <>
+                    <h1 className="welcome-title">Welcome back{welcome.name ? `, ${welcome.name}` : ''}!</h1>
+                    <p className="welcome-msg">{welcome.clubName || 'Your club'} is pending approval. You'll appear on the map once approved.</p>
+                  </>
+              }
               <button className="btn-full" style={{ marginTop: '1.5rem' }} onClick={() => navigate('/app/map')}>
                 Go to the map →
               </button>
@@ -176,8 +185,13 @@ export default function LoginPage() {
                   <path d="M12 8v4l3 3" stroke="#6B8DD6" strokeWidth="1.5" strokeLinecap="round"/>
                 </svg>
               </div>
-              <h1 className="welcome-title">Welcome back!</h1>
-              <p className="welcome-msg">Your club profile isn't set up yet. Finish setting it up to appear on the map.</p>
+              {welcome.msg
+                ? <p className="welcome-msg">{welcome.msg}</p>
+                : <>
+                    <h1 className="welcome-title">Welcome back!</h1>
+                    <p className="welcome-msg">Your club profile isn't set up yet. Finish setting it up to appear on the map.</p>
+                  </>
+              }
               <button className="btn-full" style={{ marginTop: '1.5rem' }} onClick={() => navigate('/app/profile')}>
                 Set up my club →
               </button>
