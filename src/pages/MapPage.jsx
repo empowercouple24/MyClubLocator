@@ -9,7 +9,7 @@ import MapSearchAutocomplete from '../components/MapSearchAutocomplete'
 import PhotoGallery from '../components/PhotoGallery'
 
 // ── Circle markers via DivIcon ────────────────────────────
-// own = warm red, other = periwinkle blue, selected = gold with pulse
+// own = warm red with ambient pulse, other = periwinkle blue, selected = gold with big pulse
 function makeCircleIcon(type) {
   const configs = {
     own:      { fill: '#D94F4F', stroke: '#a83535', size: 22 },
@@ -20,13 +20,24 @@ function makeCircleIcon(type) {
   const r = size / 2
 
   if (type === 'selected') {
-    // Pulsing rings injected as sibling divs with CSS animation
     const html = `
       <div style="position:relative;width:${size}px;height:${size}px;cursor:pointer;transform:translate(-50%,-50%);">
         <div class="marker-pulse-ring marker-pulse-ring--1" style="--pulse-color:${fill};"></div>
         <div class="marker-pulse-ring marker-pulse-ring--2" style="--pulse-color:${fill};"></div>
         <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg" style="position:relative;z-index:2;">
           <circle cx="${r}" cy="${r}" r="${r - 1.5}" fill="${fill}" stroke="white" stroke-width="2.5"/>
+        </svg>
+      </div>`
+    return divIcon({ className: '', html, iconSize: [size, size], iconAnchor: [r, r], popupAnchor: [0, -r] })
+  }
+
+  if (type === 'own') {
+    // Small ambient pulse — always running, soft and subtle
+    const html = `
+      <div style="position:relative;width:${size}px;height:${size}px;cursor:pointer;transform:translate(-50%,-50%);">
+        <div class="marker-own-pulse" style="--pulse-color:${fill};"></div>
+        <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg" style="position:relative;z-index:2;">
+          <circle cx="${r}" cy="${r}" r="${r - 1.5}" fill="${fill}" stroke="white" stroke-width="2"/>
         </svg>
       </div>`
     return divIcon({ className: '', html, iconSize: [size, size], iconAnchor: [r, r], popupAnchor: [0, -r] })

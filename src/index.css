@@ -522,6 +522,13 @@ body {
   margin: 0 auto;
 }
 
+.admin-page-wrap {
+  padding: 24px;
+  max-width: 1100px;
+  margin: 0 auto;
+  width: 100%;
+}
+
 .profile-head {
   display: flex;
   align-items: center;
@@ -7664,4 +7671,91 @@ input.input-ok {
   display: flex; align-items: center; gap: 6px;
   font-size: 12.5px; color: #0F6E56;
   background: #E1F5EE; border-radius: 6px; padding: 7px 12px;
+}
+
+/* ── Own club ambient pulse (small, always-on) ───────────── */
+.marker-own-pulse {
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: transparent;
+  border: 1.5px solid var(--pulse-color, #D94F4F);
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.7);
+  pointer-events: none;
+  z-index: 1;
+  animation: own-pulse 2.8s ease-out infinite;
+}
+@keyframes own-pulse {
+  0%   { transform: translate(-50%, -50%) scale(0.7); opacity: 0.6; }
+  100% { transform: translate(-50%, -50%) scale(1.5); opacity: 0; }
+}
+
+/* ── Profile page — 10-slot photo strip ──────────────────── */
+.photos-strip {
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  gap: 5px;
+  width: 100%;
+}
+
+.photo-strip-tile {
+  aspect-ratio: 1;
+  border-radius: 6px;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.photo-strip-tile--filled {
+  cursor: grab;
+}
+.photo-strip-tile--filled:active { cursor: grabbing; }
+.photo-strip-tile--filled img {
+  width: 100%; height: 100%; object-fit: cover; display: block;
+}
+.photo-strip-tile--dragging {
+  opacity: 0.4;
+}
+.photo-strip-tile--dimmed {
+  opacity: 0.55;
+}
+
+.photo-strip-tile--empty {
+  background: #f3f3f3;
+  border: 1px dashed #ddd;
+}
+.photo-strip-tile--add {
+  background: #fafafa;
+  border: 1.5px dashed #ccc;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.photo-strip-tile--add:hover {
+  background: #f0faf5;
+  border-color: #4CAF82;
+}
+.photo-strip-tile--add:hover span { color: #4CAF82 !important; }
+
+.photo-strip-tile--uploading {
+  background: #f3f3f3;
+  border: 1px solid #ddd;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* Keep existing photo-remove-btn and photo-cover-badge working */
+.photo-strip-tile .photo-remove-btn {
+  position: absolute; top: 2px; right: 2px;
+  width: 18px; height: 18px; font-size: 9px;
+}
+.photo-strip-tile .photo-drag-handle {
+  position: absolute; bottom: 2px; left: 2px;
+}
+.photo-strip-tile .photo-cover-badge {
+  position: absolute; bottom: 2px; right: 2px;
+  font-size: 8px; padding: 1px 4px;
 }

@@ -526,7 +526,7 @@ export default function AdminPage() {
   if (!isAdmin) return null
 
   return (
-    <div className="profile-page">
+    <div className="admin-page-wrap">
       <div className="profile-header">
         <h2>Admin Panel</h2>
         <p className="profile-sub">Manage members and platform settings.</p>

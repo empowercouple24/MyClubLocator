@@ -835,52 +835,22 @@ function ClubEditor({ club, clubIndex, userId, isOnly, onSaved, onRemove, userEm
         <div className="photo-section" style={{ marginTop: 20 }}>
           <div className="photo-section-title">Club Photos</div>
           <p className="upload-hint" style={{ marginBottom: 12 }}>Up to 10 photos. Drag to reorder — first photo is your cover.</p>
-          <div className={`photos-grid${dragIdx !== null ? ' photos-grid--dragging' : ''}`}>
-            {/* Drop zone before first photo */}
-            {dragIdx !== null && (
-              <div
-                className={`photo-drop-gap${dropTarget === 0 ? ' active' : ''}`}
-                onDragOver={e => { e.preventDefault(); setDropTarget(0) }}
-                onDrop={() => {
-                  if (dragIdx === null) return
-                  const newUrls = [...photoUrls]
-                  const [moved] = newUrls.splice(dragIdx, 1)
-                  const insertAt = dropTarget > dragIdx ? dropTarget - 1 : dropTarget
-                  newUrls.splice(insertAt, 0, moved)
-                  setPhotoUrls(newUrls)
-                  setDragIdx(null); setDropTarget(null)
-                }}
-              />
-            )}
-            {photoUrls.map((url, i) => (
-              <>
-                <div
-                  key={url}
-                  className={[
-                    'photo-thumb',
-                    dragIdx === i ? 'photo-thumb--dragging' : '',
-                    dragIdx !== null && dragIdx !== i ? 'photo-thumb--dimmed' : '',
+          <div className={`photos-strip${dragIdx !== null ? ' photos-strip--dragging' : ''}`}>
+            {Array.from({ length: 10 }).map((_, slotIdx) => {
+              const url = photoUrls[slotIdx]
+              const isUploading = !url && uploadProgress && slotIdx === photoUrls.length
+
+              if (url) {
+                return (
+                  <div key={url} className={[
+                    'photo-strip-tile photo-strip-tile--filled',
+                    dragIdx === slotIdx ? 'photo-strip-tile--dragging' : '',
+                    dragIdx !== null && dragIdx !== slotIdx ? 'photo-strip-tile--dimmed' : '',
                   ].filter(Boolean).join(' ')}
-                  draggable
-                  onDragStart={() => { setDragIdx(i); setDropTarget(null) }}
-                  onDragEnd={() => { setDragIdx(null); setDropTarget(null) }}
-                >
-                  <img src={url} alt={'Club photo ' + (i+1)} />
-                  {i === 0 && <span className="photo-cover-badge">Cover</span>}
-                  <span className="photo-drag-handle">
-                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                      <circle cx="3" cy="3" r="1.2" fill="white"/><circle cx="3" cy="6" r="1.2" fill="white"/><circle cx="3" cy="9" r="1.2" fill="white"/>
-                      <circle cx="9" cy="3" r="1.2" fill="white"/><circle cx="9" cy="6" r="1.2" fill="white"/><circle cx="9" cy="9" r="1.2" fill="white"/>
-                    </svg>
-                  </span>
-                  <button className="photo-remove-btn" onClick={() => setPhotoUrls(p => p.filter((_, idx) => idx !== i))}>✕</button>
-                </div>
-                {/* Drop zone after each photo */}
-                {dragIdx !== null && (
-                  <div
-                    key={'gap-' + i}
-                    className={`photo-drop-gap${dropTarget === i + 1 ? ' active' : ''}`}
-                    onDragOver={e => { e.preventDefault(); setDropTarget(i + 1) }}
+                    draggable
+                    onDragStart={() => { setDragIdx(slotIdx); setDropTarget(null) }}
+                    onDragEnd={() => { setDragIdx(null); setDropTarget(null) }}
+                    onDragOver={e => { e.preventDefault(); setDropTarget(slotIdx) }}
                     onDrop={() => {
                       if (dragIdx === null) return
                       const newUrls = [...photoUrls]
@@ -890,29 +860,51 @@ function ClubEditor({ club, clubIndex, userId, isOnly, onSaved, onRemove, userEm
                       setPhotoUrls(newUrls)
                       setDragIdx(null); setDropTarget(null)
                     }}
-                  />
-                )}
-              </>
-            ))}
-            {uploadProgress && (
-              <div className="photo-upload-progress-tile">
-                <div className="photo-upload-spinner" />
-                <div className="photo-upload-progress-text">
-                  {uploadProgress.done} of {uploadProgress.total}
+                  >
+                    <img src={url} alt={'Club photo ' + (slotIdx + 1)} />
+                    {slotIdx === 0 && <span className="photo-cover-badge">Cover</span>}
+                    <span className="photo-drag-handle">
+                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                        <circle cx="3" cy="3" r="1.2" fill="white"/><circle cx="3" cy="6" r="1.2" fill="white"/><circle cx="3" cy="9" r="1.2" fill="white"/>
+                        <circle cx="9" cy="3" r="1.2" fill="white"/><circle cx="9" cy="6" r="1.2" fill="white"/><circle cx="9" cy="9" r="1.2" fill="white"/>
+                      </svg>
+                    </span>
+                    <button className="photo-remove-btn" onClick={() => setPhotoUrls(p => p.filter((_, idx) => idx !== slotIdx))}>✕</button>
+                  </div>
+                )
+              }
+
+              if (isUploading) {
+                return (
+                  <div key="uploading" className="photo-strip-tile photo-strip-tile--uploading">
+                    <div className="photo-upload-spinner" />
+                    <div className="photo-upload-progress-text" style={{ fontSize: 10, marginTop: 4 }}>
+                      {uploadProgress.done}/{uploadProgress.total}
+                    </div>
+                  </div>
+                )
+              }
+
+              // Empty slot
+              const isAddSlot = slotIdx === photoUrls.length && !uploadProgress
+              return (
+                <div
+                  key={`empty-${slotIdx}`}
+                  className={`photo-strip-tile photo-strip-tile--empty${isAddSlot ? ' photo-strip-tile--add' : ''}`}
+                  onClick={isAddSlot ? () => photoInputRef.current && photoInputRef.current.click() : undefined}
+                  title={isAddSlot ? 'Add photo' : ''}
+                >
+                  {isAddSlot ? (
+                    <span style={{ fontSize: 22, color: '#bbb', lineHeight: 1 }}>+</span>
+                  ) : (
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="1.5">
+                      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                      <circle cx="12" cy="13" r="4"/>
+                    </svg>
+                  )}
                 </div>
-                <div className="photo-upload-progress-bar-wrap">
-                  <div
-                    className="photo-upload-progress-bar"
-                    style={{ width: `${(uploadProgress.done / uploadProgress.total) * 100}%` }}
-                  />
-                </div>
-              </div>
-            )}
-            {!uploadProgress && photoUrls.length < 10 && (
-              <button className="photo-add-tile" onClick={() => photoInputRef.current && photoInputRef.current.click()}>
-                +
-              </button>
-            )}
+              )
+            })}
           </div>
           <input ref={photoInputRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={handlePhotoUpload} />
         </div>
