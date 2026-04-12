@@ -7519,3 +7519,149 @@ input.input-ok {
   cursor: pointer;
   text-decoration: underline;
 }
+
+/* ── Public Finder — Auth zone in topbar ─────────────────── */
+.pf-auth-zone {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+}
+.pf-auth-name {
+  font-size: 12px;
+  color: rgba(255,255,255,0.75);
+}
+.pf-auth-link {
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(255,255,255,0.8);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 3px 0;
+  text-decoration: underline;
+}
+.pf-auth-link:hover { color: #fff; }
+.pf-auth-link--accent {
+  background: rgba(255,255,255,0.15);
+  border-radius: 4px;
+  padding: 3px 10px;
+  text-decoration: none;
+}
+.pf-auth-link--accent:hover { background: rgba(255,255,255,0.25); }
+.pf-back-btn-plain {
+  background: none; border: none; color: #1A3C2E;
+  font-size: 13px; cursor: pointer; padding: 4px 0;
+}
+
+/* ── Auth Modal ──────────────────────────────────────────── */
+.pf-modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.45);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 1000; padding: 20px;
+}
+.pf-modal-card {
+  background: #fff;
+  border-radius: 14px;
+  padding: 28px 24px;
+  max-width: 420px; width: 100%;
+  position: relative;
+}
+.pf-modal-close {
+  position: absolute; top: 16px; right: 16px;
+  background: none; border: none;
+  color: #aaa; cursor: pointer; padding: 4px;
+}
+.pf-modal-close:hover { color: #333; }
+.pf-modal-tabs {
+  display: flex; gap: 4px; margin-bottom: 14px;
+  border-bottom: 1px solid #eee; padding-bottom: 10px;
+}
+.pf-modal-tab {
+  padding: 5px 14px; border-radius: 6px; border: none;
+  font-size: 13px; font-weight: 500; cursor: pointer;
+  background: none; color: #888;
+}
+.pf-modal-tab:hover { color: #333; }
+.pf-modal-tab.active { background: #1A3C2E; color: #fff; }
+.pf-modal-desc { font-size: 13px; color: #666; margin-bottom: 14px; line-height: 1.5; }
+.pf-modal-error {
+  background: #FEF2F2; border: 0.5px solid #FECACA;
+  border-radius: 6px; padding: 8px 12px;
+  font-size: 12px; color: #B91C1C; margin-bottom: 10px;
+}
+.pf-modal-input {
+  width: 100%; height: 40px;
+  border: 1px solid #d0d9d4; border-radius: 7px;
+  padding: 0 12px; font-size: 14px; color: #1a1a1a;
+  background: #fff; outline: none;
+}
+.pf-modal-input:focus { border-color: #4CAF82; box-shadow: 0 0 0 3px rgba(76,175,130,0.12); }
+
+/* ── Heart button ────────────────────────────────────────── */
+.pf-heart-btn {
+  background: none; border: none;
+  cursor: pointer; padding: 4px;
+  color: #bbb; display: flex; align-items: center;
+  border-radius: 4px; transition: color 0.15s;
+}
+.pf-heart-btn:hover { color: #E24B4A; }
+.pf-heart-btn.fav { color: #E24B4A; }
+
+/* ── Saved panel ─────────────────────────────────────────── */
+.pf-saved-panel {
+  background: #fff;
+  border: 0.5px solid #4CAF82;
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+.pf-saved-header {
+  display: flex; align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  cursor: pointer; background: none; border: none;
+  width: 100%; text-align: left;
+}
+.pf-saved-header:hover { background: #fafcfa; }
+.pf-saved-title { font-size: 13.5px; font-weight: 500; color: #1A3C2E; }
+.pf-saved-count {
+  font-size: 11px; font-weight: 600;
+  background: #E1F5EE; color: #0F6E56;
+  padding: 1px 7px; border-radius: 10px;
+}
+.pf-saved-list { border-top: 0.5px solid #e8ede9; }
+.pf-saved-list .pf-club-card { border: none; border-bottom: 0.5px solid #f0f0f0; border-radius: 0; }
+.pf-saved-list .pf-club-card:last-child { border-bottom: none; }
+
+/* ── Note section ────────────────────────────────────────── */
+.pf-note-section { margin-top: 8px; }
+.pf-note-toggle {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12.5px; font-weight: 500; color: #1A3C2E;
+  background: #f0faf5; border: 0.5px solid #b8deca;
+  border-radius: 6px; padding: 6px 12px; cursor: pointer;
+}
+.pf-note-toggle:hover { background: #e4f5ed; }
+.pf-note-input {
+  width: 100%; border: 1px solid #d0d9d4; border-radius: 7px;
+  padding: 8px 12px; font-size: 13px; resize: vertical;
+  font-family: inherit; outline: none;
+}
+.pf-note-input:focus { border-color: #4CAF82; box-shadow: 0 0 0 3px rgba(76,175,130,0.1); }
+.pf-note-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 6px; }
+.pf-note-cancel {
+  padding: 6px 14px; border-radius: 6px; font-size: 12.5px;
+  background: none; border: 0.5px solid #ddd; color: #666; cursor: pointer;
+}
+.pf-note-submit {
+  padding: 6px 14px; border-radius: 6px; font-size: 12.5px; font-weight: 500;
+  background: #1A3C2E; color: #fff; border: none; cursor: pointer;
+}
+.pf-note-submit:disabled { opacity: 0.5; }
+.pf-note-sent {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12.5px; color: #0F6E56;
+  background: #E1F5EE; border-radius: 6px; padding: 7px 12px;
+}

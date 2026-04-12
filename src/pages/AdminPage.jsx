@@ -244,7 +244,10 @@ export default function AdminPage() {
   const [contactsLoaded, setContactsLoaded]   = useState(false)
   const [notifications, setNotifications]     = useState([])
   const [notifLoaded, setNotifLoaded]         = useState(false)
-  const [msgSubTab, setMsgSubTab]             = useState('contact') // 'contact' | 'members'
+  const [msgSubTab, setMsgSubTab]             = useState('contact') // 'contact' | 'members' | 'notes'
+  const [clubNotes, setClubNotes]             = useState([])
+  const [notesLoaded, setNotesLoaded]         = useState(false)
+  const [forwardingNoteId, setForwardingNoteId] = useState(null)
 
   // Unread counts
   const unreadContacts = contacts.filter(c => !c.is_read).length
@@ -361,11 +364,57 @@ export default function AdminPage() {
     setNotifications(prev => prev.map(n => ({ ...n, is_read: true })))
   }
 
+  async function loadClubNotes() {
+    const { data } = await supabase
+      .from('club_notes')
+      .select('*, public_accounts(email, display_name), locations(club_name, club_email, user_id)')
+      .order('created_at', { ascending: false })
+    if (data) setClubNotes(data)
+    setNotesLoaded(true)
+  }
+
+  async function forwardNote(note) {
+    setForwardingNoteId(note.id)
+    const ownerEmail = note.locations?.club_email
+    const clubName   = note.locations?.club_name || 'your club'
+    const senderName = note.public_accounts?.display_name || note.public_accounts?.email || 'A visitor'
+
+    // Send email to club owner if they have an email
+    if (ownerEmail) {
+      await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'api-key': BREVO_API_KEY },
+        body: JSON.stringify({
+          sender: { name: 'My Club Locator', email: 'hello@myclublocator.com' },
+          to: [{ email: ownerEmail }],
+          subject: `Someone left a note about ${clubName}`,
+          htmlContent: `<p style="font-family:sans-serif;font-size:15px;line-height:1.7;color:#333;">Hi there,</p><p style="font-family:sans-serif;font-size:15px;line-height:1.7;color:#333;">A visitor to the My Club Locator public finder left the following note about <strong>${clubName}</strong>:</p><blockquote style="border-left:3px solid #4CAF82;margin:16px 0;padding:12px 16px;background:#f0faf5;font-style:italic;color:#333;">${note.note}</blockquote><p style="font-family:sans-serif;font-size:13px;color:#aaa;">This note was submitted by ${senderName} via the public club finder.</p><hr style="border:none;border-top:1px solid #eee;margin:24px 0"/><p style="font-size:12px;color:#aaa;">My Club Locator · hello@myclublocator.com</p>`,
+        }),
+      })
+    }
+
+    // Insert in-app notification for the club owner
+    if (note.locations?.user_id) {
+      await supabase.from('notifications').insert({
+        type: 'club_note',
+        title: `New note on ${clubName}`,
+        body: `${senderName} left a note: "${note.note.slice(0, 100)}${note.note.length > 100 ? '…' : ''}"`,
+        user_id: note.locations.user_id,
+      })
+    }
+
+    // Mark as forwarded
+    await supabase.from('club_notes').update({ forwarded: true }).eq('id', note.id)
+    setClubNotes(prev => prev.map(n => n.id === note.id ? { ...n, forwarded: true } : n))
+    setForwardingNoteId(null)
+  }
+
   function handleTabChange(t) {
     setTab(t)
     if (t === 'contacts') {
       if (!contactsLoaded) loadContacts()
       if (!notifLoaded) loadNotifications()
+      if (!notesLoaded) loadClubNotes()
     }
   }
 
@@ -1287,6 +1336,15 @@ export default function AdminPage() {
               Member activity
               {unreadNotifs > 0 && <span className="msg-unread-badge">{unreadNotifs}</span>}
             </button>
+            <button
+              className={`msg-subtab ${msgSubTab === 'notes' ? 'active' : ''}`}
+              onClick={() => { setMsgSubTab('notes'); if (!notesLoaded) loadClubNotes() }}
+            >
+              Club notes
+              {clubNotes.filter(n => !n.forwarded).length > 0 && (
+                <span className="msg-unread-badge">{clubNotes.filter(n => !n.forwarded).length}</span>
+              )}
+            </button>
           </div>
 
           {/* ── Contact messages sub-tab ── */}
@@ -1365,6 +1423,57 @@ export default function AdminPage() {
                       {n.type === 'pending_approval' && (
                         <button className="notif-action-btn" onClick={e => { e.stopPropagation(); setTab('members') }}>
                           Review →
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── Club Notes sub-tab ── */}
+          {msgSubTab === 'notes' && (
+            <div>
+              {!notesLoaded ? (
+                <div className="admin-loading">Loading notes…</div>
+              ) : clubNotes.length === 0 ? (
+                <div className="admin-empty">No club notes yet. Notes submitted by public users will appear here.</div>
+              ) : (
+                <div className="notif-list">
+                  {clubNotes.map(n => (
+                    <div key={n.id} className="notif-card" style={{ alignItems: 'flex-start' }}>
+                      <div className="notif-icon" style={{ marginTop: 2 }}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke="#185FA5" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      </div>
+                      <div className="notif-body" style={{ flex: 1 }}>
+                        <div className="notif-title" style={{ marginBottom: 3 }}>
+                          {n.locations?.club_name || 'Unknown club'}
+                          {n.forwarded && (
+                            <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 500, background: '#E1F5EE', color: '#085041', padding: '1px 7px', borderRadius: 10 }}>
+                              Forwarded ✓
+                            </span>
+                          )}
+                        </div>
+                        <div style={{ fontSize: 13, color: '#333', lineHeight: 1.5, marginBottom: 5, background: '#f7f9f7', borderLeft: '2px solid #4CAF82', padding: '6px 10px', borderRadius: '0 5px 5px 0' }}>
+                          {n.note}
+                        </div>
+                        <div className="notif-time">
+                          From: {n.public_accounts?.display_name || n.public_accounts?.email || 'Anonymous'}
+                          {' · '}
+                          {new Date(n.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        </div>
+                      </div>
+                      {!n.forwarded && (
+                        <button
+                          className="notif-action-btn"
+                          style={{ flexShrink: 0, marginTop: 2 }}
+                          onClick={() => forwardNote(n)}
+                          disabled={forwardingNoteId === n.id}
+                        >
+                          {forwardingNoteId === n.id ? 'Sending…' : 'Forward to owner →'}
                         </button>
                       )}
                     </div>
