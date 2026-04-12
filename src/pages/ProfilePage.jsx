@@ -18,7 +18,6 @@ function buildYears() {
 }
 const YEARS = buildYears()
 
-// ── Phone formatting ─────────────────────────────────────────
 function formatPhone(raw) {
   const digits = raw.replace(/\D/g, '').slice(0, 10)
   if (digits.length === 0) return ''
@@ -27,10 +26,10 @@ function formatPhone(raw) {
   return `(${digits.slice(0,3)}) ${digits.slice(3,6)}-${digits.slice(6)}`
 }
 
-const DEFAULT_FORM = {
-  first_name: '', last_name: '', owner_email: '',
-  owner2_first_name: '', owner2_last_name: '', owner2_email: '', owner2_herbalife_level: '',
-  owner3_first_name: '', owner3_last_name: '', owner3_email: '', owner3_herbalife_level: '',
+// Default shape for one club's data
+const DEFAULT_CLUB = {
+  id: null,           // DB row id (null = not yet saved)
+  club_index: 0,
   club_name: '', club_email: '', club_phone: '', website: '',
   address: '', city: '', state: '', zip: '',
   opened_month: '', opened_year: '',
@@ -42,9 +41,19 @@ const DEFAULT_FORM = {
   hours_saturday_open: '', hours_saturday_close: '',
   hours_sunday_open: '', hours_sunday_close: '',
   social_facebook: '', social_instagram: '', social_tiktok: '', social_youtube: '',
+  logo_url: null,
+  photo_urls: [],
+  lat: null, lng: null,
+}
+
+// Owner + story/survey fields stay flat (not per-club)
+const DEFAULT_PERSON = {
+  first_name: '', last_name: '', owner_email: '',
+  owner2_first_name: '', owner2_last_name: '', owner2_email: '', owner2_herbalife_level: '',
+  owner3_first_name: '', owner3_last_name: '', owner3_email: '', owner3_herbalife_level: '',
+  herbalife_level: '',
   story_why: '', story_favorite_part: '', story_favorite_products: '', story_unique: '',
   story_before: '', story_goal: '',
-  herbalife_level: '',
   survey_upline: '', survey_hl_month: '', survey_hl_year: '',
   survey_active_club: null, survey_club_month: '', survey_club_year: '',
   survey_trainings: '', survey_hear_how: '', survey_hear_detail: '', survey_goal: '',
@@ -62,28 +71,11 @@ async function geocodeAddress(address) {
   return null
 }
 
-async function lookupZip(zip) {
-  try {
-    const res = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=json&postalcode=${zip}&country=US&limit=1`,
-      { headers: { 'Accept-Language': 'en' } }
-    )
-    const data = await res.json()
-    if (data?.[0]) {
-      const parts = data[0].display_name.split(', ')
-      return { city: parts[0] || '', state: parts[parts.length - 2] || '' }
-    }
-  } catch {}
-  return null
-}
-
-// ── Owner photo upload widget ─────────────────────────────────
-// Compact level picker for co-owners (no K/diamond sub-selection)
+// ── OwnerLevelPicker ──────────────────────────────────────────
 function OwnerLevelPicker({ value, onChange }) {
   const K_LEVELS    = ['PT','15K','20K','30K','40K','50K','60K','70K','80K','90K','100K','110K','120K','130K','140K','150K']
   const CC_K_LEVELS = ['CC','FC','15K','20K','30K','40K','50K','60K','70K','80K','90K','100K','110K','120K','130K','140K','150K']
 
-  // Parse existing value back into tier/k/dia
   function parseValue(v) {
     if (!v) return { tier: '', k: '', dia: '', confirmed: false }
     if (v.startsWith('Presidents Team')) {
@@ -290,157 +282,116 @@ function OwnerPhotoUpload({ label, photoUrl, onUpload, uploading }) {
         </button>
         <p className="upload-hint">Square photo works best</p>
       </div>
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/*"
-        style={{ display: 'none' }}
-        onChange={onUpload}
-      />
+      <input ref={inputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={onUpload} />
     </div>
   )
 }
 
-export default function ProfilePage() {
-  const { user } = useAuth()
-  const navigate = useNavigate()
-  const [form, setForm]         = useState(DEFAULT_FORM)
-  const [loading, setLoading]   = useState(true)
-  const [saving, setSaving]     = useState(false)
-  const [saveAction, setSaveAction] = useState(null)
-  const [toast, setToast]       = useState('')
-  const [errors, setErrors]     = useState({})
-  const [hasProfile, setHasProfile] = useState(false)
-  const savedFormRef = useRef(null)  // snapshot of last saved form
-  const isDirty = savedFormRef.current !== null
-    ? JSON.stringify(form) !== JSON.stringify(savedFormRef.current)
-    : false
-  const [showOwner2, setShowOwner2] = useState(false)
-  const [showOwner3, setShowOwner3] = useState(false)
-  const [owner1Collapsed, setOwner1Collapsed] = useState(false)
-  const [owner2Collapsed, setOwner2Collapsed] = useState(false)
-  const [owner3Collapsed, setOwner3Collapsed] = useState(false)
-  const [surveyOpen, setSurveyOpen] = useState(false)
-  const [storyOpen,  setStoryOpen]  = useState(false)
-  const [zipLooking, setZipLooking] = useState(false)
+// ── Add Club Confirmation Modal ───────────────────────────────
+function AddClubPrompt({ onConfirm, onCancel }) {
+  return (
+    <div className="modal-overlay" onClick={onCancel}>
+      <div className="modal-box add-club-modal" onClick={e => e.stopPropagation()}>
+        <div className="add-club-modal-icon">🏪</div>
+        <h3>Add a Second Club Location?</h3>
+        <p>You're adding another club profile. Each club has its own address, hours, and photos — but shares your owner info and story.</p>
+        <div className="add-club-modal-btns">
+          <button className="btn-save" onClick={onConfirm}>Yes, Add Club</button>
+          <button className="add-club-cancel-btn" onClick={onCancel}>Cancel</button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
-  const [logoUrl, setLogoUrl]       = useState(null)
-  const [photoUrls, setPhotoUrls]   = useState([])
+// ── Remove Club Confirmation Modal ────────────────────────────
+function RemoveClubPrompt({ clubName, onConfirm, onCancel }) {
+  return (
+    <div className="modal-overlay" onClick={onCancel}>
+      <div className="modal-box add-club-modal" onClick={e => e.stopPropagation()}>
+        <div className="add-club-modal-icon" style={{ fontSize: 28 }}>⚠️</div>
+        <h3>Remove "{clubName || 'this club'}"?</h3>
+        <p>This will permanently delete this club's profile, address, hours, and photos. This cannot be undone.</p>
+        <div className="add-club-modal-btns">
+          <button className="btn-save" style={{ background: '#C0392B' }} onClick={onConfirm}>Yes, Remove Club</button>
+          <button className="add-club-cancel-btn" onClick={onCancel}>Cancel</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── ClubEditor: renders one club's fields ─────────────────────
+function ClubEditor({ club, clubIndex, userId, isOnly, onSaved, onRemove, userEmail }) {
+  const [form, setForm]       = useState({ ...DEFAULT_CLUB, ...club })
+  const [savedForm, setSavedForm] = useState({ ...DEFAULT_CLUB, ...club })
+  const [errors, setErrors]   = useState({})
+  const [saving, setSaving]   = useState(false)
+  const [saveAction, setSaveAction] = useState(null)
+  const [toast, setToast]     = useState('')
+  const [zipLooking, setZipLooking] = useState(false)
+  const [showRemovePrompt, setShowRemovePrompt] = useState(false)
+  const navigate = useNavigate()
+
+  const [logoUrl, setLogoUrl]     = useState(club.logo_url || null)
+  const [photoUrls, setPhotoUrls] = useState(club.photo_urls || [])
   const [uploadingLogo, setUploadingLogo]   = useState(false)
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
   const logoInputRef  = useRef()
   const photoInputRef = useRef()
 
-  // Crop modal state
-  const [cropSrc, setCropSrc]       = useState(null)
-  const [cropTarget, setCropTarget] = useState(null) // 'logo' | 'owner1' | 'owner2' | 'owner3'
-  const cropInputRef = useRef()
-
-  // Drag-to-reorder state
+  const [cropSrc, setCropSrc]     = useState(null)
   const dragIdx = useRef(null)
-
-  const [ownerPhotoUrl,  setOwnerPhotoUrl]  = useState(null)
-  const [owner2PhotoUrl, setOwner2PhotoUrl] = useState(null)
-  const [owner3PhotoUrl, setOwner3PhotoUrl] = useState(null)
-  const [uploadingOwnerPhoto,  setUploadingOwnerPhoto]  = useState(false)
-  const [uploadingOwner2Photo, setUploadingOwner2Photo] = useState(false)
-  const [uploadingOwner3Photo, setUploadingOwner3Photo] = useState(false)
 
   const [copySource, setCopySource]   = useState(null)
   const [copyTargets, setCopyTargets] = useState({})
 
-  useEffect(() => {
-    async function load() {
-      if (!user) return
-      const { data } = await supabase.from('locations').select('*').eq('user_id', user.id).single()
-      if (data) {
-        setHasProfile(true)
-        const f = { ...DEFAULT_FORM }
-        Object.keys(DEFAULT_FORM).forEach(k => { if (data[k] != null) f[k] = data[k] })
-        setForm(f)
-        savedFormRef.current = f  // snapshot on load
-        if (data.owner2_first_name) setShowOwner2(true)
-        if (data.owner3_first_name) setShowOwner3(true)
-        if (data.logo_url) setLogoUrl(data.logo_url)
-        if (data.photo_urls) setPhotoUrls(data.photo_urls)
-        if (data.owner_photo_url)  setOwnerPhotoUrl(data.owner_photo_url)
-        if (data.owner2_photo_url) setOwner2PhotoUrl(data.owner2_photo_url)
-        if (data.owner3_photo_url) setOwner3PhotoUrl(data.owner3_photo_url)
-      } else {
-        // New user — pre-fill club_email and owner_email from their auth email
-        if (user.email) {
-          setForm(f => ({ ...f, club_email: user.email, owner_email: user.email }))
-        }
-      }
-      setLoading(false)
-    }
-    load()
-  }, [user])
+  const isDirty = JSON.stringify({ ...form, logo_url: logoUrl, photo_urls: photoUrls })
+    !== JSON.stringify({ ...savedForm, logo_url: savedForm.logo_url, photo_urls: savedForm.photo_urls })
 
   function setField(key, value) {
     setForm(f => ({ ...f, [key]: value }))
     if (errors[key]) setErrors(e => ({ ...e, [key]: null }))
   }
 
-  function handlePhoneChange(key, raw) {
-    setField(key, formatPhone(raw))
-  }
+  function handlePhoneChange(raw) { setField('club_phone', formatPhone(raw)) }
 
   async function handleZipBlur(zip) {
     if (zip.length < 5) return
     setZipLooking(true)
-    const result = await lookupZip(zip)
-    if (result) setForm(f => ({ ...f, city: result.city, state: result.state }))
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&postalcode=${zip}&country=US&limit=1`,
+        { headers: { 'Accept-Language': 'en' } }
+      )
+      const data = await res.json()
+      if (data?.[0]) {
+        const parts = data[0].display_name.split(', ')
+        setForm(f => ({ ...f, city: parts[0] || '', state: parts[parts.length - 2] || '' }))
+      }
+    } catch {}
     setZipLooking(false)
-  }
-
-  // Open crop modal for any circular photo
-  function openCrop(file, target) {
-    const reader = new FileReader()
-    reader.onload = e => { setCropSrc(e.target.result); setCropTarget(target) }
-    reader.readAsDataURL(file)
   }
 
   async function handleLogoUpload(e) {
     const file = e.target.files && e.target.files[0]
     if (!file) return
-    openCrop(file, 'logo')
+    const reader = new FileReader()
+    reader.onload = ev => setCropSrc(ev.target.result)
+    reader.readAsDataURL(file)
     e.target.value = ''
   }
 
-  async function saveCroppedPhoto(blob) {
-    if (!cropTarget) return
-    const target = cropTarget
-    setCropSrc(null); setCropTarget(null)
-
-    if (target === 'logo') {
-      setUploadingLogo(true)
-      const path = user.id + '/logo.jpg'
-      const { error } = await supabase.storage.from('club-photos').upload(path, blob, { upsert: true, contentType: 'image/jpeg' })
-      if (!error) {
-        const { data } = supabase.storage.from('club-photos').getPublicUrl(path)
-        setLogoUrl(data.publicUrl + '?t=' + Date.now())
-      }
-      setUploadingLogo(false)
-    } else if (target === 'owner1') {
-      setUploadingOwnerPhoto(true)
-      const path = user.id + '/owner-photo.jpg'
-      const { error } = await supabase.storage.from('club-photos').upload(path, blob, { upsert: true, contentType: 'image/jpeg' })
-      if (!error) { const { data } = supabase.storage.from('club-photos').getPublicUrl(path); setOwnerPhotoUrl(data.publicUrl + '?t=' + Date.now()) }
-      setUploadingOwnerPhoto(false)
-    } else if (target === 'owner2') {
-      setUploadingOwner2Photo(true)
-      const path = user.id + '/owner2-photo.jpg'
-      const { error } = await supabase.storage.from('club-photos').upload(path, blob, { upsert: true, contentType: 'image/jpeg' })
-      if (!error) { const { data } = supabase.storage.from('club-photos').getPublicUrl(path); setOwner2PhotoUrl(data.publicUrl + '?t=' + Date.now()) }
-      setUploadingOwner2Photo(false)
-    } else if (target === 'owner3') {
-      setUploadingOwner3Photo(true)
-      const path = user.id + '/owner3-photo.jpg'
-      const { error } = await supabase.storage.from('club-photos').upload(path, blob, { upsert: true, contentType: 'image/jpeg' })
-      if (!error) { const { data } = supabase.storage.from('club-photos').getPublicUrl(path); setOwner3PhotoUrl(data.publicUrl + '?t=' + Date.now()) }
-      setUploadingOwner3Photo(false)
+  async function saveCroppedLogo(blob) {
+    setCropSrc(null)
+    setUploadingLogo(true)
+    const path = userId + '/logo' + (clubIndex > 0 ? `-${clubIndex}` : '') + '.jpg'
+    const { error } = await supabase.storage.from('club-photos').upload(path, blob, { upsert: true, contentType: 'image/jpeg' })
+    if (!error) {
+      const { data } = supabase.storage.from('club-photos').getPublicUrl(path)
+      setLogoUrl(data.publicUrl + '?t=' + Date.now())
     }
+    setUploadingLogo(false)
   }
 
   async function handlePhotoUpload(e) {
@@ -451,7 +402,7 @@ export default function ProfilePage() {
     for (const file of files) {
       if (newUrls.length >= 10) break
       const ext = file.name.split('.').pop()
-      const path = user.id + '/photos/' + Date.now() + '-' + Math.random().toString(36).slice(2) + '.' + ext
+      const path = userId + '/photos/' + Date.now() + '-' + Math.random().toString(36).slice(2) + '.' + ext
       const { error } = await supabase.storage.from('club-photos').upload(path, file)
       if (!error) {
         const { data } = supabase.storage.from('club-photos').getPublicUrl(path)
@@ -462,43 +413,22 @@ export default function ProfilePage() {
     setUploadingPhoto(false)
   }
 
-  async function handleOwnerPhotoUpload(ownerNum, e, setUrl, setUploading) {
-    const file = e.target.files && e.target.files[0]
-    if (!file) return
-    const target = ownerNum === 1 ? 'owner1' : ownerNum === 2 ? 'owner2' : 'owner3'
-    openCrop(file, target)
-    e.target.value = ''
-  }
-
-  function removePhoto(url) { setPhotoUrls(p => p.filter(u => u !== url)) }
-
   function validate() {
     const e = {}
-    if (!form.first_name.trim())   e.first_name = 'Required'
-    if (!form.last_name.trim())    e.last_name  = 'Required'
-    if (!form.club_name.trim()) e.club_name = 'Required'
-    if (!form.club_email.trim())   e.club_email = 'Required'
-    if (!form.address.trim())      e.address    = 'Required'
-    if (!form.zip.trim())          e.zip        = 'Required'
-    if (!form.city.trim())         e.city       = 'Required'
-    if (!form.state.trim())        e.state      = 'Required'
-    if (!form.opened_month)        e.opened_month = 'Required'
-    if (!form.opened_year)         e.opened_year  = 'Required'
-    if (!form.herbalife_level)     e.herbalife_level = 'Please select your level'
+    if (!form.club_name.trim())  e.club_name  = 'Required'
+    if (!form.club_email.trim()) e.club_email = 'Required'
+    if (!form.address.trim())    e.address    = 'Required'
+    if (!form.zip.trim())        e.zip        = 'Required'
+    if (!form.city.trim())       e.city       = 'Required'
+    if (!form.state.trim())      e.state      = 'Required'
+    if (!form.opened_month)      e.opened_month = 'Required'
+    if (!form.opened_year)       e.opened_year  = 'Required'
     const hasHours = DAYS.some(d => form['hours_' + d + '_open'] && form['hours_' + d + '_close'])
     if (!hasHours) e.hours = 'At least one day of hours is required'
     DAYS.forEach(d => {
       const o = form['hours_' + d + '_open'], c = form['hours_' + d + '_close']
       if ((o && !c) || (!o && c)) e['hours_' + d] = 'Both open and close required'
     })
-    if (showOwner2) {
-      if (!form.owner2_first_name.trim()) e.owner2_first_name = 'Required'
-      if (!form.owner2_last_name.trim())  e.owner2_last_name  = 'Required'
-    }
-    if (showOwner3) {
-      if (!form.owner3_first_name.trim()) e.owner3_first_name = 'Required'
-      if (!form.owner3_last_name.trim())  e.owner3_last_name  = 'Required'
-    }
     return e
   }
 
@@ -509,28 +439,31 @@ export default function ProfilePage() {
       window.scrollTo({ top: 0, behavior: 'smooth' })
       return
     }
-    setSaveAction(action)
-    setSaving(true)
+    setSaveAction(action); setSaving(true)
 
     const fullAddress = [form.address, form.city, form.state, form.zip].filter(Boolean).join(', ')
     const coords = fullAddress ? await geocodeAddress(fullAddress) : null
 
     const record = {
-      user_id: user.id, ...form,
+      user_id: userId,
+      club_index: clubIndex,
+      ...form,
+      id: undefined,  // don't include id in spread
       state_zip: (form.state + ' ' + form.zip).trim(),
       logo_url: logoUrl,
       photo_urls: photoUrls,
-      owner_photo_url:  ownerPhotoUrl,
-      owner2_photo_url: owner2PhotoUrl,
-      owner3_photo_url: owner3PhotoUrl,
       lat: coords ? coords.lat : null,
       lng: coords ? coords.lng : null,
     }
+    delete record.id
 
-    const isFirstSave = !hasProfile
-    const result = hasProfile
-      ? await supabase.from('locations').update(record).eq('user_id', user.id)
-      : await supabase.from('locations').insert(record)
+    let result
+    const isNew = !form.id
+    if (isNew) {
+      result = await supabase.from('locations').insert(record).select().single()
+    } else {
+      result = await supabase.from('locations').update(record).eq('id', form.id).select().single()
+    }
 
     if (result.error) {
       setErrors({ _general: result.error.message })
@@ -538,32 +471,41 @@ export default function ProfilePage() {
       return
     }
 
-    // Notify admin on first profile save
-    if (isFirstSave) {
+    const savedRow = result.data
+    const newForm = { ...form, id: savedRow.id }
+    setForm(newForm)
+    setSavedForm({ ...newForm, logo_url: logoUrl, photo_urls: photoUrls })
+
+    if (isNew) {
       await supabase.from('notifications').insert({
         type: 'new_profile',
         title: 'New club profile submitted',
         body: `${form.club_name || 'A new club'} just set up their profile${form.city ? ` in ${form.city}${form.state ? `, ${form.state}` : ''}` : ''}.`,
-        user_id: user.id,
+        user_id: userId,
       })
+      onSaved && onSaved(savedRow)
     }
 
-    setHasProfile(true)
-    savedFormRef.current = { ...form }  // snapshot after save
     if (action === 'map') {
       navigate('/app/map')
     } else {
-      setToast('Profile saved and live on the map ✓')
+      setToast('Club saved ✓')
       setTimeout(() => setToast(''), 3000)
     }
     setSaving(false); setSaveAction(null)
+  }
+
+  async function handleRemove() {
+    if (!form.id) { onRemove && onRemove(); return }
+    const { error } = await supabase.from('locations').delete().eq('id', form.id)
+    if (!error) onRemove && onRemove()
   }
 
   function applyCopyToTargets() {
     if (!copySource) return
     const o = form['hours_' + copySource + '_open'], c = form['hours_' + copySource + '_close']
     const updates = {}
-    Object.entries(copyTargets).forEach(function([day, checked]) {
+    Object.entries(copyTargets).forEach(([day, checked]) => {
       if (checked && day !== copySource) {
         updates['hours_' + day + '_open'] = o
         updates['hours_' + day + '_close'] = c
@@ -577,195 +519,16 @@ export default function ProfilePage() {
   function selectAllTargets() { const t = {}; DAYS.forEach(d => { if (d !== copySource) t[d] = true }); setCopyTargets(t) }
   function selectWeekdays()   { const t = {}; WEEKDAYS.forEach(d => { if (d !== copySource) t[d] = true }); setCopyTargets(t) }
 
-  function clearOwner(num) {
-    const fields = ['owner' + num + '_first_name', 'owner' + num + '_last_name', 'owner' + num + '_email']
-    fields.forEach(k => setField(k, ''))
-    if (num === 2) setOwner2PhotoUrl(null)
-    if (num === 3) setOwner3PhotoUrl(null)
-  }
-
-  if (loading) return <div className="loading">Loading profile…</div>
-
   const errorCount = Object.keys(errors).filter(k => k !== '_general' && errors[k]).length
 
   return (
-    <div className="profile-page">
-      <div className="profile-header">
-        <h2>{hasProfile ? 'My Profile' : 'Set Up Your Club'}</h2>
-        <p className="profile-sub">{hasProfile ? 'Update your club info below.' : 'Fill out your profile to appear on the map.'}</p>
-      </div>
-
+    <div className="club-editor">
       {errors._general && <div className="error-msg">{errors._general}</div>}
       {errorCount > 0 && <div className="error-msg">Please fix {errorCount} required field{errorCount !== 1 ? 's' : ''} below.</div>}
 
-      {/* CARD 1: Owners */}
-      <div className="sec-card">
-        {/* ── Owner 1 ── */}
-        <div className="owner2-header" style={{ marginBottom: owner1Collapsed ? 0 : 12 }}>
-          <span className="sec-label" style={{ margin: 0 }}>Primary Owner</span>
-          <button className="owner2-remove" style={{ color: '#888', borderColor: '#ddd' }}
-            onClick={() => setOwner1Collapsed(c => !c)}>
-            {owner1Collapsed ? '▼ Expand' : '▲ Collapse'}
-          </button>
-        </div>
-        {!owner1Collapsed && (
-          <>
-            <div className="fgrid">
-              <div className="pf">
-                <label>First name <span className="req-star">*</span></label>
-                <input type="text" value={form.first_name} onChange={e => setField('first_name', e.target.value)}
-                  placeholder="First name" className={errors.first_name ? 'input-err' : ''} />
-                {errors.first_name && <span className="field-err">{errors.first_name}</span>}
-              </div>
-              <div className="pf">
-                <label>Last name <span className="req-star">*</span></label>
-                <input type="text" value={form.last_name} onChange={e => setField('last_name', e.target.value)}
-                  placeholder="Last name" className={errors.last_name ? 'input-err' : ''} />
-                {errors.last_name && <span className="field-err">{errors.last_name}</span>}
-              </div>
-            </div>
-            <div className="pf owner-email-full">
-              <label>Email <span className="optional-tag">optional</span></label>
-              <input type="email" value={form.owner_email} onChange={e => setField('owner_email', e.target.value)}
-                placeholder="your@email.com" />
-            </div>
-            <OwnerPhotoUpload
-              label="Primary Owner"
-              photoUrl={ownerPhotoUrl}
-              onUpload={e => handleOwnerPhotoUpload(1, e, setOwnerPhotoUrl, setUploadingOwnerPhoto)}
-              uploading={uploadingOwnerPhoto}
-            />
-
-            {/* ── Herbalife Level picker — lives inside Owner 1 card ── */}
-            <div className="pf" style={{ marginTop: 12 }}>
-              <label>Herbalife Level <span className="req-star">*</span></label>
-              <p className="upload-hint" style={{ marginBottom: 6 }}>Select your current level in the Herbalife sales &amp; marketing plan.</p>
-              <OwnerLevelPicker
-                value={form.herbalife_level}
-                onChange={v => setField('herbalife_level', v)}
-              />
-              {errors.herbalife_level && <span className="field-err">{errors.herbalife_level}</span>}
-            </div>
-          </>
-        )}
-
-        {/* Owner 2 */}
-        {showOwner2 && (
-          <div className="owner2-block">
-            <div className="owner2-header">
-              <span>Owner 2</span>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button className="owner2-remove" style={{ color: '#888', borderColor: '#ddd' }}
-                  onClick={() => setOwner2Collapsed(c => !c)}>
-                  {owner2Collapsed ? '▼ Expand' : '▲ Collapse'}
-                </button>
-                <button className="owner2-remove" onClick={() => { setShowOwner2(false); clearOwner(2) }}>Remove</button>
-              </div>
-            </div>
-            {!owner2Collapsed && (
-              <>
-                <div className="fgrid">
-                  <div className="pf">
-                    <label>First name <span className="req-star">*</span></label>
-                    <input type="text" value={form.owner2_first_name} onChange={e => setField('owner2_first_name', e.target.value)}
-                      placeholder="First name" className={errors.owner2_first_name ? 'input-err' : ''} />
-                    {errors.owner2_first_name && <span className="field-err">{errors.owner2_first_name}</span>}
-                  </div>
-                  <div className="pf">
-                    <label>Last name <span className="req-star">*</span></label>
-                    <input type="text" value={form.owner2_last_name} onChange={e => setField('owner2_last_name', e.target.value)}
-                      placeholder="Last name" className={errors.owner2_last_name ? 'input-err' : ''} />
-                    {errors.owner2_last_name && <span className="field-err">{errors.owner2_last_name}</span>}
-                  </div>
-                </div>
-                <div className="pf owner-email-full">
-                  <label>Email <span className="optional-tag">optional</span></label>
-                  <input type="email" value={form.owner2_email} onChange={e => setField('owner2_email', e.target.value)}
-                    placeholder="owner2@email.com" />
-                </div>
-                <OwnerPhotoUpload
-                  label="Owner 2"
-                  photoUrl={owner2PhotoUrl}
-                  onUpload={e => handleOwnerPhotoUpload(2, e, setOwner2PhotoUrl, setUploadingOwner2Photo)}
-                  uploading={uploadingOwner2Photo}
-                />
-                <div className="pf" style={{ marginTop: 8 }}>
-                  <label>Herbalife Level <span className="optional-tag">optional</span></label>
-                  <OwnerLevelPicker
-                    value={form.owner2_herbalife_level}
-                    onChange={v => setField('owner2_herbalife_level', v)}
-                  />
-                </div>
-              </>
-            )}
-          </div>
-        )}
-
-        {/* Owner 3 */}
-        {showOwner3 && (
-          <div className="owner2-block">
-            <div className="owner2-header">
-              <span>Owner 3</span>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button className="owner2-remove" style={{ color: '#888', borderColor: '#ddd' }}
-                  onClick={() => setOwner3Collapsed(c => !c)}>
-                  {owner3Collapsed ? '▼ Expand' : '▲ Collapse'}
-                </button>
-                <button className="owner2-remove" onClick={() => { setShowOwner3(false); clearOwner(3) }}>Remove</button>
-              </div>
-            </div>
-            {!owner3Collapsed && (
-              <>
-                <div className="fgrid">
-                  <div className="pf">
-                    <label>First name <span className="req-star">*</span></label>
-                    <input type="text" value={form.owner3_first_name} onChange={e => setField('owner3_first_name', e.target.value)}
-                      placeholder="First name" className={errors.owner3_first_name ? 'input-err' : ''} />
-                    {errors.owner3_first_name && <span className="field-err">{errors.owner3_first_name}</span>}
-                  </div>
-                  <div className="pf">
-                    <label>Last name <span className="req-star">*</span></label>
-                    <input type="text" value={form.owner3_last_name} onChange={e => setField('owner3_last_name', e.target.value)}
-                      placeholder="Last name" className={errors.owner3_last_name ? 'input-err' : ''} />
-                    {errors.owner3_last_name && <span className="field-err">{errors.owner3_last_name}</span>}
-                  </div>
-                </div>
-                <div className="pf owner-email-full">
-                  <label>Email <span className="optional-tag">optional</span></label>
-                  <input type="email" value={form.owner3_email} onChange={e => setField('owner3_email', e.target.value)}
-                    placeholder="owner3@email.com" />
-                </div>
-                <OwnerPhotoUpload
-                  label="Owner 3"
-                  photoUrl={owner3PhotoUrl}
-                  onUpload={e => handleOwnerPhotoUpload(3, e, setOwner3PhotoUrl, setUploadingOwner3Photo)}
-                  uploading={uploadingOwner3Photo}
-                />
-                <div className="pf" style={{ marginTop: 8 }}>
-                  <label>Herbalife Level <span className="optional-tag">optional</span></label>
-                  <OwnerLevelPicker
-                    value={form.owner3_herbalife_level}
-                    onChange={v => setField('owner3_herbalife_level', v)}
-                  />
-                </div>
-              </>
-            )}
-          </div>
-        )}
-
-        <div className="add-owner-row">
-          {!showOwner2 && (
-            <button className="add-owner-btn" onClick={() => setShowOwner2(true)}>+ Add a second owner</button>
-          )}
-          {showOwner2 && !showOwner3 && (
-            <button className="add-owner-btn" onClick={() => setShowOwner3(true)}>+ Add a third owner</button>
-          )}
-        </div>
-      </div>
-
-      {/* CARD 2: Club Info — website removed, phone formatted */}
-      <div className="sec-card">
-        <div className="sec-label">Club Info</div>
+      {/* Club Info */}
+      <div className="club-section">
+        <div className="sec-label" style={{ marginBottom: 12 }}>Club Info</div>
         <div className="fgrid">
           <div className="pf" style={{ gridColumn: '1 / -1' }}>
             <label>Club name <span className="req-star">*</span></label>
@@ -777,9 +540,9 @@ export default function ProfilePage() {
             <label>Club email <span className="req-star">*</span></label>
             <input type="email" value={form.club_email} onChange={e => setField('club_email', e.target.value)}
               placeholder="hello@yourclub.com" className={errors.club_email ? 'input-err' : ''}
-              readOnly={!hasProfile && !!user?.email}
-              style={!hasProfile && user?.email ? { background: '#f8faf9', color: '#555', cursor: 'default' } : {}} />
-            {!hasProfile && user?.email && (
+              readOnly={!form.id && clubIndex === 0 && !!userEmail}
+              style={!form.id && clubIndex === 0 && userEmail ? { background: '#f8faf9', color: '#555', cursor: 'default' } : {}} />
+            {!form.id && clubIndex === 0 && userEmail && (
               <span className="field-hint">Pre-filled from your account email — you can update this after saving</span>
             )}
             {errors.club_email && <span className="field-err">{errors.club_email}</span>}
@@ -787,7 +550,7 @@ export default function ProfilePage() {
           <div className="pf" style={{ gridColumn: '1 / -1' }}>
             <label>Club phone <span className="optional-tag">optional</span></label>
             <input type="tel" value={form.club_phone}
-              onChange={e => handlePhoneChange('club_phone', e.target.value)}
+              onChange={e => handlePhoneChange(e.target.value)}
               placeholder="(555) 000-0000" />
           </div>
         </div>
@@ -825,9 +588,9 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* CARD 3: Club Specifics */}
-      <div className="sec-card">
-        <div className="sec-label">Club Specifics</div>
+      {/* Club Specifics */}
+      <div className="club-section">
+        <div className="sec-label" style={{ marginBottom: 12 }}>Club Specifics</div>
 
         <div className="fgrid" style={{ marginBottom: 24 }}>
           <div className="pf">
@@ -853,7 +616,6 @@ export default function ProfilePage() {
         {/* Hours */}
         <div className="sec-sublabel">Hours of operation <span className="req-star">*</span></div>
         {errors.hours && <div className="field-err" style={{ marginBottom: 8 }}>{errors.hours}</div>}
-
         <div className="hrs-list">
           {DAYS.map((day, i) => (
             <div key={day} className={'hrs-row' + (errors['hours_' + day] ? ' row-err' : '')}>
@@ -907,7 +669,7 @@ export default function ProfilePage() {
         )}
         <p className="hrs-hint">Leave open and close blank for days you are closed.</p>
 
-        {/* Social media + Website (website moved here) */}
+        {/* Social + Website */}
         <div className="sec-sublabel" style={{ marginTop: 24 }}>Social media &amp; website <span className="optional-tag">all optional</span></div>
         {[
           { key: 'website',          label: 'Website',   placeholder: 'yoursite.com' },
@@ -918,15 +680,16 @@ export default function ProfilePage() {
         ].map(({ key, label, placeholder }) => (
           <div className="soc-row" key={key}>
             <span className="soc-lbl">{label}</span>
-            <div className="pf"><input type="text" value={form[key]}
+            <div className="pf"><input type="text" value={form[key] || ''}
               onChange={e => setField(key, e.target.value)} placeholder={placeholder} /></div>
           </div>
         ))}
       </div>
 
-      {/* CARD 4: Photos */}
-      <div className="sec-card">
-        <div className="sec-label">Club Photos <span className="optional-tag">optional</span></div>
+      {/* Photos */}
+      <div className="club-section">
+        <div className="sec-label" style={{ marginBottom: 12 }}>Club Photos <span className="optional-tag">optional</span></div>
+
         <div className="photo-section">
           <div className="photo-section-title">Club Logo</div>
           <div className="logo-upload-row">
@@ -986,16 +749,515 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* Crop modal */}
+      {/* Crop modal (logo only in this component) */}
       {cropSrc && (
         <CropModal
           imageSrc={cropSrc}
-          onSave={saveCroppedPhoto}
+          onSave={saveCroppedLogo}
+          onCancel={() => setCropSrc(null)}
+        />
+      )}
+
+      {/* Per-club save bar */}
+      <div className={`club-save-bar ${isDirty || !form.id ? 'club-save-bar--visible' : ''}`}>
+        {isDirty && form.id && (
+          <div className="save-bar-alert">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+              <circle cx="8" cy="8" r="7" stroke="#B45309" strokeWidth="1.5"/>
+              <path d="M8 5v4" stroke="#B45309" strokeWidth="1.5" strokeLinecap="round"/>
+              <circle cx="8" cy="11.5" r="0.75" fill="#B45309"/>
+            </svg>
+            Unsaved changes
+          </div>
+        )}
+        <div className="save-bar-btns">
+          <button className="btn-save" onClick={() => handleSave('save')} disabled={saving && saveAction === 'save'}>
+            {saving && saveAction === 'save' ? 'Saving…' : 'Save Club'}
+          </button>
+          <button className="btn-save-map" onClick={() => handleSave('map')} disabled={saving && saveAction === 'map'}>
+            {saving && saveAction === 'map' ? 'Saving…' : 'Save & Go to Map'}
+          </button>
+        </div>
+        {!isOnly && (
+          <button className="remove-club-link" onClick={() => setShowRemovePrompt(true)}>
+            Remove this club
+          </button>
+        )}
+      </div>
+
+      {showRemovePrompt && (
+        <RemoveClubPrompt
+          clubName={form.club_name}
+          onConfirm={() => { setShowRemovePrompt(false); handleRemove() }}
+          onCancel={() => setShowRemovePrompt(false)}
+        />
+      )}
+
+      <div className={'toast' + (toast ? ' show' : '')}>{toast}</div>
+    </div>
+  )
+}
+
+// ── Main ProfilePage ──────────────────────────────────────────
+export default function ProfilePage() {
+  const { user } = useAuth()
+  const navigate = useNavigate()
+
+  const [personForm, setPersonForm] = useState(DEFAULT_PERSON)
+  const [savedPersonForm, setSavedPersonForm] = useState(null)
+  const [clubs, setClubs]           = useState([])   // array of DB rows
+  const [activeTab, setActiveTab]   = useState(0)    // index into clubs[]
+  const [loading, setLoading]       = useState(true)
+  const [saving, setSaving]         = useState(false)
+  const [personToast, setPersonToast] = useState('')
+  const [personErrors, setPersonErrors] = useState({})
+
+  const [showOwner2, setShowOwner2] = useState(false)
+  const [showOwner3, setShowOwner3] = useState(false)
+  const [owner1Collapsed, setOwner1Collapsed] = useState(false)
+  const [owner2Collapsed, setOwner2Collapsed] = useState(false)
+  const [owner3Collapsed, setOwner3Collapsed] = useState(false)
+  const [surveyOpen, setSurveyOpen] = useState(false)
+  const [storyOpen,  setStoryOpen]  = useState(false)
+
+  const [ownerPhotoUrl,  setOwnerPhotoUrl]  = useState(null)
+  const [owner2PhotoUrl, setOwner2PhotoUrl] = useState(null)
+  const [owner3PhotoUrl, setOwner3PhotoUrl] = useState(null)
+  const [uploadingOwnerPhoto,  setUploadingOwnerPhoto]  = useState(false)
+  const [uploadingOwner2Photo, setUploadingOwner2Photo] = useState(false)
+  const [uploadingOwner3Photo, setUploadingOwner3Photo] = useState(false)
+
+  const [cropSrc, setCropSrc]       = useState(null)
+  const [cropTarget, setCropTarget] = useState(null)
+
+  const [showAddClubPrompt, setShowAddClubPrompt] = useState(false)
+
+  const isPersonDirty = savedPersonForm !== null
+    ? JSON.stringify(personForm) !== JSON.stringify(savedPersonForm)
+    : false
+
+  useEffect(() => {
+    async function load() {
+      if (!user) return
+      const { data } = await supabase
+        .from('locations')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('club_index', { ascending: true })
+
+      if (data && data.length > 0) {
+        // Load person fields from first row
+        const row0 = data[0]
+        const pf = { ...DEFAULT_PERSON }
+        Object.keys(DEFAULT_PERSON).forEach(k => { if (row0[k] != null) pf[k] = row0[k] })
+        setPersonForm(pf)
+        setSavedPersonForm(pf)
+
+        if (row0.owner2_first_name) setShowOwner2(true)
+        if (row0.owner3_first_name) setShowOwner3(true)
+        if (row0.owner_photo_url)  setOwnerPhotoUrl(row0.owner_photo_url)
+        if (row0.owner2_photo_url) setOwner2PhotoUrl(row0.owner2_photo_url)
+        if (row0.owner3_photo_url) setOwner3PhotoUrl(row0.owner3_photo_url)
+
+        // Build clubs array — one entry per row
+        setClubs(data.map(row => {
+          const c = { ...DEFAULT_CLUB }
+          Object.keys(DEFAULT_CLUB).forEach(k => { if (row[k] != null) c[k] = row[k] })
+          c.id = row.id
+          c.club_index = row.club_index ?? 0
+          return c
+        }))
+      } else {
+        // Brand new user
+        if (user.email) {
+          setPersonForm(f => ({ ...f, owner_email: user.email }))
+          // Will create a single blank club with email pre-filled
+          setClubs([{ ...DEFAULT_CLUB, club_email: user.email }])
+        } else {
+          setClubs([{ ...DEFAULT_CLUB }])
+        }
+      }
+      setLoading(false)
+    }
+    load()
+  }, [user])
+
+  function setPersonField(key, value) {
+    setPersonForm(f => ({ ...f, [key]: value }))
+    if (personErrors[key]) setPersonErrors(e => ({ ...e, [key]: null }))
+  }
+
+  function openCrop(file, target) {
+    const reader = new FileReader()
+    reader.onload = e => { setCropSrc(e.target.result); setCropTarget(target) }
+    reader.readAsDataURL(file)
+  }
+
+  async function saveCroppedOwnerPhoto(blob) {
+    const target = cropTarget
+    setCropSrc(null); setCropTarget(null)
+    const configs = {
+      owner1: { set: setOwnerPhotoUrl, setLoading: setUploadingOwnerPhoto, path: user.id + '/owner-photo.jpg' },
+      owner2: { set: setOwner2PhotoUrl, setLoading: setUploadingOwner2Photo, path: user.id + '/owner2-photo.jpg' },
+      owner3: { set: setOwner3PhotoUrl, setLoading: setUploadingOwner3Photo, path: user.id + '/owner3-photo.jpg' },
+    }
+    const cfg = configs[target]
+    if (!cfg) return
+    cfg.setLoading(true)
+    const { error } = await supabase.storage.from('club-photos').upload(cfg.path, blob, { upsert: true, contentType: 'image/jpeg' })
+    if (!error) {
+      const { data } = supabase.storage.from('club-photos').getPublicUrl(cfg.path)
+      cfg.set(data.publicUrl + '?t=' + Date.now())
+    }
+    cfg.setLoading(false)
+  }
+
+  function clearOwner(num) {
+    const fields = ['owner' + num + '_first_name', 'owner' + num + '_last_name', 'owner' + num + '_email']
+    fields.forEach(k => setPersonField(k, ''))
+    if (num === 2) setOwner2PhotoUrl(null)
+    if (num === 3) setOwner3PhotoUrl(null)
+  }
+
+  async function savePersonFields() {
+    // Validate owner required fields
+    const e = {}
+    if (!personForm.first_name.trim()) e.first_name = 'Required'
+    if (!personForm.last_name.trim())  e.last_name  = 'Required'
+    if (!personForm.herbalife_level)   e.herbalife_level = 'Please select your level'
+    if (showOwner2) {
+      if (!personForm.owner2_first_name.trim()) e.owner2_first_name = 'Required'
+      if (!personForm.owner2_last_name.trim())  e.owner2_last_name  = 'Required'
+    }
+    if (showOwner3) {
+      if (!personForm.owner3_first_name.trim()) e.owner3_first_name = 'Required'
+      if (!personForm.owner3_last_name.trim())  e.owner3_last_name  = 'Required'
+    }
+    if (Object.keys(e).length > 0) {
+      setPersonErrors(e)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+      return
+    }
+
+    setSaving(true)
+    const personRecord = {
+      ...personForm,
+      owner_photo_url:  ownerPhotoUrl,
+      owner2_photo_url: owner2PhotoUrl,
+      owner3_photo_url: owner3PhotoUrl,
+    }
+
+    // Update all of this user's location rows with the person fields
+    const { error } = await supabase
+      .from('locations')
+      .update(personRecord)
+      .eq('user_id', user.id)
+
+    if (error) {
+      setPersonErrors({ _general: error.message })
+    } else {
+      setSavedPersonForm({ ...personForm })
+      setPersonToast('Owner info saved ✓')
+      setTimeout(() => setPersonToast(''), 3000)
+    }
+    setSaving(false)
+  }
+
+  function handleAddClub() {
+    setShowAddClubPrompt(true)
+  }
+
+  function confirmAddClub() {
+    setShowAddClubPrompt(false)
+    const newIndex = clubs.length
+    const newClub = { ...DEFAULT_CLUB, club_index: newIndex }
+    setClubs(prev => [...prev, newClub])
+    setActiveTab(newIndex)
+  }
+
+  function handleClubSaved(savedRow) {
+    // Update the clubs array with the saved row's id
+    setClubs(prev => prev.map((c, i) =>
+      i === activeTab ? { ...c, id: savedRow.id } : c
+    ))
+  }
+
+  function handleClubRemoved(tabIndex) {
+    setClubs(prev => {
+      const updated = prev.filter((_, i) => i !== tabIndex)
+      return updated
+    })
+    setActiveTab(Math.max(0, tabIndex - 1))
+  }
+
+  if (loading) return <div className="loading">Loading profile…</div>
+
+  const hasAnyClub = clubs.some(c => c.id)
+
+  return (
+    <div className="profile-page">
+      <div className="profile-header">
+        <h2>{hasAnyClub ? 'My Profile' : 'Set Up Your Club'}</h2>
+        <p className="profile-sub">{hasAnyClub ? 'Update your club info below.' : 'Fill out your profile to appear on the map.'}</p>
+      </div>
+
+      {/* CARD 1: Owners */}
+      <div className="sec-card">
+        {personErrors._general && <div className="error-msg">{personErrors._general}</div>}
+
+        {/* Owner 1 */}
+        <div className="owner2-header" style={{ marginBottom: owner1Collapsed ? 0 : 12 }}>
+          <span className="sec-label" style={{ margin: 0 }}>Primary Owner</span>
+          <button className="owner2-remove" style={{ color: '#888', borderColor: '#ddd' }}
+            onClick={() => setOwner1Collapsed(c => !c)}>
+            {owner1Collapsed ? '▼ Expand' : '▲ Collapse'}
+          </button>
+        </div>
+        {!owner1Collapsed && (
+          <>
+            <div className="fgrid">
+              <div className="pf">
+                <label>First name <span className="req-star">*</span></label>
+                <input type="text" value={personForm.first_name} onChange={e => setPersonField('first_name', e.target.value)}
+                  placeholder="First name" className={personErrors.first_name ? 'input-err' : ''} />
+                {personErrors.first_name && <span className="field-err">{personErrors.first_name}</span>}
+              </div>
+              <div className="pf">
+                <label>Last name <span className="req-star">*</span></label>
+                <input type="text" value={personForm.last_name} onChange={e => setPersonField('last_name', e.target.value)}
+                  placeholder="Last name" className={personErrors.last_name ? 'input-err' : ''} />
+                {personErrors.last_name && <span className="field-err">{personErrors.last_name}</span>}
+              </div>
+            </div>
+            <div className="pf owner-email-full">
+              <label>Email <span className="optional-tag">optional</span></label>
+              <input type="email" value={personForm.owner_email} onChange={e => setPersonField('owner_email', e.target.value)}
+                placeholder="your@email.com" />
+            </div>
+            <OwnerPhotoUpload
+              label="Primary Owner"
+              photoUrl={ownerPhotoUrl}
+              onUpload={e => {
+                const file = e.target.files && e.target.files[0]
+                if (!file) return
+                openCrop(file, 'owner1')
+                e.target.value = ''
+              }}
+              uploading={uploadingOwnerPhoto}
+            />
+            <div className="pf" style={{ marginTop: 12 }}>
+              <label>Herbalife Level <span className="req-star">*</span></label>
+              <p className="upload-hint" style={{ marginBottom: 6 }}>Select your current level in the Herbalife sales &amp; marketing plan.</p>
+              <OwnerLevelPicker
+                value={personForm.herbalife_level}
+                onChange={v => setPersonField('herbalife_level', v)}
+              />
+              {personErrors.herbalife_level && <span className="field-err">{personErrors.herbalife_level}</span>}
+            </div>
+          </>
+        )}
+
+        {/* Owner 2 */}
+        {showOwner2 && (
+          <div className="owner2-block">
+            <div className="owner2-header">
+              <span>Owner 2</span>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button className="owner2-remove" style={{ color: '#888', borderColor: '#ddd' }}
+                  onClick={() => setOwner2Collapsed(c => !c)}>
+                  {owner2Collapsed ? '▼ Expand' : '▲ Collapse'}
+                </button>
+                <button className="owner2-remove" onClick={() => { setShowOwner2(false); clearOwner(2) }}>Remove</button>
+              </div>
+            </div>
+            {!owner2Collapsed && (
+              <>
+                <div className="fgrid">
+                  <div className="pf">
+                    <label>First name <span className="req-star">*</span></label>
+                    <input type="text" value={personForm.owner2_first_name} onChange={e => setPersonField('owner2_first_name', e.target.value)}
+                      placeholder="First name" className={personErrors.owner2_first_name ? 'input-err' : ''} />
+                    {personErrors.owner2_first_name && <span className="field-err">{personErrors.owner2_first_name}</span>}
+                  </div>
+                  <div className="pf">
+                    <label>Last name <span className="req-star">*</span></label>
+                    <input type="text" value={personForm.owner2_last_name} onChange={e => setPersonField('owner2_last_name', e.target.value)}
+                      placeholder="Last name" className={personErrors.owner2_last_name ? 'input-err' : ''} />
+                    {personErrors.owner2_last_name && <span className="field-err">{personErrors.owner2_last_name}</span>}
+                  </div>
+                </div>
+                <div className="pf owner-email-full">
+                  <label>Email <span className="optional-tag">optional</span></label>
+                  <input type="email" value={personForm.owner2_email} onChange={e => setPersonField('owner2_email', e.target.value)}
+                    placeholder="owner2@email.com" />
+                </div>
+                <OwnerPhotoUpload
+                  label="Owner 2"
+                  photoUrl={owner2PhotoUrl}
+                  onUpload={e => {
+                    const file = e.target.files && e.target.files[0]
+                    if (!file) return
+                    openCrop(file, 'owner2')
+                    e.target.value = ''
+                  }}
+                  uploading={uploadingOwner2Photo}
+                />
+                <div className="pf" style={{ marginTop: 8 }}>
+                  <label>Herbalife Level <span className="optional-tag">optional</span></label>
+                  <OwnerLevelPicker
+                    value={personForm.owner2_herbalife_level}
+                    onChange={v => setPersonField('owner2_herbalife_level', v)}
+                  />
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Owner 3 */}
+        {showOwner3 && (
+          <div className="owner2-block">
+            <div className="owner2-header">
+              <span>Owner 3</span>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button className="owner2-remove" style={{ color: '#888', borderColor: '#ddd' }}
+                  onClick={() => setOwner3Collapsed(c => !c)}>
+                  {owner3Collapsed ? '▼ Expand' : '▲ Collapse'}
+                </button>
+                <button className="owner2-remove" onClick={() => { setShowOwner3(false); clearOwner(3) }}>Remove</button>
+              </div>
+            </div>
+            {!owner3Collapsed && (
+              <>
+                <div className="fgrid">
+                  <div className="pf">
+                    <label>First name <span className="req-star">*</span></label>
+                    <input type="text" value={personForm.owner3_first_name} onChange={e => setPersonField('owner3_first_name', e.target.value)}
+                      placeholder="First name" className={personErrors.owner3_first_name ? 'input-err' : ''} />
+                    {personErrors.owner3_first_name && <span className="field-err">{personErrors.owner3_first_name}</span>}
+                  </div>
+                  <div className="pf">
+                    <label>Last name <span className="req-star">*</span></label>
+                    <input type="text" value={personForm.owner3_last_name} onChange={e => setPersonField('owner3_last_name', e.target.value)}
+                      placeholder="Last name" className={personErrors.owner3_last_name ? 'input-err' : ''} />
+                    {personErrors.owner3_last_name && <span className="field-err">{personErrors.owner3_last_name}</span>}
+                  </div>
+                </div>
+                <div className="pf owner-email-full">
+                  <label>Email <span className="optional-tag">optional</span></label>
+                  <input type="email" value={personForm.owner3_email} onChange={e => setPersonField('owner3_email', e.target.value)}
+                    placeholder="owner3@email.com" />
+                </div>
+                <OwnerPhotoUpload
+                  label="Owner 3"
+                  photoUrl={owner3PhotoUrl}
+                  onUpload={e => {
+                    const file = e.target.files && e.target.files[0]
+                    if (!file) return
+                    openCrop(file, 'owner3')
+                    e.target.value = ''
+                  }}
+                  uploading={uploadingOwner3Photo}
+                />
+                <div className="pf" style={{ marginTop: 8 }}>
+                  <label>Herbalife Level <span className="optional-tag">optional</span></label>
+                  <OwnerLevelPicker
+                    value={personForm.owner3_herbalife_level}
+                    onChange={v => setPersonField('owner3_herbalife_level', v)}
+                  />
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        <div className="add-owner-row">
+          {!showOwner2 && (
+            <button className="add-owner-btn" onClick={() => setShowOwner2(true)}>+ Add a second owner</button>
+          )}
+          {showOwner2 && !showOwner3 && (
+            <button className="add-owner-btn" onClick={() => setShowOwner3(true)}>+ Add a third owner</button>
+          )}
+        </div>
+
+        {/* Owner save bar */}
+        {(isPersonDirty || savedPersonForm === null) && hasAnyClub && (
+          <div className="owner-save-bar">
+            {isPersonDirty && savedPersonForm !== null && (
+              <div className="save-bar-alert">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                  <circle cx="8" cy="8" r="7" stroke="#B45309" strokeWidth="1.5"/>
+                  <path d="M8 5v4" stroke="#B45309" strokeWidth="1.5" strokeLinecap="round"/>
+                  <circle cx="8" cy="11.5" r="0.75" fill="#B45309"/>
+                </svg>
+                Unsaved changes
+              </div>
+            )}
+            <button className="btn-save" onClick={savePersonFields} disabled={saving}>
+              {saving ? 'Saving…' : 'Save Owner Info'}
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Owner crop modal */}
+      {cropSrc && (
+        <CropModal
+          imageSrc={cropSrc}
+          onSave={saveCroppedOwnerPhoto}
           onCancel={() => { setCropSrc(null); setCropTarget(null) }}
         />
       )}
 
-      {/* CARD 6: Your Story */}
+      {/* CARD 2: My Clubs — tabbed */}
+      <div className="sec-card my-clubs-card">
+        <div className="my-clubs-header">
+          <span className="sec-label" style={{ margin: 0 }}>My Clubs</span>
+        </div>
+
+        {/* Tab row */}
+        <div className="club-tabs">
+          {clubs.map((club, i) => (
+            <button
+              key={i}
+              className={`club-tab ${activeTab === i ? 'active' : ''}`}
+              onClick={() => setActiveTab(i)}
+            >
+              <span className="club-tab-name">
+                {club.club_name?.trim() || (i === 0 ? 'My Club' : `Club ${i + 1}`)}
+              </span>
+              {club.id && <span className="club-tab-dot" />}
+            </button>
+          ))}
+          <button className="club-tab club-tab--add" onClick={handleAddClub}>
+            + Add Club
+          </button>
+        </div>
+
+        {/* Active club editor */}
+        {clubs[activeTab] && (
+          <ClubEditor
+            key={activeTab + '-' + (clubs[activeTab].id || 'new')}
+            club={clubs[activeTab]}
+            clubIndex={activeTab}
+            userId={user.id}
+            isOnly={clubs.length === 1}
+            onSaved={handleClubSaved}
+            onRemove={() => handleClubRemoved(activeTab)}
+            userEmail={!clubs[activeTab].id && activeTab === 0 ? user.email : null}
+          />
+        )}
+      </div>
+
+      {/* Add Club confirmation modal */}
+      {showAddClubPrompt && (
+        <AddClubPrompt
+          onConfirm={confirmAddClub}
+          onCancel={() => setShowAddClubPrompt(false)}
+        />
+      )}
+
+      {/* CARD: Your Story */}
       {(() => {
         const STORY_FIELDS = [
           { key: 'story_why',               label: 'Why did you decide to open your club?' },
@@ -1005,7 +1267,7 @@ export default function ProfilePage() {
           { key: 'story_favorite_products', label: 'What are your favorite products?' },
           { key: 'story_unique',            label: 'What is something unique and interesting about yourself?' },
         ]
-        const filledCount = STORY_FIELDS.filter(({ key }) => !!form[key]).length
+        const filledCount = STORY_FIELDS.filter(({ key }) => !!personForm[key]).length
         const storyComplete = filledCount === STORY_FIELDS.length
         return (
           <div className="sec-card" style={{ padding: 0, overflow: 'hidden' }}>
@@ -1029,7 +1291,7 @@ export default function ProfilePage() {
                 {STORY_FIELDS.map(({ key, label }) => (
                   <div className="pf story-field" key={key}>
                     <label>{label}</label>
-                    <textarea rows={3} value={form[key]} onChange={e => setField(key, e.target.value)}
+                    <textarea rows={3} value={personForm[key] || ''} onChange={e => setPersonField(key, e.target.value)}
                       placeholder="Share your answer here…" />
                   </div>
                 ))}
@@ -1039,33 +1301,33 @@ export default function ProfilePage() {
         )
       })()}
 
-      {/* CARD 7: Member Survey */}
+      {/* CARD: Member Survey */}
       {(() => {
         const MONTHS_S = ['January','February','March','April','May','June','July','August','September','October','November','December']
         const YEARS_S  = Array.from({length: new Date().getFullYear() - 1979}, (_,i) => String(new Date().getFullYear()-i))
-        const isActiveClub = form.survey_active_club === true || form.survey_active_club === 'true'
+        const isActiveClub = personForm.survey_active_club === true || personForm.survey_active_club === 'true'
         const surveyComplete = !!(
-          form.survey_upline && form.survey_hl_year &&
-          form.survey_active_club !== null && form.survey_active_club !== '' &&
-          (form.survey_active_club === false || form.survey_active_club === 'false' || form.survey_club_year) &&
-          form.survey_trainings && form.survey_hear_how && form.survey_goal
+          personForm.survey_upline && personForm.survey_hl_year &&
+          personForm.survey_active_club !== null && personForm.survey_active_club !== '' &&
+          (personForm.survey_active_club === false || personForm.survey_active_club === 'false' || personForm.survey_club_year) &&
+          personForm.survey_trainings && personForm.survey_hear_how && personForm.survey_goal
         )
         const SURVEY_FIELDS = [
-          form.survey_upline,
-          form.survey_hl_year,
-          form.survey_active_club !== null && form.survey_active_club !== '',
-          isActiveClub ? form.survey_club_year : true,
-          form.survey_trainings,
-          form.survey_hear_how,
-          form.survey_goal,
+          personForm.survey_upline,
+          personForm.survey_hl_year,
+          personForm.survey_active_club !== null && personForm.survey_active_club !== '',
+          isActiveClub ? personForm.survey_club_year : true,
+          personForm.survey_trainings,
+          personForm.survey_hear_how,
+          personForm.survey_goal,
         ]
         const answeredCount = SURVEY_FIELDS.filter(Boolean).length
-        const tSet = new Set((form.survey_trainings || '').split(',').filter(Boolean))
+        const tSet = new Set((personForm.survey_trainings || '').split(',').filter(Boolean))
         const toggleSurveyTraining = (val) => {
           const set = new Set(tSet)
           if (val === 'all') { if (set.has('all')) set.clear(); else { set.clear(); set.add('all') } }
           else { set.delete('all'); if (set.has(val)) set.delete(val); else set.add(val) }
-          setField('survey_trainings', [...set].join(','))
+          setPersonField('survey_trainings', [...set].join(','))
         }
         return (
           <div className="sec-card" style={{ padding: 0, overflow: 'hidden' }}>
@@ -1089,18 +1351,18 @@ export default function ProfilePage() {
 
                 <div className="pf story-field">
                   <label>Who is your upline or sponsor?</label>
-                  <input type="text" value={form.survey_upline || ''} onChange={e => setField('survey_upline', e.target.value)} placeholder="Full name" />
+                  <input type="text" value={personForm.survey_upline || ''} onChange={e => setPersonField('survey_upline', e.target.value)} placeholder="Full name" />
                 </div>
 
                 <div className="pf story-field">
                   <label>How long have you been a Herbalife member?</label>
                   <div style={{ display: 'flex', gap: 8 }}>
-                    <select value={form.survey_hl_month || ''} onChange={e => setField('survey_hl_month', e.target.value)}
+                    <select value={personForm.survey_hl_month || ''} onChange={e => setPersonField('survey_hl_month', e.target.value)}
                       style={{ flex: 1, padding: '8px 10px', border: '1px solid #c8d4cc', borderRadius: 8, fontSize: 14 }}>
                       <option value="">Month (optional)</option>
                       {MONTHS_S.map((m,i) => <option key={i} value={i+1}>{m}</option>)}
                     </select>
-                    <select value={form.survey_hl_year || ''} onChange={e => setField('survey_hl_year', e.target.value)}
+                    <select value={personForm.survey_hl_year || ''} onChange={e => setPersonField('survey_hl_year', e.target.value)}
                       style={{ flex: 1, padding: '8px 10px', border: '1px solid #c8d4cc', borderRadius: 8, fontSize: 14 }}>
                       <option value="">Year</option>
                       {YEARS_S.map(y => <option key={y} value={y}>{y}</option>)}
@@ -1115,13 +1377,13 @@ export default function ProfilePage() {
                       style={{ flex: 1, padding: '9px', border: '1px solid ' + (isActiveClub ? '#4CAF82' : '#c8d4cc'),
                         borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: 'pointer',
                         background: isActiveClub ? '#E1F5EE' : 'transparent', color: isActiveClub ? '#0F6E56' : '#555' }}
-                      onClick={() => setField('survey_active_club', true)}>Yes</button>
+                      onClick={() => setPersonField('survey_active_club', true)}>Yes</button>
                     <button type="button"
-                      style={{ flex: 1, padding: '9px', border: '1px solid ' + (form.survey_active_club === false || form.survey_active_club === 'false' ? '#E24B4A' : '#c8d4cc'),
+                      style={{ flex: 1, padding: '9px', border: '1px solid ' + (personForm.survey_active_club === false || personForm.survey_active_club === 'false' ? '#E24B4A' : '#c8d4cc'),
                         borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: 'pointer',
-                        background: form.survey_active_club === false || form.survey_active_club === 'false' ? '#FCEBEB' : 'transparent',
-                        color: form.survey_active_club === false || form.survey_active_club === 'false' ? '#A32D2D' : '#555' }}
-                      onClick={() => setField('survey_active_club', false)}>No</button>
+                        background: personForm.survey_active_club === false || personForm.survey_active_club === 'false' ? '#FCEBEB' : 'transparent',
+                        color: personForm.survey_active_club === false || personForm.survey_active_club === 'false' ? '#A32D2D' : '#555' }}
+                      onClick={() => setPersonField('survey_active_club', false)}>No</button>
                   </div>
                 </div>
 
@@ -1129,12 +1391,12 @@ export default function ProfilePage() {
                   <div className="pf story-field">
                     <label>How long have you been operating your club?</label>
                     <div style={{ display: 'flex', gap: 8 }}>
-                      <select value={form.survey_club_month || ''} onChange={e => setField('survey_club_month', e.target.value)}
+                      <select value={personForm.survey_club_month || ''} onChange={e => setPersonField('survey_club_month', e.target.value)}
                         style={{ flex: 1, padding: '8px 10px', border: '1px solid #c8d4cc', borderRadius: 8, fontSize: 14 }}>
                         <option value="">Month (optional)</option>
                         {MONTHS_S.map((m,i) => <option key={i} value={i+1}>{m}</option>)}
                       </select>
-                      <select value={form.survey_club_year || ''} onChange={e => setField('survey_club_year', e.target.value)}
+                      <select value={personForm.survey_club_year || ''} onChange={e => setPersonField('survey_club_year', e.target.value)}
                         style={{ flex: 1, padding: '8px 10px', border: '1px solid #c8d4cc', borderRadius: 8, fontSize: 14 }}>
                         <option value="">Year</option>
                         {YEARS_S.map(y => <option key={y} value={y}>{y}</option>)}
@@ -1187,25 +1449,25 @@ export default function ProfilePage() {
                       ['other',     'Other',                                true],
                     ].map(([val, lbl, hasInput]) => (
                       <div key={val}>
-                        <div onClick={() => { setField('survey_hear_how', val); setField('survey_hear_detail', '') }}
+                        <div onClick={() => { setPersonField('survey_hear_how', val); setPersonField('survey_hear_detail', '') }}
                           style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px',
-                            border: '1px solid ' + (form.survey_hear_how === val ? '#4CAF82' : '#c8d4cc'),
-                            borderRadius: form.survey_hear_how === val && hasInput ? '8px 8px 0 0' : '8px',
-                            cursor: 'pointer', background: form.survey_hear_how === val ? '#f5fdf8' : 'transparent' }}>
-                          <div style={{ width: 16, height: 16, border: '1.5px solid ' + (form.survey_hear_how === val ? '#4CAF82' : '#c8d4cc'),
+                            border: '1px solid ' + (personForm.survey_hear_how === val ? '#4CAF82' : '#c8d4cc'),
+                            borderRadius: personForm.survey_hear_how === val && hasInput ? '8px 8px 0 0' : '8px',
+                            cursor: 'pointer', background: personForm.survey_hear_how === val ? '#f5fdf8' : 'transparent' }}>
+                          <div style={{ width: 16, height: 16, border: '1.5px solid ' + (personForm.survey_hear_how === val ? '#4CAF82' : '#c8d4cc'),
                             borderRadius: '50%', flexShrink: 0,
                             display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            {form.survey_hear_how === val && (
+                            {personForm.survey_hear_how === val && (
                               <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#4CAF82' }} />
                             )}
                           </div>
                           <span style={{ fontSize: 13 }}>{lbl}</span>
                         </div>
-                        {hasInput && form.survey_hear_how === val && (
+                        {hasInput && personForm.survey_hear_how === val && (
                           <div style={{ border: '1px solid #4CAF82', borderTop: 'none', borderRadius: '0 0 8px 8px',
                             background: '#f5fdf8', padding: '8px 12px' }}>
-                            <input type="text" value={form.survey_hear_detail || ''}
-                              onChange={e => setField('survey_hear_detail', e.target.value)}
+                            <input type="text" value={personForm.survey_hear_detail || ''}
+                              onChange={e => setPersonField('survey_hear_detail', e.target.value)}
                               placeholder="Please share a few details..."
                               style={{ width: '100%', padding: '7px 10px', border: '1px solid #c8d4cc',
                                 borderRadius: 6, fontSize: 13 }} />
@@ -1218,48 +1480,20 @@ export default function ProfilePage() {
 
                 <div className="pf story-field">
                   <label>What is your primary goal for joining this platform?</label>
-                  <textarea rows={3} value={form.survey_goal || ''} onChange={e => setField('survey_goal', e.target.value)}
+                  <textarea rows={3} value={personForm.survey_goal || ''} onChange={e => setPersonField('survey_goal', e.target.value)}
                     placeholder="Share your thoughts..." />
                 </div>
-
               </div>
             )}
           </div>
         )
       })()}
 
-      {/* Sticky Save Bar — always shown for new profiles, only shown when dirty for existing */}
-      {(isDirty || savedFormRef.current === null) && (
-        <div className={`save-bar save-bar--sticky ${isDirty && savedFormRef.current !== null ? 'save-bar--dirty' : ''}`}>
-          {isDirty && savedFormRef.current !== null && (
-            <div className="save-bar-alert">
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                <circle cx="8" cy="8" r="7" stroke="#B45309" strokeWidth="1.5"/>
-                <path d="M8 5v4" stroke="#B45309" strokeWidth="1.5" strokeLinecap="round"/>
-                <circle cx="8" cy="11.5" r="0.75" fill="#B45309"/>
-              </svg>
-              Unsaved changes
-            </div>
-          )}
-          <div className="save-bar-btns">
-            <button className="btn-save" onClick={() => handleSave('save')} disabled={saving && saveAction === 'save'}>
-              {saving && saveAction === 'save' ? 'Saving…' : 'Save My Profile'}
-            </button>
-            <button className="btn-save-map" onClick={() => handleSave('map')} disabled={saving && saveAction === 'map'}>
-              {saving && saveAction === 'map' ? 'Saving…' : 'Save & Return to Map'}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Spacer so last card clears the sticky bar */}
-      <div style={{ height: 88 }} />
-
+      <div style={{ height: 32 }} />
       <div className="profile-privacy-link">
         <a href="/privacy" target="_blank" rel="noreferrer">Privacy & Use Policy</a>
       </div>
-
-      <div className={'toast' + (toast ? ' show' : '')}>{toast}</div>
+      <div className={'toast' + (personToast ? ' show' : '')}>{personToast}</div>
     </div>
   )
 }

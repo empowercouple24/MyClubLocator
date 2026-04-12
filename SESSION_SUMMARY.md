@@ -238,7 +238,7 @@ K levels: PT=base,15K–150K | CC/FC=CC,FC,15K–150K
 - [ ] #12 Apply `pending_survey` to `locations` on first profile save
 - [ ] #13 Mobile overhaul (tabled)
 - [ ] #14 Public Club Finder (big feature)
-- [ ] #15 My Clubs card + Add Club + multi-club DB architecture 🔴 NEXT
+- [x] #15 My Clubs card + Add Club + multi-club DB architecture
 
 ---
 

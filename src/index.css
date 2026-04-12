@@ -6214,3 +6214,158 @@ body {
 .survey-chevron.open {
   transform: rotate(180deg);
 }
+
+/* ── My Clubs Card ────────────────────────────────────────── */
+.my-clubs-card {
+  padding: 0;
+  overflow: hidden;
+}
+
+.my-clubs-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem 1.5rem 0;
+}
+
+/* ── Club Tabs ────────────────────────────────────────────── */
+.club-tabs {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  padding: 0.75rem 1.5rem 0;
+  border-bottom: 1.5px solid #e8ede9;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.club-tabs::-webkit-scrollbar { display: none; }
+
+.club-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px 10px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: #666;
+  background: none;
+  border: none;
+  border-bottom: 2.5px solid transparent;
+  margin-bottom: -1.5px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.15s, border-color 0.15s;
+  border-radius: 0;
+}
+.club-tab:hover { color: #1A3C2E; }
+.club-tab.active {
+  color: #1A3C2E;
+  border-bottom-color: #2E7D5B;
+  font-weight: 600;
+}
+
+.club-tab-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #4CAF82;
+  flex-shrink: 0;
+}
+
+.club-tab--add {
+  color: #4CAF82;
+  font-weight: 500;
+  margin-left: 4px;
+}
+.club-tab--add:hover { color: #1A3C2E; }
+
+/* ── Club Editor ──────────────────────────────────────────── */
+.club-editor {
+  padding: 1.25rem 1.5rem 0;
+}
+
+.club-section {
+  padding-bottom: 1.25rem;
+  margin-bottom: 1.25rem;
+  border-bottom: 1px solid #f0f4f1;
+}
+.club-section:last-of-type {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
+/* ── Per-Club Save Bar ────────────────────────────────────── */
+.club-save-bar {
+  display: none;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 14px 0 1.25rem;
+  border-top: 1px solid #e8ede9;
+  margin-top: 1rem;
+}
+.club-save-bar--visible {
+  display: flex;
+}
+
+.remove-club-link {
+  margin-left: auto;
+  font-size: 12px;
+  color: #C0392B;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 0;
+  text-decoration: underline;
+  opacity: 0.75;
+}
+.remove-club-link:hover { opacity: 1; }
+
+/* ── Owner Save Bar ───────────────────────────────────────── */
+.owner-save-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 14px 0 4px;
+  border-top: 1px solid #e8ede9;
+  margin-top: 1rem;
+}
+
+/* ── Add/Remove Club Modals ───────────────────────────────── */
+.add-club-modal {
+  text-align: center;
+  max-width: 380px;
+}
+.add-club-modal-icon {
+  font-size: 36px;
+  margin-bottom: 12px;
+}
+.add-club-modal h3 {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1A3C2E;
+  margin: 0 0 10px;
+}
+.add-club-modal p {
+  font-size: 14px;
+  color: #555;
+  line-height: 1.5;
+  margin: 0 0 20px;
+}
+.add-club-modal-btns {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.add-club-cancel-btn {
+  padding: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #666;
+  background: none;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.add-club-cancel-btn:hover { background: #f5f5f5; }
