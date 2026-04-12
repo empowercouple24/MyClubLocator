@@ -4,15 +4,11 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   build: {
+    // When called for CSS-only pass, we only want CSS output
+    // Full JS build is handled by esbuild (build.mjs)
     rollupOptions: {
       output: {
-        manualChunks(id) {
-          if (id.includes('node_modules')) {
-            if (id.includes('leaflet') || id.includes('react-leaflet')) return 'vendor-map'
-            if (id.includes('@supabase') || id.includes('supabase')) return 'vendor-supabase'
-            return 'vendor'
-          }
-        },
+        assetFileNames: '[name]-[hash][extname]',
       },
     },
   },
