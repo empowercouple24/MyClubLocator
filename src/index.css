@@ -7062,3 +7062,85 @@ input.input-ok {
   0%, 100% { opacity: 1; }
   50%       { opacity: 0.35; }
 }
+
+/* ── Club photo strip (dashboard panel) ─────────────────── */
+.cp-photo-strip {
+  display: flex;
+  gap: 3px;
+  width: 100%;
+  height: 88px;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.cp-photo-strip-tile {
+  flex: 1;
+  height: 88px;
+  min-width: 0;
+  border-radius: 0;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.cp-photo-strip-tile--real {
+  cursor: pointer;
+}
+.cp-photo-strip-tile--real img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.cp-photo-strip-tile--real:hover { opacity: 0.88; }
+.cp-photo-strip-tile--empty {
+  background: #f4f4f4;
+  border: 1px dashed #ddd;
+}
+
+.cp-photo-strip-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 7px;
+}
+.cp-photo-strip-dots {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.cp-photo-strip-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #ccc;
+  flex-shrink: 0;
+}
+.cp-photo-strip-dot.on { background: #4CAF82; }
+
+.cp-photo-strip-nav {
+  display: flex;
+  gap: 5px;
+  flex-shrink: 0;
+}
+.cp-photo-nav-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  font-weight: 500;
+  background: #fff;
+  border: 0.5px solid #ddd;
+  color: #555;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.12s, color 0.12s;
+}
+.cp-photo-nav-btn:hover:not(.dim) { background: #f5f5f5; color: #222; }
+.cp-photo-nav-btn.dim {
+  opacity: 0.28;
+  pointer-events: none;
+}

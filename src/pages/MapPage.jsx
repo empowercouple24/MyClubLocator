@@ -377,7 +377,9 @@ function MyClubCard({ myClub, onManage }) {
 }
 
 // ── Club detail panel content ───────────────────────────────
-function ClubDetail({ club, userId, onManage, radiusMiles, setRadiusMiles, customMiles, setCustomMiles, filteredCount, setGalleryPhotos, onExploreArea }) {
+function ClubDetail({ club, userId, panelWidth, onManage, radiusMiles, setRadiusMiles, customMiles, setCustomMiles, filteredCount, setGalleryPhotos, onExploreArea }) {
+  const [photoPage, setPhotoPage] = useState(0)
+  useEffect(() => { setPhotoPage(0) }, [club?.id])
   if (!club) {
     return (
       <div className="cp-empty">
@@ -484,40 +486,71 @@ function ClubDetail({ club, userId, onManage, radiusMiles, setRadiusMiles, custo
         </div>
       )}
 
-      {/* Photos */}
-      {club.photo_urls && club.photo_urls.length > 0 && (
-        <div className="cp-section">
-          <div className="cp-section-title">Photos</div>
-          <div className="cp-photos-grid">
-            {/* Cover photo — large, clickable */}
-            <div className="cp-photo-cover" onClick={() => setGalleryPhotos({ photos: club.photo_urls, start: 0 })}>
-              <img src={club.photo_urls[0]} alt="Club cover" className="cp-photo-cover-img" />
-              {club.photo_urls.length > 1 && (
-                <div className="cp-photo-cover-overlay">
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                    <rect x="1" y="1" width="9" height="7" rx="1.5" stroke="white" strokeWidth="1.2"/>
-                    <rect x="6" y="8" width="9" height="7" rx="1.5" stroke="white" strokeWidth="1.2"/>
-                  </svg>
-                  {club.photo_urls.length} photos
+      {/* Photos — horizontal strip */}
+      {(() => {
+        const photos   = club.photo_urls || []
+        const slots    = panelWidth === 'wide' ? 5 : 3
+        const total    = photos.length
+        const hasMore  = total > slots
+        const pages    = hasMore ? Math.ceil(total / slots) : 1
+        const safePage = Math.min(photoPage, pages - 1)
+        const start    = safePage * slots
+        const visible  = photos.slice(start, start + slots)
+        const empties  = slots - visible.length
+
+        return (
+          <div className="cp-section">
+            <div className="cp-section-title">Photos</div>
+            <div className="cp-photo-strip">
+              {visible.map((url, i) => (
+                <div key={i} className="cp-photo-strip-tile cp-photo-strip-tile--real"
+                  onClick={() => setGalleryPhotos({ photos, start: start + i })}>
+                  <img src={url} alt={`Photo ${start + i + 1}`} />
                 </div>
-              )}
+              ))}
+              {Array.from({ length: empties }).map((_, i) => (
+                <div key={`empty-${i}`} className="cp-photo-strip-tile cp-photo-strip-tile--empty">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#aaa" strokeWidth="1.5">
+                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                    <circle cx="12" cy="13" r="4"/>
+                  </svg>
+                </div>
+              ))}
             </div>
-            {/* Smaller thumbs */}
-            {club.photo_urls.length > 1 && (
-              <div className="cp-photo-thumbs">
-                {club.photo_urls.slice(1, 5).map((url, i) => (
-                  <div key={i} className="cp-photo-thumb" onClick={() => setGalleryPhotos({ photos: club.photo_urls, start: i + 1 })}>
-                    <img src={url} alt={`Photo ${i + 2}`} />
-                    {i === 3 && club.photo_urls.length > 5 && (
-                      <div className="cp-photo-more">+{club.photo_urls.length - 5}</div>
-                    )}
-                  </div>
-                ))}
+            {hasMore && (
+              <div className="cp-photo-strip-footer">
+                <div className="cp-photo-strip-dots">
+                  {photos.map((_, i) => (
+                    <div key={i} className={`cp-photo-strip-dot ${i >= start && i < start + slots ? 'on' : ''}`} />
+                  ))}
+                </div>
+                <div className="cp-photo-strip-nav">
+                  <button
+                    className={`cp-photo-nav-btn ${safePage === 0 ? 'dim' : ''}`}
+                    onClick={() => setPhotoPage(p => Math.max(0, p - 1))}
+                    disabled={safePage === 0}
+                  >
+                    <svg width="6" height="10" viewBox="0 0 6 10" fill="none">
+                      <path d="M5 1L1 5l4 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                    Prev
+                  </button>
+                  <button
+                    className={`cp-photo-nav-btn ${safePage >= pages - 1 ? 'dim' : ''}`}
+                    onClick={() => setPhotoPage(p => Math.min(pages - 1, p + 1))}
+                    disabled={safePage >= pages - 1}
+                  >
+                    Next
+                    <svg width="6" height="10" viewBox="0 0 6 10" fill="none">
+                      <path d="M1 1l4 4-4 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </button>
+                </div>
               </div>
             )}
           </div>
-        </div>
-      )}
+        )
+      })()}
 
       {/* Explore area button */}
       {club.lat && club.lng && onExploreArea && (
@@ -1117,6 +1150,7 @@ export default function MapPage() {
               <ClubDetail
                 club={selected}
                 userId={user?.id}
+                panelWidth={panelWidth}
                 onManage={() => navigate('/app/profile')}
                 radiusMiles={radiusMiles}
                 setRadiusMiles={setRadiusMiles}
