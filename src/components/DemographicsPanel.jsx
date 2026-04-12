@@ -172,7 +172,11 @@ export default function DemographicsPanel({ lat, lng, locations, enabledFactors,
     setCompetitors(null); setMarketScore(null)
 
     const geo = await reverseGeocode(lat, lng)
-    if (!geo) { setError('Could not identify this location.'); setLoading(false); return }
+    if (!geo) {
+      setError('Could not load data for this location. Try clicking a populated US area, or try again in a moment.')
+      setLoading(false)
+      return
+    }
     setGeoInfo(geo)
 
     const [zip, county, health, spending, growth, commute, comps] = await Promise.all([
@@ -291,7 +295,7 @@ export default function DemographicsPanel({ lat, lng, locations, enabledFactors,
     return (
       <div className="demo-loading">
         <div className="demo-spinner" />
-        <span>Loading market data…</span>
+        <span>Loading market data… this may take a moment</span>
       </div>
     )
   }

@@ -5232,3 +5232,96 @@ body {
   object-fit: cover;
   display: block;
 }
+
+/* ── Herbalife level picker ──────────────────────────────────── */
+.lvl-group-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #888;
+  margin-bottom: 8px;
+}
+
+.lvl-btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-bottom: 4px;
+}
+
+.lvl-btn {
+  padding: 6px 13px;
+  border-radius: 8px;
+  border: none;
+  background: color-mix(in srgb, var(--lvlc) 18%, #fff);
+  color: var(--lvlcd, var(--lvlc));
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+.lvl-btn:hover {
+  background: color-mix(in srgb, var(--lvlc) 30%, #fff);
+}
+.lvl-btn.on {
+  background: var(--lvlc);
+  color: var(--lvlcd, #fff);
+}
+
+.lvl-diamond-wrap {
+  background: #fffbf0;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-top: 10px;
+  border: 0.5px solid #f0d060;
+}
+
+.lvl-diamond-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #8a6200;
+  margin-bottom: 8px;
+}
+
+.lvl-dia-btn {
+  padding: 5px 11px;
+  border-radius: 8px;
+  border: 1.5px solid #c9a800;
+  background: transparent;
+  color: #8a6000;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.lvl-dia-btn:hover { background: #fdf5cc; }
+.lvl-dia-btn.on {
+  background: #fde488;
+  color: #7a5200;
+  border-color: #fde488;
+}
+
+.lvl-selected-label {
+  font-size: 13px;
+  color: #888;
+  margin-top: 10px;
+}
+.lvl-selected-label strong { color: #111; }
+
+/* ── Admin member level badge ────────────────────────────────── */
+.amt-level-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 20px;
+  background: #f0faf5;
+  color: #1A3C2E;
+  border: 0.5px solid #A8DFC4;
+  margin-left: 8px;
+  vertical-align: middle;
+  white-space: nowrap;
+}

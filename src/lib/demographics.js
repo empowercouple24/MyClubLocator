@@ -23,20 +23,37 @@ export const DEFAULT_ENABLED_FACTORS = Object.fromEntries(
 
 // Reverse geocode lat/lng to ZIP + county FIPS
 export async function reverseGeocode(lat, lng) {
-  try {
-    const url = `https://geocoding.geo.census.gov/geocoder/geographies/coordinates?x=${lng}&y=${lat}&benchmark=Public_AR_Current&vintage=Current_Current&layers=all&format=json`
-    const res  = await fetch(url)
-    const data = await res.json()
-    const result = data?.result?.geographies
-    const county = result?.Counties?.[0]
-    const zcta   = result?.['ZIP Code Tabulation Areas']?.[0]
-    return {
-      zip:        zcta?.ZCTA5 || null,
-      countyFips: county ? county.STATE + county.COUNTY : null,
-      countyName: county?.NAME || null,
-      stateFips:  county?.STATE || null,
+  const url = `https://geocoding.geo.census.gov/geocoder/geographies/coordinates?x=${lng}&y=${lat}&benchmark=Public_AR_Current&vintage=Current_Current&layers=all&format=json`
+
+  // Try up to 3 times with a short delay
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), 8000)
+      const res  = await fetch(url, { signal: controller.signal })
+      clearTimeout(timeout)
+      const data = await res.json()
+      const result = data?.result?.geographies
+      const county = result?.Counties?.[0]
+      const zcta   = result?.['ZIP Code Tabulation Areas']?.[0]
+
+      // Must have at least a county to proceed
+      if (!county) {
+        if (attempt < 2) { await new Promise(r => setTimeout(r, 800)); continue }
+        return null
+      }
+
+      return {
+        zip:        zcta?.ZCTA5 || null,
+        countyFips: county ? county.STATE + county.COUNTY : null,
+        countyName: county?.NAME || null,
+        stateFips:  county?.STATE || null,
+      }
+    } catch {
+      if (attempt < 2) await new Promise(r => setTimeout(r, 800))
     }
-  } catch { return null }
+  }
+  return null
 }
 
 // Fetch ZIP-level demographics

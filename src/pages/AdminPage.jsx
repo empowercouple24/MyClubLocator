@@ -483,7 +483,11 @@ export default function AdminPage() {
                       </div>
                       <div style={{ flex: 1 }}>
                         <div className="amt-detail-name">{m.club_name || 'Unnamed Club'} {isMe && <span className="amr-you-badge">You</span>}</div>
-                        <div className="amt-detail-sub">{ownerName}</div>
+                        <div className="amt-detail-sub">{ownerName}
+                          {m.herbalife_level && (
+                            <span className="amt-level-badge">{m.herbalife_level}</span>
+                          )}
+                        </div>
                       </div>
                       <button className="modal-close-btn" onClick={onClose}>✕</button>
                     </div>

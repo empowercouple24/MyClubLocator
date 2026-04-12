@@ -43,6 +43,8 @@ const DEFAULT_FORM = {
   hours_sunday_open: '', hours_sunday_close: '',
   social_facebook: '', social_instagram: '', social_tiktok: '', social_youtube: '',
   story_why: '', story_favorite_part: '', story_favorite_products: '', story_unique: '',
+  story_before: '', story_goal: '',
+  herbalife_level: '',
 }
 
 async function geocodeAddress(address) {
@@ -279,6 +281,7 @@ export default function ProfilePage() {
     if (!form.state.trim())        e.state      = 'Required'
     if (!form.opened_month)        e.opened_month = 'Required'
     if (!form.opened_year)         e.opened_year  = 'Required'
+    if (!form.herbalife_level)     e.herbalife_level = 'Please select your level'
     const hasHours = DAYS.some(d => form['hours_' + d + '_open'] && form['hours_' + d + '_close'])
     if (!hasHours) e.hours = 'At least one day of hours is required'
     DAYS.forEach(d => {
@@ -732,7 +735,92 @@ export default function ProfilePage() {
         />
       )}
 
-      {/* CARD 5: Your Story */}
+      {/* CARD 5: Herbalife Level */}
+      <div className="sec-card">
+        <div className="sec-label">Herbalife Level <span className="req-star">*</span></div>
+        <p className="upload-hint" style={{ marginBottom: 14 }}>Select your current level in the Herbalife sales &amp; marketing plan.</p>
+
+        {/* Future Tab Team */}
+        <div className="lvl-group-label">Future Tab Team</div>
+        <div className="lvl-btn-row">
+          {[
+            { val: 'Distributor',       label: 'DS',  c: '#e3e3e3', cd: '#555' },
+            { val: 'Success Builder',   label: 'SB',  c: '#e3e3e3', cd: '#555' },
+            { val: 'Supervisor',        label: 'SP',  c: '#64ba44', cd: '#2a6b1a' },
+            { val: 'World Team',        label: 'WT',  c: '#767678', cd: '#3a3a3a' },
+            { val: 'Active World Team', label: 'AWT', c: '#767678', cd: '#3a3a3a' },
+          ].map(({ val, label, c, cd }) => (
+            <button key={val} type="button"
+              className={`lvl-btn ${form.herbalife_level === val ? 'on' : ''}`}
+              style={{ '--lvlc': c, '--lvlcd': cd }}
+              onClick={() => setField('herbalife_level', val)}>
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* Future Pres Team */}
+        <div className="lvl-group-label" style={{ marginTop: 12 }}>Future Pres Team 🚀</div>
+        <div className="lvl-btn-row">
+          {[
+            { val: 'Get Team',              label: 'GT', c: '#e02054', cd: '#8a0020' },
+            { val: 'Get Team 2500',         label: 'GP', c: '#f39519', cd: '#7a4200' },
+            { val: 'Millionaire Team',      label: 'MT', c: '#3aac77', cd: '#0c5a32' },
+            { val: 'Millionaire Team 7500', label: 'MP', c: '#84c8d3', cd: '#1a5a60' },
+          ].map(({ val, label, c, cd }) => (
+            <button key={val} type="button"
+              className={`lvl-btn ${form.herbalife_level === val ? 'on' : ''}`}
+              style={{ '--lvlc': c, '--lvlcd': cd }}
+              onClick={() => setField('herbalife_level', val)}>
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* Pres Team */}
+        <div className="lvl-group-label" style={{ marginTop: 12 }}>Pres Team 💎</div>
+        <div className="lvl-btn-row">
+          {[
+            { val: 'Presidents Team',     label: 'PT',      c: '#fde488', cd: '#7a5200' },
+            { val: 'Presidents Team 15K', label: 'PT 15K',  c: '#fde488', cd: '#7a5200' },
+            { val: 'Presidents Team 20K', label: 'PT 20K',  c: '#fde488', cd: '#7a5200' },
+            { val: 'Presidents Team 30K', label: 'PT 30K',  c: '#fde488', cd: '#7a5200' },
+          ].map(({ val, label, c, cd }) => (
+            <button key={val} type="button"
+              className={`lvl-btn ${form.herbalife_level === val ? 'on' : ''}`}
+              style={{ '--lvlc': c, '--lvlcd': cd }}
+              onClick={() => { setField('herbalife_level', val) }}>
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* Diamonds — shown when any PT variant selected */}
+        {form.herbalife_level && form.herbalife_level.startsWith('Presidents Team') && (
+          <div className="lvl-diamond-wrap">
+            <div className="lvl-diamond-label">Diamonds</div>
+            <div className="lvl-btn-row">
+              {['1','2','3','4'].map(d => {
+                const val = `Presidents Team · ${d}◆`
+                return (
+                  <button key={d} type="button"
+                    className={`lvl-dia-btn ${form.herbalife_level === val ? 'on' : ''}`}
+                    onClick={() => setField('herbalife_level', val)}>
+                    {d}◆
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {errors.herbalife_level && <span className="field-err">{errors.herbalife_level}</span>}
+        {form.herbalife_level && (
+          <div className="lvl-selected-label">Selected: <strong>{form.herbalife_level}</strong></div>
+        )}
+      </div>
+
+      {/* CARD 6: Your Story */}
       <div className="sec-card">
         <div className="sec-label">Your Story <span className="optional-tag">all optional</span></div>
         <p className="story-intro">Share a little about yourself and your club. These may be shown on your club's profile page.</p>
@@ -741,6 +829,8 @@ export default function ProfilePage() {
           { key: 'story_favorite_part',     label: 'What is your favorite part of club ownership?' },
           { key: 'story_favorite_products', label: 'What are your favorite products?' },
           { key: 'story_unique',            label: 'What is something unique and interesting about yourself?' },
+          { key: 'story_before',            label: 'What did you do for work (your former occupation) before owning a club?' },
+          { key: 'story_goal',              label: 'By owning a club, what is your next big future goal in Herbalife?' },
         ].map(({ key, label }) => (
           <div className="pf story-field" key={key}>
             <label>{label}</label>
