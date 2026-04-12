@@ -147,6 +147,15 @@ function MapRefCapture({ mapRef }) {
   return null
 }
 
+function ScrollZoomController({ enabled }) {
+  const map = useMap()
+  useEffect(() => {
+    if (enabled) { map.scrollWheelZoom.enable() }
+    else { map.scrollWheelZoom.disable() }
+  }, [map, enabled])
+  return null
+}
+
 function ClubMarkers({ locations, selectedId, userId, onSelect, navigate }) {
   const map = useMap()
   const markersRef = useRef({})
@@ -172,7 +181,7 @@ function ClubMarkers({ locations, selectedId, userId, onSelect, navigate }) {
           .replace('Get Team', 'GT').replace('Active World Team', 'AWT')
           .replace('World Team', 'WT').replace('Supervisor', 'SP')
           .replace('Success Builder', 'SB').replace('Distributor', 'DS')
-          .replace(/ (\d+) 💎$/, ' $1💎')
+          .replace(/ (\d+) 💎$/, ' $1 💎')
       }
 
       const ownerRows = [
@@ -551,6 +560,10 @@ export default function MapPage() {
   const [demoActive, setDemoActive]   = useState(false)
   const [demoLat, setDemoLat]         = useState(null)
   const [demoLng, setDemoLng]         = useState(null)
+  const [scrollZoom, setScrollZoom]   = useState(() => {
+    const saved = localStorage.getItem('mapScrollZoom')
+    return saved === null ? true : saved === 'true'
+  })
   const defaultEnabledFactors = {
     population: true, income: true, ageFit: true, medianAge: true,
     poverty: true, competition: true, health: true, spending: true,
@@ -712,6 +725,7 @@ export default function MapPage() {
         {loading ? <div className="loading">Loading map…</div> : (
           <MapContainer center={defaultCenter} zoom={locations.length > 0 ? 11 : 5} style={{ height: '100%', width: '100%' }}>
             <MapRefCapture mapRef={mapRef} />
+            <ScrollZoomController enabled={scrollZoom} />
             <MapController center={mapCenter} zoom={mapZoom} panelPosition={panelPosition} />
             <MapClickHandler active={demoActive} onMapClick={(lat, lng) => { setDemoLat(lat); setDemoLng(lng) }} />
             <TileLayer key={activeBase.id} attribution={activeBase.attribution} url={activeBase.url} />
@@ -754,6 +768,22 @@ export default function MapPage() {
             title="Toggle market data">
             📊 Market Data
           </button>
+          <button
+            className={`map-scroll-zoom-btn ${scrollZoom ? 'active' : ''}`}
+            onClick={() => {
+              const next = !scrollZoom
+              setScrollZoom(next)
+              localStorage.setItem('mapScrollZoom', String(next))
+            }}
+            title={scrollZoom ? 'Scroll zoom ON — click to disable' : 'Scroll zoom OFF — click to enable'}>
+            🖱️ Scroll Zoom {scrollZoom ? 'On' : 'Off'}
+          </button>
+          {!scrollZoom && (
+            <div className="map-manual-zoom">
+              <button className="map-zoom-btn" onClick={() => mapRef.current && mapRef.current.zoomIn()} title="Zoom in">+</button>
+              <button className="map-zoom-btn" onClick={() => mapRef.current && mapRef.current.zoomOut()} title="Zoom out">−</button>
+            </div>
+          )}
         </div>
 
         {/* Base map + panel position toggles + default view */}
