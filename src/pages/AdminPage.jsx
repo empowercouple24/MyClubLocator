@@ -231,6 +231,8 @@ export default function AdminPage() {
     : false
   const [previewModal, setPreviewModal]       = useState(null) // 'message' | 'disclaimer' | null
   const [demoOpen, setDemoOpen]               = useState(false)
+  const [welcomeModalOpen, setWelcomeModalOpen] = useState(false)
+  const [loginMsgsOpen, setLoginMsgsOpen]       = useState(false)
 
   // Contacts state
   const [contacts, setContacts]             = useState([])
@@ -821,72 +823,83 @@ export default function AdminPage() {
           {loadingSettings ? <div className="loading">Loading settings…</div> : (
             <>
               {/* Welcome Modal */}
-              <div className="admin-section">
-                <h3 className="admin-section-title">Welcome Modal</h3>
-                <p className="admin-section-desc">Controls the modal shown to members on first login.</p>
-
-                <div className="admin-toggle-row">
-                  <div>
-                    <div className="admin-toggle-label">Show welcome video</div>
-                    <div className="admin-toggle-hint">When off, modal shows without a video</div>
+              <div className="admin-section" style={{ padding: 0, overflow: 'hidden' }}>
+                <button type="button" className="survey-toggle-btn" style={{ padding: '14px 20px' }} onClick={() => setWelcomeModalOpen(o => !o)}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
+                    <h3 className="admin-section-title" style={{ margin: 0 }}>Welcome Modal</h3>
                   </div>
-                  <ToggleSwitch on={settings.welcome_video_enabled}
-                    onChange={v => setSettings(s => ({ ...s, welcome_video_enabled: v }))} />
-                </div>
+                  <svg className={`survey-chevron ${welcomeModalOpen ? 'open' : ''}`} width="14" height="14" viewBox="0 0 16 16" fill="none">
+                    <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+                {welcomeModalOpen && (
+                  <div style={{ padding: '0 20px 16px' }}>
+                    <p className="admin-section-desc" style={{ marginBottom: 14 }}>Controls the modal shown to members on first login.</p>
 
-                <div className="fgrid">
-                  <div className="field">
-                    <label>Modal title</label>
-                    <input type="text" value={settings.welcome_title}
-                      onChange={e => setSettings(s => ({ ...s, welcome_title: e.target.value }))}
-                      placeholder="Welcome to My Club Locator!" />
-                  </div>
-
-                  <div className="field" style={{ gridColumn: '1 / -1' }}>
-                    <div className="admin-field-label-row">
-                      <label>Welcome message</label>
-                      <button className="admin-preview-btn" onClick={() => setPreviewModal('message')}>
-                        <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.2"/><circle cx="8" cy="6" r="1.2" fill="currentColor"/><line x1="8" y1="8.5" x2="8" y2="11.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>
-                        Preview
-                      </button>
+                    <div className="admin-toggle-row">
+                      <div>
+                        <div className="admin-toggle-label">Show welcome video</div>
+                        <div className="admin-toggle-hint">When off, modal shows without a video</div>
+                      </div>
+                      <ToggleSwitch on={settings.welcome_video_enabled}
+                        onChange={v => setSettings(s => ({ ...s, welcome_video_enabled: v }))} />
                     </div>
-                    <textarea rows={4} value={settings.welcome_message}
-                      onChange={e => setSettings(s => ({ ...s, welcome_message: e.target.value }))}
-                      className="admin-tall-textarea" />
-                  </div>
 
-                  <div className="field" style={{ gridColumn: '1 / -1' }}>
-                    <label>Video embed URL</label>
-                    <input type="url" value={settings.welcome_video_url}
-                      onChange={e => setSettings(s => ({ ...s, welcome_video_url: e.target.value }))}
-                      placeholder="https://www.youtube.com/embed/VIDEO_ID"
-                      disabled={!settings.welcome_video_enabled} />
-                    <span className="field-hint">YouTube embed format: youtube.com/embed/VIDEO_ID</span>
-                  </div>
+                    <div className="fgrid">
+                      <div className="field">
+                        <label>Modal title</label>
+                        <input type="text" value={settings.welcome_title}
+                          onChange={e => setSettings(s => ({ ...s, welcome_title: e.target.value }))}
+                          placeholder="Welcome to My Club Locator!" />
+                      </div>
 
-                  <div className="field" style={{ gridColumn: '1 / -1' }}>
-                    <label>Video placeholder URL <span className="field-optional">shown until you set a real video</span></label>
-                    <input type="url" value={settings.welcome_video_placeholder}
-                      onChange={e => setSettings(s => ({ ...s, welcome_video_placeholder: e.target.value }))}
-                      placeholder="https://www.youtube.com/embed/VIDEO_ID" />
-                    <span className="field-hint">Shown to new users when no video URL is set above</span>
-                  </div>
+                      <div className="field" style={{ gridColumn: '1 / -1' }}>
+                        <div className="admin-field-label-row">
+                          <label>Welcome message</label>
+                          <button className="admin-preview-btn" onClick={() => setPreviewModal('message')}>
+                            <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.2"/><circle cx="8" cy="6" r="1.2" fill="currentColor"/><line x1="8" y1="8.5" x2="8" y2="11.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>
+                            Preview
+                          </button>
+                        </div>
+                        <textarea rows={4} value={settings.welcome_message}
+                          onChange={e => setSettings(s => ({ ...s, welcome_message: e.target.value }))}
+                          className="admin-tall-textarea" />
+                      </div>
 
-                  <div className="field" style={{ gridColumn: '1 / -1' }}>
-                    <div className="admin-field-label-row">
-                      <label>Disclaimer text <span className="field-optional">shown to all users at bottom of modal</span></label>
-                      <button className="admin-preview-btn" onClick={() => setPreviewModal('disclaimer')}>
-                        <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.2"/><circle cx="8" cy="6" r="1.2" fill="currentColor"/><line x1="8" y1="8.5" x2="8" y2="11.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>
-                        Preview
-                      </button>
+                      <div className="field" style={{ gridColumn: '1 / -1' }}>
+                        <label>Video embed URL</label>
+                        <input type="url" value={settings.welcome_video_url}
+                          onChange={e => setSettings(s => ({ ...s, welcome_video_url: e.target.value }))}
+                          placeholder="https://www.youtube.com/embed/VIDEO_ID"
+                          disabled={!settings.welcome_video_enabled} />
+                        <span className="field-hint">YouTube embed format: youtube.com/embed/VIDEO_ID</span>
+                      </div>
+
+                      <div className="field" style={{ gridColumn: '1 / -1' }}>
+                        <label>Video placeholder URL <span className="field-optional">shown until you set a real video</span></label>
+                        <input type="url" value={settings.welcome_video_placeholder}
+                          onChange={e => setSettings(s => ({ ...s, welcome_video_placeholder: e.target.value }))}
+                          placeholder="https://www.youtube.com/embed/VIDEO_ID" />
+                        <span className="field-hint">Shown to new users when no video URL is set above</span>
+                      </div>
+
+                      <div className="field" style={{ gridColumn: '1 / -1' }}>
+                        <div className="admin-field-label-row">
+                          <label>Disclaimer text <span className="field-optional">shown to all users at bottom of modal</span></label>
+                          <button className="admin-preview-btn" onClick={() => setPreviewModal('disclaimer')}>
+                            <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.2"/><circle cx="8" cy="6" r="1.2" fill="currentColor"/><line x1="8" y1="8.5" x2="8" y2="11.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>
+                            Preview
+                          </button>
+                        </div>
+                        <textarea rows={4} value={settings.welcome_disclaimer}
+                          onChange={e => setSettings(s => ({ ...s, welcome_disclaimer: e.target.value }))}
+                          placeholder="Enter your disclaimer here — e.g. terms of use, membership rules, etc."
+                          className="admin-tall-textarea" />
+                        <span className="field-hint">Leave blank to show the default placeholder text until you're ready</span>
+                      </div>
                     </div>
-                    <textarea rows={4} value={settings.welcome_disclaimer}
-                      onChange={e => setSettings(s => ({ ...s, welcome_disclaimer: e.target.value }))}
-                      placeholder="Enter your disclaimer here — e.g. terms of use, membership rules, etc."
-                      className="admin-tall-textarea" />
-                    <span className="field-hint">Leave blank to show the default placeholder text until you're ready</span>
                   </div>
-                </div>
+                )}
               </div>
 
               {/* Member Approval */}
@@ -904,72 +917,82 @@ export default function AdminPage() {
               </div>
 
               {/* Login Welcome Messages */}
-              <div className="admin-section">
-                <h3 className="admin-section-title">Login Welcome Messages</h3>
-                <p className="admin-section-desc">Customize what members see on the screen immediately after logging in. Use <code>{'{name}'}</code> for the owner's first name and <code>{'{club}'}</code> for their club name. Toggle each message on or off independently.</p>
-
-                {[
-                  {
-                    enabledKey: 'login_msg_approved_enabled',
-                    textKey:    'login_msg_approved',
-                    label:      'Approved member message',
-                    audience:   'Shown to members whose club profile is complete and has been approved by you. These are your fully active club owners — the ones already live on the map. This is the most common login scenario.',
-                    placeholder: 'Welcome back, {name}! {club} is live on the map.',
-                    color:      '#0F6E56',
-                    bg:         '#E1F5EE',
-                  },
-                  {
-                    enabledKey: 'login_msg_pending_enabled',
-                    textKey:    'login_msg_pending',
-                    label:      'Pending approval message',
-                    audience:   'Shown to members who have set up their club profile but are still waiting for your approval. They can log in and use the app but won\'t appear on the map yet. Use this to set expectations while you review.',
-                    placeholder: "Welcome back, {name}! {club} is pending approval. You'll appear on the map once approved.",
-                    color:      '#854F0B',
-                    bg:         '#FEF3C7',
-                  },
-                  {
-                    enabledKey: 'login_msg_no_profile_enabled',
-                    textKey:    'login_msg_no_profile',
-                    label:      'No profile yet message',
-                    audience:   "Shown to members who completed the onboarding survey but haven't filled in their club profile yet. They signed up and answered the intro questions but stopped before adding their club's address, hours, and details.",
-                    placeholder: "Welcome back! Your club profile isn't set up yet. Finish setting it up to appear on the map.",
-                    color:      '#185FA5',
-                    bg:         '#EFF6FF',
-                  },
-                ].map(({ enabledKey, textKey, label, audience, placeholder, color, bg }) => (
-                  <div key={textKey} className="login-msg-block">
-                    <div className="login-msg-header">
-                      <div className="login-msg-label-wrap">
-                        <span className="login-msg-dot" style={{ background: color }} />
-                        <span className="admin-toggle-label">{label}</span>
-                      </div>
-                      <ToggleSwitch
-                        on={settings[enabledKey]}
-                        onChange={v => setSettings(s => ({ ...s, [enabledKey]: v }))}
-                      />
-                    </div>
-                    <div className="login-msg-audience" style={{ borderLeftColor: color, background: bg }}>
-                      <svg width="13" height="13" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0, marginTop: 1 }}>
-                        <circle cx="8" cy="8" r="6.5" stroke={color} strokeWidth="1.2"/>
-                        <circle cx="8" cy="5.5" r="1" fill={color}/>
-                        <line x1="8" y1="8" x2="8" y2="11.5" stroke={color} strokeWidth="1.2" strokeLinecap="round"/>
-                      </svg>
-                      <span style={{ color }}>{audience}</span>
-                    </div>
-                    {settings[enabledKey] && (
-                      <div style={{ marginTop: 8 }}>
-                        <textarea
-                          rows={3}
-                          className="admin-tall-textarea"
-                          value={settings[textKey]}
-                          onChange={e => setSettings(s => ({ ...s, [textKey]: e.target.value }))}
-                          placeholder={placeholder}
-                        />
-                        <span className="field-hint">Use <code style={{ fontSize: 11 }}>{'{name}'}</code> for first name · <code style={{ fontSize: 11 }}>{'{club}'}</code> for club name</span>
-                      </div>
-                    )}
+              <div className="admin-section" style={{ padding: 0, overflow: 'hidden' }}>
+                <button type="button" className="survey-toggle-btn" style={{ padding: '14px 20px' }} onClick={() => setLoginMsgsOpen(o => !o)}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
+                    <h3 className="admin-section-title" style={{ margin: 0 }}>Login Welcome Messages</h3>
                   </div>
-                ))}
+                  <svg className={`survey-chevron ${loginMsgsOpen ? 'open' : ''}`} width="14" height="14" viewBox="0 0 16 16" fill="none">
+                    <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+                {loginMsgsOpen && (
+                  <div style={{ padding: '0 20px 16px' }}>
+                    <p className="admin-section-desc" style={{ marginBottom: 14 }}>Customize what members see on the screen immediately after logging in. Use <code>{'{name}'}</code> for the owner's first name and <code>{'{club}'}</code> for their club name. Toggle each message on or off independently.</p>
+                    {[
+                      {
+                        enabledKey: 'login_msg_approved_enabled',
+                        textKey:    'login_msg_approved',
+                        label:      'Approved member message',
+                        audience:   'Shown to members whose club profile is complete and has been approved by you. These are your fully active club owners — the ones already live on the map. This is the most common login scenario.',
+                        placeholder: 'Welcome back, {name}! {club} is live on the map.',
+                        color:      '#0F6E56',
+                        bg:         '#E1F5EE',
+                      },
+                      {
+                        enabledKey: 'login_msg_pending_enabled',
+                        textKey:    'login_msg_pending',
+                        label:      'Pending approval message',
+                        audience:   'Shown to members who have set up their club profile but are still waiting for your approval. They can log in and use the app but won\'t appear on the map yet. Use this to set expectations while you review.',
+                        placeholder: "Welcome back, {name}! {club} is pending approval. You'll appear on the map once approved.",
+                        color:      '#854F0B',
+                        bg:         '#FEF3C7',
+                      },
+                      {
+                        enabledKey: 'login_msg_no_profile_enabled',
+                        textKey:    'login_msg_no_profile',
+                        label:      'No profile yet message',
+                        audience:   "Shown to members who completed the onboarding survey but haven't filled in their club profile yet. They signed up and answered the intro questions but stopped before adding their club's address, hours, and details.",
+                        placeholder: "Welcome back! Your club profile isn't set up yet. Finish setting it up to appear on the map.",
+                        color:      '#185FA5',
+                        bg:         '#EFF6FF',
+                      },
+                    ].map(({ enabledKey, textKey, label, audience, placeholder, color, bg }) => (
+                      <div key={textKey} className="login-msg-block">
+                        <div className="login-msg-header">
+                          <div className="login-msg-label-wrap">
+                            <span className="login-msg-dot" style={{ background: color }} />
+                            <span className="admin-toggle-label">{label}</span>
+                          </div>
+                          <ToggleSwitch
+                            on={settings[enabledKey]}
+                            onChange={v => setSettings(s => ({ ...s, [enabledKey]: v }))}
+                          />
+                        </div>
+                        <div className="login-msg-audience" style={{ borderLeftColor: color, background: bg }}>
+                          <svg width="13" height="13" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0, marginTop: 1 }}>
+                            <circle cx="8" cy="8" r="6.5" stroke={color} strokeWidth="1.2"/>
+                            <circle cx="8" cy="5.5" r="1" fill={color}/>
+                            <line x1="8" y1="8" x2="8" y2="11.5" stroke={color} strokeWidth="1.2" strokeLinecap="round"/>
+                          </svg>
+                          <span style={{ color }}>{audience}</span>
+                        </div>
+                        {settings[enabledKey] && (
+                          <div style={{ marginTop: 8 }}>
+                            <textarea
+                              rows={3}
+                              className="admin-tall-textarea"
+                              value={settings[textKey]}
+                              onChange={e => setSettings(s => ({ ...s, [textKey]: e.target.value }))}
+                              placeholder={placeholder}
+                            />
+                            <span className="field-hint">Use <code style={{ fontSize: 11 }}>{'{name}'}</code> for first name · <code style={{ fontSize: 11 }}>{'{club}'}</code> for club name</span>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Demographics */}
