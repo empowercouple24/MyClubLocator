@@ -279,6 +279,7 @@ function ClubMarkers({ locations, selectedId, userId, onSelect, navigate }) {
         marker.openTooltip()
       }
       const scheduleClose = () => {
+        if (closeTimer) clearTimeout(closeTimer)
         closeTimer = setTimeout(() => { marker.closeTooltip() }, 3000)
       }
       const cancelClose = () => {
@@ -291,19 +292,23 @@ function ClubMarkers({ locations, selectedId, userId, onSelect, navigate }) {
         .on('click', () => onSelect(loc))
         .on('mouseover', openTooltip)
         .on('mouseout', scheduleClose)
-        .on('tooltipopen', () => {
-          // Attach directory link click after tooltip renders
+        .on('tooltipopen', (ev) => {
+          // Attach hover + click listeners to the whole tooltip container
           setTimeout(() => {
-            const el = document.querySelector('.ct-dir-link')
-            if (el) {
-              // Keep tooltip open while hovering the link
-              el.addEventListener('mouseenter', cancelClose)
-              el.addEventListener('mouseleave', scheduleClose)
-              el.addEventListener('click', (e) => {
-                e.stopPropagation()
-                const name = decodeURIComponent(el.dataset.clubname || '')
-                navigate(`/app/directory?search=${encodeURIComponent(name)}`)
-              })
+            // ev.tooltip._container is the actual .leaflet-tooltip DOM node
+            const tooltipEl = ev.tooltip && ev.tooltip._container
+            if (tooltipEl) {
+              tooltipEl.addEventListener('mouseenter', cancelClose)
+              tooltipEl.addEventListener('mouseleave', scheduleClose)
+              // Directory link click
+              const el = tooltipEl.querySelector('.ct-dir-link')
+              if (el) {
+                el.addEventListener('click', (e) => {
+                  e.stopPropagation()
+                  const name = decodeURIComponent(el.dataset.clubname || '')
+                  navigate(`/app/directory?search=${encodeURIComponent(name)}`)
+                })
+              }
             }
           }, 50)
         })
