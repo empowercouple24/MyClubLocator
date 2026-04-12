@@ -6100,3 +6100,56 @@ body {
   letter-spacing: 0.04em;
   margin-top: 2px;
 }
+
+/* ── Member survey collapse ──────────────────────────────────── */
+.survey-toggle-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 1rem 1.5rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  border-bottom: 0.5px solid transparent;
+  transition: border-color 0.15s;
+}
+.survey-toggle-btn:hover {
+  background: #f8fdfb;
+}
+.survey-toggle-btn.open,
+.survey-toggle-btn:has(+ div) {
+  border-bottom-color: #e8f0ec;
+}
+
+.survey-progress-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 9px;
+  border-radius: 20px;
+  background: #FFF8EC;
+  color: #8B6000;
+  border: 0.5px solid #FFDFA0;
+  white-space: nowrap;
+}
+
+.survey-complete-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 9px;
+  border-radius: 20px;
+  background: #E1F5EE;
+  color: #0F6E56;
+  border: 0.5px solid #4CAF82;
+  white-space: nowrap;
+}
+
+.survey-chevron {
+  color: #aaa;
+  flex-shrink: 0;
+  transition: transform 0.2s;
+}
+.survey-chevron.open {
+  transform: rotate(180deg);
+}
