@@ -27,7 +27,8 @@ export async function reverseGeocode(lat, lng) {
   const vintages = ['Census2020_Current', 'Current_Current']
 
   for (const vintage of vintages) {
-    const url = `https://geocoding.geo.census.gov/geocoder/geographies/coordinates?x=${lng}&y=${lat}&benchmark=Public_AR_Current&vintage=${vintage}&layers=Counties,2020+ZIP+Code+Tabulation+Areas&format=json`
+    // Use our own proxy to avoid CORS block from Census Geocoder
+    const url = `/api/geocode?x=${lng}&y=${lat}&vintage=${vintage}`
 
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
