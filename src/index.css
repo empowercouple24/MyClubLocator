@@ -5143,7 +5143,7 @@ body {
 .gallery-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.92);
+  background: rgba(0,0,0,0.55);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -5153,7 +5153,7 @@ body {
 
 .gallery-modal {
   width: 100%;
-  max-width: 600px;
+  max-width: 900px;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -5165,7 +5165,7 @@ body {
   overflow: hidden;
   background: #1a1a1a;
   aspect-ratio: 4/3;
-  max-height: 60vh;
+  max-height: 80vh;
 }
 
 .gallery-main-img {
@@ -5231,8 +5231,8 @@ body {
 }
 
 .gallery-thumb {
-  width: 60px;
-  height: 60px;
+  width: 90px;
+  height: 90px;
   border-radius: 8px;
   overflow: hidden;
   cursor: pointer;
@@ -6051,3 +6051,16 @@ body {
 
 /* ── Tooltip min-width bump for richer content ───────────────── */
 .club-tooltip { min-width: 220px !important; max-width: 260px !important; }
+
+/* ── Demographics retry button ───────────────────────────────── */
+.demo-retry-btn {
+  margin-top: 8px;
+  padding: 6px 14px;
+  font-size: 13px;
+  background: #1A3C2E;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.demo-retry-btn:hover { opacity: 0.85; }

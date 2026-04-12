@@ -23,34 +23,40 @@ export const DEFAULT_ENABLED_FACTORS = Object.fromEntries(
 
 // Reverse geocode lat/lng to ZIP + county FIPS
 export async function reverseGeocode(lat, lng) {
-  const url = `https://geocoding.geo.census.gov/geocoder/geographies/coordinates?x=${lng}&y=${lat}&benchmark=Public_AR_Current&vintage=Current_Current&layers=all&format=json`
+  // Try two vintages for compatibility
+  const vintages = ['Census2020_Current', 'Current_Current']
 
-  // Try up to 3 times with a short delay
-  for (let attempt = 0; attempt < 3; attempt++) {
-    try {
-      const controller = new AbortController()
-      const timeout = setTimeout(() => controller.abort(), 8000)
-      const res  = await fetch(url, { signal: controller.signal })
-      clearTimeout(timeout)
-      const data = await res.json()
-      const result = data?.result?.geographies
-      const county = result?.Counties?.[0]
-      const zcta   = result?.['ZIP Code Tabulation Areas']?.[0]
+  for (const vintage of vintages) {
+    const url = `https://geocoding.geo.census.gov/geocoder/geographies/coordinates?x=${lng}&y=${lat}&benchmark=Public_AR_Current&vintage=${vintage}&layers=Counties,2020+ZIP+Code+Tabulation+Areas&format=json`
 
-      // Must have at least a county to proceed
-      if (!county) {
-        if (attempt < 2) { await new Promise(r => setTimeout(r, 800)); continue }
-        return null
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const controller = new AbortController()
+        const timeout = setTimeout(() => controller.abort(), 12000)
+        const res = await fetch(url, { signal: controller.signal })
+        clearTimeout(timeout)
+        if (!res.ok) { await new Promise(r => setTimeout(r, 600)); continue }
+        const data = await res.json()
+        const result = data?.result?.geographies
+        const county = result?.Counties?.[0]
+        const zcta = result?.['2020 ZIP Code Tabulation Areas']?.[0]
+          || result?.['ZIP Code Tabulation Areas']?.[0]
+          || result?.['2010 ZIP Code Tabulation Areas']?.[0]
+
+        if (!county) {
+          if (attempt < 1) { await new Promise(r => setTimeout(r, 600)); continue }
+          break
+        }
+
+        return {
+          zip:        zcta?.ZCTA5 || null,
+          countyFips: county.STATE + county.COUNTY,
+          countyName: county.NAME || null,
+          stateFips:  county.STATE || null,
+        }
+      } catch {
+        if (attempt < 1) await new Promise(r => setTimeout(r, 600))
       }
-
-      return {
-        zip:        zcta?.ZCTA5 || null,
-        countyFips: county ? county.STATE + county.COUNTY : null,
-        countyName: county?.NAME || null,
-        stateFips:  county?.STATE || null,
-      }
-    } catch {
-      if (attempt < 2) await new Promise(r => setTimeout(r, 800))
     }
   }
   return null
@@ -109,19 +115,25 @@ export async function fetchCountyData(stateFips, countyFips) {
 export async function fetchHealthData(stateFips, countyFips) {
   if (!stateFips || !countyFips) return null
   try {
-    const fips = countyFips
-    const url = `https://data.cdc.gov/resource/swc5-untb.json?stateabbr=${stateFips}&locationid=${fips}&$limit=10`
+    // CDC PLACES 2023 release — county level data
+    // countyFips is full 5-digit FIPS e.g. "17031"
+    const url = `https://data.cdc.gov/resource/swc5-untb.json?countyfips=${countyFips}&$limit=50`
     const res  = await fetch(url)
+    if (!res.ok) return null
     const data = await res.json()
     if (!data?.length) return null
     const measures = {}
-    data.forEach(row => { measures[row.measureid] = safeNum(row.data_value) })
+    data.forEach(row => {
+      const id = row.measureid || row.measure_id
+      const val = parseFloat(row.data_value ?? row.datavalue)
+      if (id && !isNaN(val)) measures[id] = val
+    })
     return {
-      obesity:      measures['OBESITY']    ?? null,
-      inactivity:   measures['LPA']        ?? null,
-      diabetes:     measures['DIABETES']   ?? null,
-      highBP:       measures['BPHIGH']     ?? null,
-      mentalHealth: measures['MHLTH']      ?? null,
+      obesity:      measures['OBESITY']    ?? measures['Obesity']    ?? null,
+      inactivity:   measures['LPA']        ?? measures['lpa']        ?? null,
+      diabetes:     measures['DIABETES']   ?? measures['Diabetes']   ?? null,
+      highBP:       measures['BPHIGH']     ?? measures['bphigh']     ?? null,
+      mentalHealth: measures['MHLTH']      ?? measures['mhlth']      ?? null,
     }
   } catch { return null }
 }

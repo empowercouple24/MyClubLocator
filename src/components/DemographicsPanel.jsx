@@ -300,7 +300,12 @@ export default function DemographicsPanel({ lat, lng, locations, enabledFactors,
     )
   }
 
-  if (error) return <div className="demo-error">{error}</div>
+  if (error) return (
+    <div className="demo-error">
+      <div>{error}</div>
+      <button className="demo-retry-btn" onClick={() => loadData(lat, lng)}>Try again</button>
+    </div>
+  )
   if (!zipData && !countyData) return <div className="demo-error">No census data found for this area.</div>
 
   const tags       = getSignalTags()

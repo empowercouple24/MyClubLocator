@@ -336,7 +336,7 @@ export default function ProfilePage() {
     setUploadingPhoto(true)
     const newUrls = [...photoUrls]
     for (const file of files) {
-      if (newUrls.length >= 6) break
+      if (newUrls.length >= 10) break
       const ext = file.name.split('.').pop()
       const path = user.id + '/photos/' + Date.now() + '-' + Math.random().toString(36).slice(2) + '.' + ext
       const { error } = await supabase.storage.from('club-photos').upload(path, file)
@@ -777,7 +777,7 @@ export default function ProfilePage() {
 
         <div className="photo-section" style={{ marginTop: 20 }}>
           <div className="photo-section-title">Club Photos</div>
-          <p className="upload-hint" style={{ marginBottom: 12 }}>Up to 6 photos. Drag to reorder — first photo is your cover.</p>
+          <p className="upload-hint" style={{ marginBottom: 12 }}>Up to 10 photos. Drag to reorder — first photo is your cover.</p>
           <div className="photos-grid">
             {photoUrls.map((url, i) => (
               <div
@@ -807,7 +807,7 @@ export default function ProfilePage() {
                 <button className="photo-remove-btn" onClick={() => setPhotoUrls(p => p.filter((_, idx) => idx !== i))}>✕</button>
               </div>
             ))}
-            {photoUrls.length < 6 && (
+            {photoUrls.length < 10 && (
               <button className="photo-add-tile" onClick={() => photoInputRef.current && photoInputRef.current.click()} disabled={uploadingPhoto}>
                 {uploadingPhoto ? '…' : '+'}
               </button>
