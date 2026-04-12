@@ -138,7 +138,7 @@ export default function DemographicsPanel({ lat, lng, locations, enabledFactors,
           .from('user_demo_preferences')
           .select('preferences')
           .eq('user_id', user.id)
-          .single()
+          .maybeSingle()
         setUserPrefs(data?.preferences || { ...DEFAULT_ENABLED_FACTORS })
       } catch {
         setUserPrefs({ ...DEFAULT_ENABLED_FACTORS })

@@ -51,9 +51,9 @@ export async function reverseGeocode(lat, lng) {
 
         return {
           zip:        zcta?.ZCTA5 || null,
-          countyFips: county.STATE + county.COUNTY,
+          countyFips: county.STATE.padStart(2,'0') + county.COUNTY.padStart(3,'0'),
           countyName: county.NAME || null,
-          stateFips:  county.STATE || null,
+          stateFips:  county.STATE.padStart(2,'0') || null,
         }
       } catch {
         if (attempt < 1) await new Promise(r => setTimeout(r, 600))
