@@ -19,7 +19,6 @@
   "devDependencies": {
     "@types/leaflet": "^1.9.8",
     "@vitejs/plugin-react": "^4.7.0",
-    "rollup": "^4.60.1",
     "vite": "^6.4.2"
   }
 }
