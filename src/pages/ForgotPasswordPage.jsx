@@ -2,10 +2,13 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
+
 export default function ForgotPasswordPage() {
-  const [email, setEmail] = useState('')
+  const [email, setEmail]     = useState('')
   const [message, setMessage] = useState('')
-  const [error, setError] = useState('')
+  const [error, setError]     = useState('')
   const [loading, setLoading] = useState(false)
 
   async function handleSubmit(e) {
@@ -14,15 +17,39 @@ export default function ForgotPasswordPage() {
     setMessage('')
     setLoading(true)
 
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`,
-    })
+    try {
+      // Check if email exists via Edge Function
+      const checkRes = await fetch(`${SUPABASE_URL}/functions/v1/check-email-exists`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify({ email }),
+      })
 
-    if (error) {
-      setError(error.message)
-    } else {
-      setMessage('Check your email for a password reset link.')
+      const { exists } = await checkRes.json()
+
+      if (!exists) {
+        setError('No account found with that email address. Please check and try again.')
+        setLoading(false)
+        return
+      }
+
+      // Email exists — send the reset link
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      })
+
+      if (resetError) {
+        setError(resetError.message)
+      } else {
+        setMessage('Check your email for a password reset link.')
+      }
+    } catch {
+      setError('Something went wrong. Please try again.')
     }
+
     setLoading(false)
   }
 
@@ -32,7 +59,7 @@ export default function ForgotPasswordPage() {
         <h1>Reset your password</h1>
         <p className="sub">Enter your email and we'll send you a reset link.</p>
 
-        {error && <div className="error-msg">{error}</div>}
+        {error   && <div className="error-msg">{error}</div>}
         {message && <div className="success-msg">{message}</div>}
 
         {!message && (
@@ -49,7 +76,7 @@ export default function ForgotPasswordPage() {
               />
             </div>
             <button className="btn-full" type="submit" disabled={loading}>
-              {loading ? 'Sending…' : 'Send reset link'}
+              {loading ? 'Checking…' : 'Send reset link'}
             </button>
           </form>
         )}

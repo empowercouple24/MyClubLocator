@@ -152,6 +152,11 @@ export default function ProfilePage() {
         if (data.owner_photo_url)  setOwnerPhotoUrl(data.owner_photo_url)
         if (data.owner2_photo_url) setOwner2PhotoUrl(data.owner2_photo_url)
         if (data.owner3_photo_url) setOwner3PhotoUrl(data.owner3_photo_url)
+      } else {
+        // New user — pre-fill club_email and owner_email from their auth email
+        if (user.email) {
+          setForm(f => ({ ...f, club_email: user.email, owner_email: user.email }))
+        }
       }
       setLoading(false)
     }
@@ -458,7 +463,12 @@ export default function ProfilePage() {
           <div className="pf" style={{ gridColumn: '1 / -1' }}>
             <label>Club email <span className="req-star">*</span></label>
             <input type="email" value={form.club_email} onChange={e => setField('club_email', e.target.value)}
-              placeholder="hello@yourclub.com" className={errors.club_email ? 'input-err' : ''} />
+              placeholder="hello@yourclub.com" className={errors.club_email ? 'input-err' : ''}
+              readOnly={!hasProfile && !!user?.email}
+              style={!hasProfile && user?.email ? { background: '#f8faf9', color: '#555', cursor: 'default' } : {}} />
+            {!hasProfile && user?.email && (
+              <span className="field-hint">Pre-filled from your account email — you can update this after saving</span>
+            )}
             {errors.club_email && <span className="field-err">{errors.club_email}</span>}
           </div>
           <div className="pf" style={{ gridColumn: '1 / -1' }}>

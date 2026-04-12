@@ -147,7 +147,9 @@ export default function AdminPage() {
   const [filterApproval, setFilterApproval] = useState('all') // all | approved | pending
   const [confirmRemove, setConfirmRemove] = useState(null)
   const [actionLoading, setActionLoading] = useState(null)
-  const [memberMsg, setMemberMsg]       = useState('')
+  const [memberMsg, setMemberMsg]         = useState('')
+  const [selectedMember, setSelectedMember] = useState(null)
+  const [sortBy, setSortBy]               = useState('joined_desc')
 
   // Settings state
   const [settings, setSettings] = useState({
@@ -307,9 +309,9 @@ export default function AdminPage() {
         <div>
           {/* Stats */}
           <div className="admin-stats-row">
-            <StatCard label="Total members" value={totalMembers} />
+            <StatCard label="Total members"    value={totalMembers} />
             <StatCard label="Profile complete" value={completeCount} color="#1A3C2E" />
-            <StatCard label="Incomplete" value={totalMembers - completeCount} color="#888" />
+            <StatCard label="Incomplete"       value={totalMembers - completeCount} color="#888" />
             <StatCard label="Pending approval" value={pendingCount} color={pendingCount > 0 ? '#e53e3e' : '#888'} />
           </div>
 
@@ -318,17 +320,23 @@ export default function AdminPage() {
             <input className="search-input" type="text" placeholder="Search name, city, owner…"
               value={searchMember} onChange={e => setSearchMember(e.target.value)}
               style={{ flex: 1, minWidth: 180 }} />
-            <select className="dir-sort" value={filterProfile}
-              onChange={e => setFilterProfile(e.target.value)}>
+            <select className="dir-sort" value={filterProfile} onChange={e => setFilterProfile(e.target.value)}>
               <option value="all">All profiles</option>
               <option value="complete">Complete</option>
               <option value="incomplete">Incomplete</option>
             </select>
-            <select className="dir-sort" value={filterApproval}
-              onChange={e => setFilterApproval(e.target.value)}>
+            <select className="dir-sort" value={filterApproval} onChange={e => setFilterApproval(e.target.value)}>
               <option value="all">All status</option>
               <option value="approved">Approved</option>
               <option value="pending">Pending</option>
+            </select>
+            <select className="dir-sort" value={sortBy} onChange={e => setSortBy(e.target.value)}>
+              <option value="joined_desc">Newest first</option>
+              <option value="joined_asc">Oldest first</option>
+              <option value="name_asc">Name A–Z</option>
+              <option value="name_desc">Name Z–A</option>
+              <option value="city_asc">City A–Z</option>
+              <option value="state_asc">State A–Z</option>
             </select>
           </div>
 
@@ -338,69 +346,257 @@ export default function AdminPage() {
             <div className="loading">Loading members…</div>
           ) : filteredMembers.length === 0 ? (
             <div className="loading" style={{ height: 80 }}>No members found.</div>
-          ) : (
-            <div className="admin-member-list">
-              {filteredMembers.map(m => {
-                const complete   = profileComplete(m)
-                const approved   = m.approved !== false
-                const ownerName  = [m.first_name, m.last_name].filter(Boolean).join(' ')
-                const isLoading  = actionLoading === m.id
-                const isMe       = m.user_id === user?.id
+          ) : (() => {
+            // Sort
+            const sorted = [...filteredMembers].sort((a, b) => {
+              if (sortBy === 'name_asc')    return (a.club_name||'').localeCompare(b.club_name||'')
+              if (sortBy === 'name_desc')   return (b.club_name||'').localeCompare(a.club_name||'')
+              if (sortBy === 'city_asc')    return (a.city||'').localeCompare(b.city||'')
+              if (sortBy === 'state_asc')   return (a.state||'').localeCompare(b.state||'')
+              if (sortBy === 'joined_asc')  return new Date(a.created_at) - new Date(b.created_at)
+              return new Date(b.created_at) - new Date(a.created_at)
+            })
 
-                return (
-                  <div key={m.id} className={`admin-member-row ${!approved ? 'pending-row' : ''}`}>
+            const DAYS = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday']
+            const DAY_LABELS = ['M','T','W','T','F','S','S']
 
-                    {/* Left: initials + info */}
-                    <div className="amr-left">
-                      <div className="amr-initials">
-                        {(m.club_name || 'CL').slice(0,2).toUpperCase()}
+            function HoursDots({ m }) {
+              return (
+                <div className="amt-hours-dots">
+                  {DAYS.map((d, i) => (
+                    <span key={d} className={`amt-dot ${m[`hours_${d}_open`] ? 'open' : 'closed'}`}
+                      title={d.charAt(0).toUpperCase() + d.slice(1)}>
+                      {DAY_LABELS[i]}
+                    </span>
+                  ))}
+                </div>
+              )
+            }
+
+            function MemberDetailModal({ m, onClose }) {
+              const complete  = profileComplete(m)
+              const approved  = m.approved !== false
+              const isMe      = m.user_id === user?.id
+              const isLoading = actionLoading === m.id
+              const ownerName = [m.first_name, m.last_name].filter(Boolean).join(' ')
+
+              return (
+                <div className="modal-overlay" onClick={onClose}>
+                  <div className="amt-detail-modal" onClick={e => e.stopPropagation()}>
+                    <div className="amt-detail-header">
+                      <div className="amt-detail-logo-wrap">
+                        {m.logo_url
+                          ? <img src={m.logo_url} alt="logo" className="amt-detail-logo" />
+                          : <div className="amt-detail-initials">{(m.club_name||'CL').slice(0,2).toUpperCase()}</div>
+                        }
                       </div>
-                      <div className="amr-info">
-                        <div className="amr-name">
-                          {m.club_name || <span style={{ color: '#aaa' }}>No club name</span>}
-                          {isMe && <span className="amr-you-badge">You</span>}
-                        </div>
-                        {ownerName && <div className="amr-owner">{ownerName}</div>}
-                        <div className="amr-meta">
-                          {m.city && <span>{m.city}{m.state ? `, ${m.state}` : ''}</span>}
-                          {m.created_at && <span>Joined {new Date(m.created_at).toLocaleDateString()}</span>}
-                        </div>
+                      <div style={{ flex: 1 }}>
+                        <div className="amt-detail-name">{m.club_name || 'Unnamed Club'} {isMe && <span className="amr-you-badge">You</span>}</div>
+                        <div className="amt-detail-sub">{ownerName}</div>
+                      </div>
+                      <button className="modal-close-btn" onClick={onClose}>✕</button>
+                    </div>
+
+                    <div className="amt-detail-body">
+                      <div className="amt-detail-grid">
+                        {m.club_email  && <><span className="amt-detail-label">Email</span><span>{m.club_email}</span></>}
+                        {m.club_phone  && <><span className="amt-detail-label">Phone</span><span>{m.club_phone}</span></>}
+                        {m.address     && <><span className="amt-detail-label">Address</span><span>{m.address}</span></>}
+                        {m.city        && <><span className="amt-detail-label">City/State</span><span>{m.city}{m.state ? `, ${m.state}` : ''} {m.zip || ''}</span></>}
+                        {m.website     && <><span className="amt-detail-label">Website</span><a href={m.website.startsWith('http') ? m.website : `https://${m.website}`} target="_blank" rel="noreferrer">{m.website}</a></>}
+                        {(m.opened_month || m.opened_year) && <><span className="amt-detail-label">Opened</span><span>{m.opened_month} {m.opened_year}</span></>}
+                        {m.created_at  && <><span className="amt-detail-label">Joined</span><span>{new Date(m.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span></>}
+                        {[m.owner2_first_name, m.owner2_last_name].filter(Boolean).join(' ') && (
+                          <><span className="amt-detail-label">Owner 2</span><span>{[m.owner2_first_name, m.owner2_last_name].filter(Boolean).join(' ')}</span></>
+                        )}
+                        {[m.owner3_first_name, m.owner3_last_name].filter(Boolean).join(' ') && (
+                          <><span className="amt-detail-label">Owner 3</span><span>{[m.owner3_first_name, m.owner3_last_name].filter(Boolean).join(' ')}</span></>
+                        )}
+                      </div>
+
+                      <div className="amt-detail-section-title">Hours</div>
+                      <div className="amt-detail-hours">
+                        {DAYS.map((d, i) => {
+                          const open  = m[`hours_${d}_open`]
+                          const close = m[`hours_${d}_close`]
+                          const fmt = t => {
+                            if (!t) return ''
+                            const [h, min] = t.split(':').map(Number)
+                            const p = h < 12 ? 'AM' : 'PM'
+                            const hr = h === 0 ? 12 : h > 12 ? h - 12 : h
+                            return `${hr}:${String(min).padStart(2,'0')} ${p}`
+                          }
+                          return (
+                            <div key={d} className={`amt-detail-hours-row ${!open ? 'closed' : ''}`}>
+                              <span className="amt-detail-day">{d.charAt(0).toUpperCase() + d.slice(1,3)}</span>
+                              <span>{open ? `${fmt(open)} – ${fmt(close)}` : 'Closed'}</span>
+                            </div>
+                          )
+                        })}
+                      </div>
+
+                      <div className="amt-detail-section-title">Social</div>
+                      <div className="amt-detail-social">
+                        {m.social_facebook  && <a href={m.social_facebook}  target="_blank" rel="noreferrer" className="cp-social-link">Facebook</a>}
+                        {m.social_instagram && <a href={m.social_instagram} target="_blank" rel="noreferrer" className="cp-social-link">Instagram</a>}
+                        {m.social_tiktok    && <a href={m.social_tiktok}    target="_blank" rel="noreferrer" className="cp-social-link">TikTok</a>}
+                        {m.social_youtube   && <a href={m.social_youtube}   target="_blank" rel="noreferrer" className="cp-social-link">YouTube</a>}
+                        {!m.social_facebook && !m.social_instagram && !m.social_tiktok && !m.social_youtube && (
+                          <span style={{ fontSize: 12, color: '#aaa' }}>None set</span>
+                        )}
+                      </div>
+
+                      <div className="amt-detail-badges">
+                        <span className={`amr-badge ${complete ? 'badge-complete' : 'badge-incomplete'}`}>{complete ? '✓ Complete' : '⚠ Incomplete'}</span>
+                        <span className={`amr-badge ${approved ? 'badge-approved' : 'badge-pending'}`}>{approved ? '✓ Approved' : '⏳ Pending'}</span>
                       </div>
                     </div>
 
-                    {/* Middle: badges */}
-                    <div className="amr-badges">
-                      <span className={`amr-badge ${complete ? 'badge-complete' : 'badge-incomplete'}`}>
-                        {complete ? '✓ Complete' : '⚠ Incomplete'}
-                      </span>
-                      <span className={`amr-badge ${approved ? 'badge-approved' : 'badge-pending'}`}>
-                        {approved ? '✓ Approved' : '⏳ Pending'}
-                      </span>
-                    </div>
-
-                    {/* Right: actions */}
                     {!isMe && (
-                      <div className="amr-actions">
+                      <div className="amt-detail-actions">
                         {!approved ? (
                           <button className="amr-btn amr-btn-approve" disabled={isLoading}
-                            onClick={() => handleApprove(m)}>
+                            onClick={() => { handleApprove(m); onClose() }}>
                             {isLoading ? '…' : 'Approve'}
                           </button>
                         ) : (
                           <button className="amr-btn amr-btn-revoke" disabled={isLoading}
-                            onClick={() => handleRevoke(m)}>
+                            onClick={() => { handleRevoke(m); onClose() }}>
                             {isLoading ? '…' : 'Revoke'}
                           </button>
                         )}
                         <button className="amr-btn amr-btn-remove" disabled={isLoading}
-                          onClick={() => setConfirmRemove(m)}>
+                          onClick={() => { setConfirmRemove(m); onClose() }}>
                           Remove
                         </button>
                       </div>
                     )}
                   </div>
-                )
-              })}
+                </div>
+              )
+            }
+
+            return (
+              <>
+                {selectedMember && (
+                  <MemberDetailModal m={selectedMember} onClose={() => setSelectedMember(null)} />
+                )}
+
+                {/* ── Desktop table ── */}
+                <div className="amt-table-wrap">
+                  <table className="amt-table">
+                    <thead>
+                      <tr>
+                        <th>Logo</th>
+                        <th>Club name</th>
+                        <th>Owner</th>
+                        <th>City / State</th>
+                        <th>Phone</th>
+                        <th>Email</th>
+                        <th>Opened</th>
+                        <th>Hours</th>
+                        <th>Status</th>
+                        <th>Joined</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sorted.map(m => {
+                        const complete  = profileComplete(m)
+                        const approved  = m.approved !== false
+                        const isMe      = m.user_id === user?.id
+                        const isLoading = actionLoading === m.id
+                        const ownerName = [m.first_name, m.last_name].filter(Boolean).join(' ')
+                        return (
+                          <tr key={m.id} className={!approved ? 'amt-row-pending' : ''}>
+                            <td>
+                              {m.logo_url
+                                ? <img src={m.logo_url} alt="logo" className="amt-logo-thumb" />
+                                : <div className="amt-initials-sm">{(m.club_name||'CL').slice(0,2).toUpperCase()}</div>
+                              }
+                            </td>
+                            <td className="amt-cell-name">
+                              {m.club_name || <span className="amt-empty">—</span>}
+                              {isMe && <span className="amr-you-badge" style={{ marginLeft: 4 }}>You</span>}
+                            </td>
+                            <td>{ownerName || <span className="amt-empty">—</span>}</td>
+                            <td>{m.city ? `${m.city}${m.state ? `, ${m.state}` : ''}` : <span className="amt-empty">—</span>}</td>
+                            <td>{m.club_phone || <span className="amt-empty">—</span>}</td>
+                            <td className="amt-cell-email">{m.club_email || <span className="amt-empty">—</span>}</td>
+                            <td>{m.opened_month && m.opened_year ? `${m.opened_month.slice(0,3)} ${m.opened_year}` : <span className="amt-empty">—</span>}</td>
+                            <td><HoursDots m={m} /></td>
+                            <td>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                                <span className={`amr-badge ${complete ? 'badge-complete' : 'badge-incomplete'}`} style={{ fontSize: 10, padding: '2px 6px' }}>
+                                  {complete ? '✓ Done' : '⚠ Incomplete'}
+                                </span>
+                                <span className={`amr-badge ${approved ? 'badge-approved' : 'badge-pending'}`} style={{ fontSize: 10, padding: '2px 6px' }}>
+                                  {approved ? '✓ Approved' : '⏳ Pending'}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="amt-cell-date">{m.created_at ? new Date(m.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' }) : '—'}</td>
+                            <td>
+                              {!isMe && (
+                                <div className="amt-actions">
+                                  {!approved ? (
+                                    <button className="amr-btn amr-btn-approve" style={{ fontSize: 11, padding: '3px 8px' }} disabled={isLoading} onClick={() => handleApprove(m)}>
+                                      {isLoading ? '…' : 'Approve'}
+                                    </button>
+                                  ) : (
+                                    <button className="amr-btn amr-btn-revoke" style={{ fontSize: 11, padding: '3px 8px' }} disabled={isLoading} onClick={() => handleRevoke(m)}>
+                                      {isLoading ? '…' : 'Revoke'}
+                                    </button>
+                                  )}
+                                  <button className="amr-btn amr-btn-remove" style={{ fontSize: 11, padding: '3px 8px' }} disabled={isLoading} onClick={() => setConfirmRemove(m)}>
+                                    Remove
+                                  </button>
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* ── Mobile cards ── */}
+                <div className="amt-mobile-list">
+                  {sorted.map(m => {
+                    const complete = profileComplete(m)
+                    const approved = m.approved !== false
+                    const ownerName = [m.first_name, m.last_name].filter(Boolean).join(' ')
+                    return (
+                      <div key={m.id} className="amt-mobile-card" onClick={() => setSelectedMember(m)}>
+                        <div className="amt-mobile-left">
+                          {m.logo_url
+                            ? <img src={m.logo_url} alt="logo" className="amt-logo-thumb" />
+                            : <div className="amt-initials-sm">{(m.club_name||'CL').slice(0,2).toUpperCase()}</div>
+                          }
+                        </div>
+                        <div className="amt-mobile-info">
+                          <div className="amt-mobile-name">{m.club_name || 'Unnamed Club'}</div>
+                          <div className="amt-mobile-sub">{ownerName}{m.city ? ` · ${m.city}${m.state ? `, ${m.state}` : ''}` : ''}</div>
+                        </div>
+                        <div className="amt-mobile-badges">
+                          <span className={`amr-badge ${complete ? 'badge-complete' : 'badge-incomplete'}`} style={{ fontSize: 10, padding: '2px 6px' }}>
+                            {complete ? '✓' : '⚠'}
+                          </span>
+                          <span className={`amr-badge ${approved ? 'badge-approved' : 'badge-pending'}`} style={{ fontSize: 10, padding: '2px 6px' }}>
+                            {approved ? '✓' : '⏳'}
+                          </span>
+                        </div>
+                        <span className="amt-mobile-arrow">›</span>
+                      </div>
+                    )
+                  })}
+                </div>
+              </>
+            )
+          })()}
+        </div>
+      )}
             </div>
           )}
         </div>

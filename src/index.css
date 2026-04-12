@@ -4111,3 +4111,298 @@ body {
   cursor: pointer;
 }
 .demo-prefs-save:hover { opacity: 0.88; }
+
+/* ── Admin members table ─────────────────────────────────── */
+.amt-table-wrap {
+  overflow-x: auto;
+  border: 1px solid #e4e9e6;
+  border-radius: 10px;
+  margin-top: 8px;
+}
+
+.amt-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  table-layout: fixed;
+  min-width: 900px;
+}
+
+.amt-table th {
+  text-align: left;
+  padding: 10px 10px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid #e4e9e6;
+  background: #f8faf9;
+  white-space: nowrap;
+}
+
+.amt-table td {
+  padding: 10px 10px;
+  border-bottom: 1px solid #f4f4f4;
+  vertical-align: middle;
+  color: #333;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.amt-table tr:last-child td { border-bottom: none; }
+.amt-table tr:hover td { background: #fafcfa; }
+.amt-row-pending td { background: #fffbf5; }
+.amt-row-pending:hover td { background: #fff8ee; }
+
+.amt-logo-thumb {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  object-fit: cover;
+  display: block;
+}
+
+.amt-initials-sm {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background: #1A3C2E;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.amt-cell-name  { font-weight: 500; color: #111; max-width: 140px; }
+.amt-cell-email { max-width: 160px; }
+.amt-cell-date  { white-space: nowrap; }
+.amt-empty      { color: #ccc; }
+
+.amt-hours-dots {
+  display: flex;
+  gap: 3px;
+}
+
+.amt-dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  font-size: 9px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.amt-dot.open   { background: #1A3C2E; color: #fff; }
+.amt-dot.closed { background: #fff; color: #ccc; border: 1px solid #e0e0e0; }
+
+.amt-actions {
+  display: flex;
+  gap: 4px;
+}
+
+/* ── Mobile cards ────────────────────────────────────────── */
+.amt-mobile-list {
+  display: none;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.amt-mobile-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #fff;
+  border: 1px solid #e4e9e6;
+  border-radius: 10px;
+  padding: 12px;
+  cursor: pointer;
+}
+.amt-mobile-card:hover { background: #f8faf9; }
+
+.amt-mobile-left { flex-shrink: 0; }
+
+.amt-mobile-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.amt-mobile-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: #111;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.amt-mobile-sub {
+  font-size: 12px;
+  color: #888;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.amt-mobile-badges {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.amt-mobile-arrow {
+  font-size: 18px;
+  color: #ccc;
+  flex-shrink: 0;
+}
+
+/* ── Member detail modal ─────────────────────────────────── */
+.amt-detail-modal {
+  background: #fff;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 500px;
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+.amt-detail-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 1.25rem;
+  border-bottom: 1px solid #f0f0f0;
+  position: sticky;
+  top: 0;
+  background: #fff;
+  z-index: 1;
+}
+
+.amt-detail-logo-wrap { flex-shrink: 0; }
+
+.amt-detail-logo {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  object-fit: cover;
+}
+
+.amt-detail-initials {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: #1A3C2E;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.amt-detail-name {
+  font-size: 16px;
+  font-weight: 500;
+  color: #111;
+}
+
+.amt-detail-sub {
+  font-size: 13px;
+  color: #888;
+  margin-top: 2px;
+}
+
+.modal-close-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #aaa;
+  font-size: 16px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  margin-left: auto;
+}
+.modal-close-btn:hover { background: #f4f4f4; color: #555; }
+
+.amt-detail-body {
+  padding: 1.25rem;
+}
+
+.amt-detail-grid {
+  display: grid;
+  grid-template-columns: 80px 1fr;
+  gap: 8px 12px;
+  margin-bottom: 1.25rem;
+  font-size: 13px;
+}
+
+.amt-detail-label {
+  color: #aaa;
+  font-size: 12px;
+  padding-top: 1px;
+}
+
+.amt-detail-section-title {
+  font-size: 11px;
+  font-weight: 500;
+  color: #aaa;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 8px;
+  margin-top: 4px;
+}
+
+.amt-detail-hours {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 1rem;
+}
+
+.amt-detail-hours-row {
+  display: flex;
+  gap: 10px;
+  font-size: 13px;
+  color: #333;
+}
+.amt-detail-hours-row.closed { color: #ccc; }
+
+.amt-detail-day {
+  width: 28px;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+.amt-detail-social {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 1rem;
+}
+
+.amt-detail-badges {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.amt-detail-actions {
+  display: flex;
+  gap: 8px;
+  padding: 1rem 1.25rem;
+  border-top: 1px solid #f0f0f0;
+}
+
+/* Responsive: hide table on mobile, show cards */
+@media (max-width: 768px) {
+  .amt-table-wrap  { display: none; }
+  .amt-mobile-list { display: flex; }
+}
