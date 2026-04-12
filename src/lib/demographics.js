@@ -116,25 +116,25 @@ export async function fetchCountyData(stateFips, countyFips) {
 export async function fetchHealthData(stateFips, countyFips) {
   if (!stateFips || !countyFips) return null
   try {
-    // CDC PLACES 2023 release — county level data
-    // countyFips is full 5-digit FIPS e.g. "17031"
-    const url = `https://data.cdc.gov/resource/swc5-untb.json?countyfips=${countyFips}&$limit=50`
+    // CDC PLACES 2024 release — county level data
+    // locationid is the 5-digit county FIPS e.g. "17031"
+    const url = `https://data.cdc.gov/resource/swc5-untb.json?locationid=${countyFips}&$limit=100`
     const res  = await fetch(url)
     if (!res.ok) return null
     const data = await res.json()
     if (!data?.length) return null
     const measures = {}
     data.forEach(row => {
-      const id = row.measureid || row.measure_id
-      const val = parseFloat(row.data_value ?? row.datavalue)
+      const id  = row.measureid || row.MeasureId
+      const val = parseFloat(row.data_value ?? row.Data_Value)
       if (id && !isNaN(val)) measures[id] = val
     })
     return {
-      obesity:      measures['OBESITY']    ?? measures['Obesity']    ?? null,
-      inactivity:   measures['LPA']        ?? measures['lpa']        ?? null,
-      diabetes:     measures['DIABETES']   ?? measures['Diabetes']   ?? null,
-      highBP:       measures['BPHIGH']     ?? measures['bphigh']     ?? null,
-      mentalHealth: measures['MHLTH']      ?? measures['mhlth']      ?? null,
+      obesity:    measures['OBESITY']   ?? measures['CASTHMA'] ?? null,
+      inactivity: measures['LPA']       ?? null,
+      diabetes:   measures['DIABETES']  ?? null,
+      highBP:     measures['BPHIGH']    ?? null,
+      mentalHealth: measures['MHLTH']   ?? null,
     }
   } catch { return null }
 }
