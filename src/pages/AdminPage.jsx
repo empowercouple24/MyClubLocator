@@ -2,6 +2,8 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
+import mapPreviewStreets from '../assets/map-preview-streets.png'
+import mapPreviewSatellite from '../assets/map-preview-satellite.png'
 
 const TABS = ['settings', 'access', 'contacts', 'members', 'teams']
 
@@ -244,6 +246,7 @@ export default function AdminPage() {
   const [loginMsgsOpen, setLoginMsgsOpen]       = useState(false)
   const [finderMsgsOpen, setFinderMsgsOpen]     = useState(false)
   const [markerColorsOpen, setMarkerColorsOpen] = useState(false)
+  const [previewBasemap, setPreviewBasemap] = useState('streets')
 
   // Contacts state
   const [contacts, setContacts]             = useState([])
@@ -1177,16 +1180,29 @@ export default function AdminPage() {
 
                     {/* Live preview */}
                     <div className="mc-preview-wrap">
-                      <div className="mc-preview-label">Preview</div>
-                      <div className="mc-preview-map">
-                        {/* Faux map tiles */}
-                        <div className="mc-map-bg">
-                          <div className="mc-road mc-road--h" style={{ top: '38%' }} />
-                          <div className="mc-road mc-road--h" style={{ top: '65%' }} />
-                          <div className="mc-road mc-road--v" style={{ left: '30%' }} />
-                          <div className="mc-road mc-road--v" style={{ left: '62%' }} />
-                          <div className="mc-road mc-road--v" style={{ left: '80%' }} />
+                      <div className="mc-preview-label-row">
+                        <div className="mc-preview-label">Preview</div>
+                        <div className="mc-basemap-toggle">
+                          <button
+                            className={`mc-basemap-btn ${previewBasemap === 'streets' ? 'active' : ''}`}
+                            onClick={() => setPreviewBasemap('streets')}
+                          >Map</button>
+                          <button
+                            className={`mc-basemap-btn ${previewBasemap === 'satellite' ? 'active' : ''}`}
+                            onClick={() => setPreviewBasemap('satellite')}
+                          >Satellite</button>
                         </div>
+                      </div>
+                      <div className="mc-preview-map">
+                        {/* Real map background */}
+                        <div
+                          className="mc-map-bg"
+                          style={{
+                            backgroundImage: `url(${previewBasemap === 'streets' ? mapPreviewStreets : mapPreviewSatellite})`,
+                            backgroundSize: 'cover',
+                            backgroundPosition: 'center',
+                          }}
+                        />
                         {/* Markers */}
                         {[
                           { label: 'My club',      color: settings.marker_color_own,      x: '28%', y: '35%', size: 22, pulse: true },

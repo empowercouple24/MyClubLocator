@@ -52,7 +52,10 @@ export default function PhotoGallery({ photos, startIndex = 0, onClose }) {
 
         {/* Thumbnails */}
         {photos.length > 1 && (
-          <div className="gallery-thumbs">
+          <div
+            className="gallery-thumbs"
+            style={{ '--thumb-count': photos.length }}
+          >
             {photos.map((url, i) => (
               <div
                 key={i}
