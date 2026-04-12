@@ -362,7 +362,11 @@ export default function MapPage() {
   const [demoActive, setDemoActive]   = useState(false)
   const [demoLat, setDemoLat]         = useState(null)
   const [demoLng, setDemoLng]         = useState(null)
-  const defaultEnabledFactors = { population: true, income: true, ageFit: true, poverty: true, competition: true }
+  const defaultEnabledFactors = {
+    population: true, income: true, ageFit: true, medianAge: true,
+    poverty: true, competition: true, health: true, spending: true,
+    growth: true, commute: true, competitors: true,
+  }
   const [enabledFactors] = useState(defaultEnabledFactors)
 
   // Panel position — per user, stored in localStorage, default 'right'

@@ -165,6 +165,12 @@ export default function AdminPage() {
     demo_competition: true,
     demo_unemployment: true,
     demo_households: true,
+    demo_median_age: true,
+    demo_health: true,
+    demo_spending: true,
+    demo_growth: true,
+    demo_commute: true,
+    demo_competitors: true,
   })
   const [loadingSettings, setLoadingSettings] = useState(true)
   const [savingSettings, setSavingSettings]   = useState(false)
@@ -491,19 +497,23 @@ export default function AdminPage() {
               {/* Demographics */}
               <div className="admin-section">
                 <h3 className="admin-section-title">Demographics — Market Data</h3>
-                <p className="admin-section-desc">Control which data points are visible to members and factor into the market score.</p>
+                <p className="admin-section-desc">Control which data categories are visible to members. Members can further customize their own view within what you enable here.</p>
 
                 {[
-                  { key: 'demo_population',    label: 'Population',              hint: 'Total population & households' },
-                  { key: 'demo_income',         label: 'Income & Economics',      hint: 'Median income, per capita income' },
-                  { key: 'demo_age_fit',        label: 'Age Fit (18–49)',         hint: 'Core nutrition club demographic — factors into score' },
-                  { key: 'demo_poverty',        label: 'Poverty Rate',            hint: 'Factors into score (lower = better market)' },
-                  { key: 'demo_unemployment',   label: 'Unemployment Rate',       hint: 'Shown as context' },
-                  { key: 'demo_households',     label: 'Household Data',          hint: 'Household count & average size' },
-                  { key: 'demo_competition',    label: 'Club Competition',        hint: 'Nearby clubs, saturation — factors into score' },
+                  { key: 'demo_population',  label: 'Population',            hint: 'Total population, household count, and average household size for the ZIP code. Higher population means more potential customers walking past your door.' },
+                  { key: 'demo_income',      label: 'Income & Economics',    hint: 'Median household income, per capita income, poverty rate, and unemployment rate. Higher income areas tend to support premium nutrition products better.' },
+                  { key: 'demo_age_fit',     label: 'Age Fit (18–49)',       hint: 'The percentage of the population aged 18–49 — the core demographic for nutrition clubs. A higher percentage means more of your ideal customers live nearby.' },
+                  { key: 'demo_median_age',  label: 'Median Age',            hint: 'The median age of the local population. Useful context alongside the 18–49 age fit percentage to understand the full age profile of an area.' },
+                  { key: 'demo_poverty',     label: 'Poverty Rate',          hint: 'The percentage of residents living below the poverty line. Lower poverty rates generally indicate stronger discretionary spending on health products.' },
+                  { key: 'demo_competition', label: 'Club Competition',      hint: 'The number of registered nutrition clubs within a 10-mile radius, plus a saturation score. Fewer clubs = more opportunity for your location.' },
+                  { key: 'demo_health',      label: 'Health Indicators',     hint: 'CDC PLACES data showing obesity rate, physical inactivity, diabetes, and high blood pressure rates. Higher rates often indicate stronger demand for nutrition interventions.' },
+                  { key: 'demo_spending',    label: 'Consumer Spending',     hint: 'Estimated household spending on health, fitness, and food. Higher health spending signals a more receptive market for nutrition products.' },
+                  { key: 'demo_growth',      label: 'Population Growth',     hint: 'Whether the local population is growing, stable, or declining. Growing areas represent expanding future customer bases.' },
+                  { key: 'demo_commute',     label: 'Commute & Walkability', hint: 'How residents get to work — walking, driving, transit. High foot-traffic and walkable areas tend to drive more spontaneous drop-ins.' },
+                  { key: 'demo_competitors', label: 'Nearby Competitors',    hint: 'Gyms, fitness centers, yoga studios, and health food stores from OpenStreetMap. More fitness businesses nearby = more health-conscious population.' },
                 ].map(({ key, label, hint }) => (
                   <div className="admin-toggle-row" key={key} style={{ paddingBottom: 12, marginBottom: 12, borderBottom: '1px solid #f4f4f4' }}>
-                    <div>
+                    <div style={{ flex: 1, paddingRight: 12 }}>
                       <div className="admin-toggle-label">{label}</div>
                       <div className="admin-toggle-hint">{hint}</div>
                     </div>
