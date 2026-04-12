@@ -15,7 +15,6 @@ import AdminPage from './pages/AdminPage'
 
 function RequireAuth({ children }) {
   const { session } = useAuth()
-  if (session === undefined) return <div className="loading">Loading…</div>
   if (!session) return <Navigate to="/" replace />
   return children
 }
