@@ -1308,11 +1308,11 @@ body {
 .my-club-card {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   background: #f0faf5;
   border: 1px solid #c8e8d8;
-  border-radius: 10px;
-  padding: 10px 12px;
+  border-radius: 8px;
+  padding: 7px 10px;
 }
 
 .my-club-card.my-club-empty {
@@ -1322,20 +1322,20 @@ body {
 }
 
 .mcc-logo {
-  width: 40px;
-  height: 40px;
-  border-radius: 8px;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
   object-fit: cover;
   flex-shrink: 0;
 }
 
 .mcc-initials {
-  width: 40px;
-  height: 40px;
-  border-radius: 8px;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
   background: #1A3C2E;
   color: #fff;
-  font-size: 14px;
+  font-size: 11px;
   font-weight: 700;
   display: flex;
   align-items: center;
@@ -1344,24 +1344,24 @@ body {
 }
 
 .mcc-icon {
-  font-size: 24px;
+  font-size: 18px;
   flex-shrink: 0;
 }
 
 .mcc-info { flex: 1; min-width: 0; }
-.mcc-name { font-size: 13px; font-weight: 700; color: #1A1A1A; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.mcc-loc  { font-size: 11px; color: #888; margin-top: 1px; }
-.mcc-since { font-size: 11px; color: #4CAF82; margin-top: 1px; }
+.mcc-name { font-size: 12px; font-weight: 700; color: #1A1A1A; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mcc-loc  { font-size: 10px; color: #888; margin-top: 1px; }
+.mcc-since { font-size: 10px; color: #4CAF82; margin-top: 1px; }
 
 .mcc-edit-btn {
   background: none;
   border: none;
   cursor: pointer;
-  font-size: 16px;
+  font-size: 13px;
   flex-shrink: 0;
   opacity: 0.7;
   transition: opacity 0.15s;
-  padding: 4px;
+  padding: 2px;
 }
 .mcc-edit-btn:hover { opacity: 1; }
 

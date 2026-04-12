@@ -993,10 +993,10 @@ export default function ProfilePage() {
         {[
           { key: 'story_why',               label: 'Why did you decide to open your club?' },
           { key: 'story_favorite_part',     label: 'What is your favorite part of club ownership?' },
+          { key: 'story_before',            label: 'What did you do for work (your former occupation) before owning your club?' },
+          { key: 'story_goal',              label: 'What is your next big goal in Herbalife?' },
           { key: 'story_favorite_products', label: 'What are your favorite products?' },
           { key: 'story_unique',            label: 'What is something unique and interesting about yourself?' },
-          { key: 'story_before',            label: 'What did you do for work (your former occupation) before owning a club?' },
-          { key: 'story_goal',              label: 'By owning a club, what is your next big future goal in Herbalife?' },
         ].map(({ key, label }) => (
           <div className="pf story-field" key={key}>
             <label>{label}</label>
