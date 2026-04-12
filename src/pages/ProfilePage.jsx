@@ -120,6 +120,10 @@ export default function ProfilePage() {
   const [toast, setToast]       = useState('')
   const [errors, setErrors]     = useState({})
   const [hasProfile, setHasProfile] = useState(false)
+  const savedFormRef = useRef(null)  // snapshot of last saved form
+  const isDirty = savedFormRef.current !== null
+    ? JSON.stringify(form) !== JSON.stringify(savedFormRef.current)
+    : false
   const [showOwner2, setShowOwner2] = useState(false)
   const [showOwner3, setShowOwner3] = useState(false)
   const [zipLooking, setZipLooking] = useState(false)
@@ -222,6 +226,7 @@ export default function ProfilePage() {
         const f = { ...DEFAULT_FORM }
         Object.keys(DEFAULT_FORM).forEach(k => { if (data[k] != null) f[k] = data[k] })
         setForm(f)
+        savedFormRef.current = f  // snapshot on load
         if (data.owner2_first_name) setShowOwner2(true)
         if (data.owner3_first_name) setShowOwner3(true)
         if (data.logo_url) setLogoUrl(data.logo_url)
@@ -431,6 +436,7 @@ export default function ProfilePage() {
     }
 
     setHasProfile(true)
+    savedFormRef.current = { ...form }  // snapshot after save
     if (action === 'map') {
       navigate('/app/map')
     } else {
@@ -1180,13 +1186,25 @@ export default function ProfilePage() {
       })()}
 
       {/* Sticky Save Bar */}
-      <div className="save-bar save-bar--sticky">
-        <button className="btn-save" onClick={() => handleSave('save')} disabled={saving && saveAction === 'save'}>
-          {saving && saveAction === 'save' ? 'Saving…' : 'Save My Profile'}
-        </button>
-        <button className="btn-save-map" onClick={() => handleSave('map')} disabled={saving && saveAction === 'map'}>
-          {saving && saveAction === 'map' ? 'Saving…' : 'Save & Return to Map'}
-        </button>
+      <div className={`save-bar save-bar--sticky ${isDirty ? 'save-bar--dirty' : ''}`}>
+        {isDirty && (
+          <div className="save-bar-alert">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+              <circle cx="8" cy="8" r="7" stroke="#B45309" strokeWidth="1.5"/>
+              <path d="M8 5v4" stroke="#B45309" strokeWidth="1.5" strokeLinecap="round"/>
+              <circle cx="8" cy="11.5" r="0.75" fill="#B45309"/>
+            </svg>
+            Unsaved changes
+          </div>
+        )}
+        <div className="save-bar-btns">
+          <button className="btn-save" onClick={() => handleSave('save')} disabled={saving && saveAction === 'save'}>
+            {saving && saveAction === 'save' ? 'Saving…' : 'Save My Profile'}
+          </button>
+          <button className="btn-save-map" onClick={() => handleSave('map')} disabled={saving && saveAction === 'map'}>
+            {saving && saveAction === 'map' ? 'Saving…' : 'Save & Return to Map'}
+          </button>
+        </div>
       </div>
 
       {/* Spacer so last card clears the sticky bar */}

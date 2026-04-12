@@ -214,6 +214,10 @@ export default function AdminPage() {
   const [loadingSettings, setLoadingSettings] = useState(true)
   const [savingSettings, setSavingSettings]   = useState(false)
   const [savedSettings, setSavedSettings]     = useState(false)
+  const savedSettingsRef = useRef(null)
+  const isSettingsDirty = savedSettingsRef.current !== null
+    ? JSON.stringify(settings) !== JSON.stringify(savedSettingsRef.current)
+    : false
   const [previewModal, setPreviewModal]       = useState(null) // 'message' | 'disclaimer' | null
 
   // Contacts state
@@ -289,7 +293,9 @@ export default function AdminPage() {
   async function loadSettings() {
     const { data } = await supabase.from('app_settings').select('*').eq('id', 1).single()
     if (data) {
-      setSettings(s => ({ ...s, ...data }))
+      const merged = { ...settings, ...data }
+      setSettings(merged)
+      savedSettingsRef.current = merged
       if (data.col_widths) {
         try { setColWidths(JSON.parse(data.col_widths)) } catch {}
       }
@@ -379,7 +385,35 @@ export default function AdminPage() {
 
   async function handleSaveSettings() {
     setSavingSettings(true)
-    await supabase.from('app_settings').upsert({ id: 1, ...settings }, { onConflict: 'id' })
+    const payload = {
+      id: 1,
+      welcome_video_enabled:      settings.welcome_video_enabled,
+      welcome_video_url:          settings.welcome_video_url,
+      welcome_video_placeholder:  settings.welcome_video_placeholder,
+      welcome_title:              settings.welcome_title,
+      welcome_message:            settings.welcome_message,
+      welcome_disclaimer:         settings.welcome_disclaimer,
+      require_approval:           settings.require_approval,
+      demo_population:            settings.demo_population,
+      demo_income:                settings.demo_income,
+      demo_age_fit:               settings.demo_age_fit,
+      demo_poverty:               settings.demo_poverty,
+      demo_competition:           settings.demo_competition,
+      demo_unemployment:          settings.demo_unemployment,
+      demo_households:            settings.demo_households,
+      demo_median_age:            settings.demo_median_age,
+      demo_health:                settings.demo_health,
+      demo_spending:              settings.demo_spending,
+      demo_growth:                settings.demo_growth,
+      demo_commute:               settings.demo_commute,
+      demo_competitors:           settings.demo_competitors,
+      col_widths:                 JSON.stringify(colWidths),
+    }
+    const { error } = await supabase
+      .from('app_settings')
+      .upsert(payload, { onConflict: 'id' })
+    if (error) console.error('Settings save error:', error)
+    savedSettingsRef.current = { ...settings }
     setSavingSettings(false)
     setSavedSettings(true)
     setTimeout(() => setSavedSettings(false), 3000)
@@ -858,11 +892,26 @@ export default function AdminPage() {
                 ))}
               </div>
 
-              <div className="profile-actions" style={{ marginTop: 8 }}>
+              <div className="profile-actions" style={{ marginTop: 8, marginBottom: 80 }}>
                 {savedSettings && <span className="save-confirm">✓ Settings saved</span>}
-                <button className="btn-save" onClick={handleSaveSettings} disabled={savingSettings}>
-                  {savingSettings ? 'Saving…' : 'Save Settings'}
-                </button>
+              </div>
+              {/* Sticky save bar */}
+              <div className={`save-bar save-bar--sticky ${isSettingsDirty ? 'save-bar--dirty' : ''}`}>
+                {isSettingsDirty && (
+                  <div className="save-bar-alert">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                      <circle cx="8" cy="8" r="7" stroke="#B45309" strokeWidth="1.5"/>
+                      <path d="M8 5v4" stroke="#B45309" strokeWidth="1.5" strokeLinecap="round"/>
+                      <circle cx="8" cy="11.5" r="0.75" fill="#B45309"/>
+                    </svg>
+                    Unsaved changes
+                  </div>
+                )}
+                <div className="save-bar-btns">
+                  <button className="btn-save" onClick={handleSaveSettings} disabled={savingSettings}>
+                    {savingSettings ? 'Saving…' : 'Save Settings'}
+                  </button>
+                </div>
               </div>
             </>
           )}

@@ -1,257 +1,334 @@
 # My Club Locator — Session Summary
-**Last updated:** April 11, 2026
-**Sessions completed:** 04
+**Last updated:** April 12, 2026  
+**Live URL:** https://myclublocator.com  
+**Vercel project:** clubregistry (empowercouple24s-projects)  
+**Supabase URL:** https://ulezfnzqwebkupgxqprs.supabase.co  
+**GitHub repo:** Private — clubregistry  
+**Admin user ID:** ed1f34a7-7838-4d01-a29c-63220c43e9f1  
+**Brevo SMTP:** smtp-relay.brevo.com:587, login: empowercouple24@gmail.com  
+**Brevo API key:** stored in Vercel environment variables as VITE_BREVO_API_KEY  
+**support@myclublocator.com** forwards to empowercouple24@gmail.com via Namecheap
 
 ---
 
-## ⚡ Core Development Principles
-
-These apply to every session, every feature, every file:
-
-1. **Mobile-first always** — Design and build for small screens first. Desktop is an enhancement, not the baseline. Every component, layout, and interaction must work well on a phone before anything else.
-2. **Always deliver the full zip** — After every meaningful update, Claude delivers the complete `my-club-locator.zip` containing the full repo. This makes GitHub uploads straightforward.
-3. **Ask before building** — Before starting any new feature, Claude confirms the user is ready to build. No surprises.
-4. **Session summary stays current** — This file is updated at the end of every session to reflect the true current state of the app, pending items, and any config steps needed.
+## Tech Stack
+React + Vite | Supabase (auth + DB + RLS) | Leaflet maps | OpenStreetMap Nominatim | US Census ACS API | CDC PLACES | Vercel hosting | Brevo email
 
 ---
 
-## Project overview
-
-**My Club Locator** is a private, login-gated web app for independently owned nutrition club operators. Each member registers their location via a profile page. All registered locations appear as pins on a shared interactive map. Built for Jeffrey's network marketing sales organization.
-
-**Live URL:** https://clubregistry.vercel.app
-**Vercel project:** https://vercel.com/empowercouple24s-projects/clubregistry
-**Supabase URL:** https://ulezfnzqwebkupgxqprs.supabase.co
-**Supabase account:** Separate second account (not Jeffrey's primary)
-**GitHub repo:** Private — clubregistry
-**Admin user ID:** ed1f34a7-7838-4d01-a29c-63220c43e9f1
-
----
-
-## Tech stack
-
-| Layer | Choice |
-|---|---|
-| Frontend | React + Vite |
-| Auth + Database | Supabase |
-| Mapping | Leaflet (react-leaflet) |
-| Geocoding | OpenStreetMap Nominatim (free, no key) |
-| Demographics | US Census ACS 2022 API (free, no key) |
-| Hosting | Vercel |
-| Email (SMTP) | Resend (configured) |
-
----
-
-## Current file structure
-
+## File Structure
 ```
-clubregistry-main/
-├── index.html
-├── vite.config.js
-├── package.json
-├── vercel.json
-├── supabase-schema.sql
-├── DEPLOY.md
-├── SESSION_SUMMARY.md
-└── src/
-    ├── main.jsx
-    ├── App.jsx
-    ├── index.css
-    ├── lib/
-    │   ├── supabase.js
-    │   ├── AuthContext.jsx          ← isAdmin flag, Jeffrey's user ID set
-    │   └── demographics.js          ← Census API service, market score calc
-    ├── components/
-    │   ├── Layout.jsx               ← UpdateBanner, WelcomeModal, Admin nav
-    │   ├── UpdateBanner.jsx         ← 15s GitHub deploy check
-    │   ├── WelcomeModal.jsx         ← First-login modal, reads from Supabase
-    │   ├── TimePicker.jsx           ← Custom 15-min interval time picker
-    │   ├── AddressAutocomplete.jsx  ← Live address lookup as-you-type
-    │   └── DemographicsPanel.jsx    ← Market data widget for map panel
-    └── pages/
-        ├── LoginPage.jsx            ← Eye toggle, forgot password link
-        ├── SignupPage.jsx           ← Eye toggle
-        ├── ForgotPasswordPage.jsx
-        ├── ResetPasswordPage.jsx
-        ├── MapPage.jsx              ← Full rewrite: always-visible panel, demo toggle
-        ├── DirectoryPage.jsx        ← Rich cards: logo, owners, hours, socials
-        ├── ProfilePage.jsx          ← Full profile flow: owners, photos, story
-        └── AdminPage.jsx            ← Members tab + Settings tab
+src/
+  pages/
+    LandingPage.jsx
+    LoginPage.jsx
+    SignupPage.jsx
+    OnboardingPage.jsx        ← NEW this session
+    MapPage.jsx
+    DirectoryPage.jsx         ← Major rewrite this session
+    ProfilePage.jsx           ← Major updates this session
+    AdminPage.jsx             ← Major updates this session
+    ResetPasswordPage.jsx
+    ForgotPasswordPage.jsx
+    PrivacyPage.jsx
+  components/
+    Layout.jsx
+    UpdateBanner.jsx
+    WelcomeModal.jsx
+    TimePicker.jsx
+    AddressAutocomplete.jsx
+    MapSearchAutocomplete.jsx
+    DemographicsPanel.jsx
+    CropModal.jsx
+    PhotoGallery.jsx
+  lib/
+    supabase.js
+    AuthContext.jsx
+    demographics.js
+  App.jsx
+  index.css
+  main.jsx
 ```
 
 ---
 
-## What's been built (cumulative)
-
-### Auth
-- ✅ Email + password login and signup
-- ✅ Password visibility toggle on all password fields
-- ✅ Forgot password / reset password flow
-- ✅ Custom branded HTML email templates (signup confirm, password reset, email change)
-- ✅ SMTP via Resend (no rate limits)
-- ✅ Admin role detection via user ID in AuthContext
-
-### Map (major overhaul)
-- ✅ Always-visible dashboard panel (never hides)
-- ✅ Panel position per user: Left / Right / Bottom — saved to localStorage, defaults Right
-- ✅ Pinned "My Club" card always at top of panel (logo, name, city, since date, edit button)
-- ✅ Dynamic club detail fills bottom section on pin click
-- ✅ Club detail shows: logo/initials, all owners, contact, hours (formatted AM/PM), social links
-- ✅ "Manage My Club" CTA only shows when viewing your own club
-- ✅ City/state filter with geocoding (search bar)
-- ✅ Radius search: presets (1/2/5/10 mi) + custom — lives in club detail section
-- ✅ Base map toggle: Clean / Street / Aerial / Topo
-- ✅ Hover tooltip on pins: club name, owner, address
-- ✅ Unapproved clubs hidden from map
-- ✅ Real-time updates via Supabase subscription
-
-### Demographics / Market Data
-- ✅ 📊 Market Data toggle button in map toolbar
-- ✅ Click-to-load: prompts "select an area", loads on map click
-- ✅ Reverse geocodes click to ZIP + county via Census geocoder
-- ✅ Fetches ZIP-level: population, income, poverty rate, unemployment, households
-- ✅ Fetches county-level: age breakdown, per capita income, age fit % (18–49)
-- ✅ Auto-weighted market score → letter grade (A+ through F) + numeric score subtitle
-- ✅ Signal tags: "Strong income", "Great age fit", "2 clubs nearby", etc.
-- ✅ Club competition section: nearby club list + saturation (clubs per 10k people)
-- ✅ Source note: county-level data flagged clearly
-- ✅ Admin toggles per data category (7 switches in Settings tab)
-
-### Profile (5 cards)
-- ✅ Card 1 — Owners: primary + optional owner 2 + owner 3, each with first/last/email
-- ✅ Card 2 — Club Info: name, email (required), phone, website, address with ZIP autocomplete
-- ✅ Card 3 — Club Specifics: opened month/year, hours with custom TimePicker (15-min intervals, AM/PM defaults), social media
-- ✅ Card 4 — Club Photos: logo upload + up to 6 club photos (Supabase Storage)
-- ✅ Card 5 — Your Story: 4 optional prompts
-- ✅ Address autocomplete (live lookup as you type), city/state auto-filled from ZIP, read-only
-- ✅ Hours copy tool: copy one day's hours to selected other days
-- ✅ Validation with inline errors on all required fields
-- ✅ Two save buttons: Save My Profile / Save & Return to Map
-
-### Directory
-- ✅ Rich cards: logo/initials, club name, city, owner names, address, contact links, hours summary, day dots, since date, social badges
-- ✅ Sort: Name A–Z, City A–Z, Newest first, Oldest first
-- ✅ Search by name, city, owner name
-- ✅ Your club gets green border + tap-to-edit prompt
-
-### Admin panel (two tabs)
-- ✅ Members tab:
-  - 4 stat cards (total, complete, incomplete, pending)
-  - Filter by profile status + approval status + search
-  - Per-member: Approve / Revoke / Remove actions
-  - Remove triggers confirmation modal
-  - Your own account protected from removal
-  - Unapproved clubs hidden from map
-- ✅ Settings tab:
-  - Welcome modal controls (title, message, video URL, video on/off)
-  - Require approval toggle for new members
-  - Demographics section: 7 category toggles
-
-### Welcome modal
-- ✅ Shows once per user on first login (localStorage)
-- ✅ Two CTAs: Add/Manage My Club → /profile, Explore the Map → dismiss
-- ✅ Optional video embed (YouTube/Vimeo)
-- ✅ All content controlled from Admin → Settings
-
-### Update banner
-- ✅ Checks for new Vercel deploys every 15 seconds
-- ✅ Slides in banner: "A new version is available — Refresh"
-- ✅ Only active on live site (silent on localhost)
-
-### Email templates (in Supabase → Auth → Email Templates)
-- ✅ Confirm signup
-- ✅ Reset password
-- ✅ Change email
+## Routes
+- `/` → LandingPage
+- `/login` → LoginPage
+- `/signup` → SignupPage
+- `/onboarding` → OnboardingPage ← NEW
+- `/privacy` → PrivacyPage
+- `/app/map` → MapPage (protected)
+- `/app/directory` → DirectoryPage (protected)
+- `/app/profile` → ProfilePage (protected)
+- `/app/admin` → AdminPage (protected)
 
 ---
 
-## Supabase migrations status
+## Database Tables
 
-| Migration | Description | Status |
-|---|---|---|
-| Initial setup | locations table, RLS, realtime, app_settings | ✅ Applied |
-| Migration 001 | first/last name, owner2/3, zip, state, opened fields | ✅ Applied |
-| Migration 002 | owner_email, club_email, photo URLs, story prompts, storage bucket | ✅ Applied |
-| Migration 003 | owner3 fields | ✅ Applied |
-| Migration 004 | approved, approved_at, approved_by + admin RLS policies | ⚠️ Run this |
-| Migration 007 | welcome_disclaimer, welcome_video_placeholder columns in app_settings | ⚠️ Run this |
+### `locations`
+All club profile fields plus:
+- `herbalife_level TEXT` — full level string e.g. `Presidents Team 30K 2 💎`, `Chairmans Club 7 💎`, `Founders Circle 12 💎`
+- `story_why`, `story_favorite_part`, `story_favorite_products`, `story_unique`, `story_before`, `story_goal` — story question answers
+- `owner_photo_url`, `owner2_photo_url`, `owner3_photo_url` — circular profile photos
+- `logo_url`, `photo_urls` — club logo and photo gallery
+- `survey_upline`, `survey_hl_month`, `survey_hl_year` — vetting survey
+- `survey_active_club BOOLEAN`, `survey_club_month`, `survey_club_year`
+- `survey_trainings TEXT` — comma-separated: local,zoom,sts,regional,extrav,all
+- `survey_hear_how TEXT`, `survey_hear_detail TEXT`
+- `survey_goal TEXT`
+- `survey_completed_at TIMESTAMPTZ`
 
----
+### `user_terms_acceptance`
+- `user_id`, `accepted_at`, `onboarding_done BOOLEAN`, `pending_survey TEXT`
 
-## Config completed ✅
+### `app_settings` (id=1 only)
+- `welcome_video_enabled`, `welcome_video_url`, `welcome_video_placeholder`
+- `welcome_title`, `welcome_message`, `welcome_disclaimer`
+- `require_approval BOOLEAN`
+- `demo_population`, `demo_income`, `demo_age_fit`, `demo_poverty`, `demo_competition`
+- `demo_unemployment`, `demo_households`, `demo_median_age`, `demo_health`
+- `demo_spending`, `demo_growth`, `demo_commute`, `demo_competitors`
+- `col_widths TEXT` — JSON array of admin Members table column widths, persists across devices
 
-- Supabase Site URL set to https://clubregistry.vercel.app
-- Redirect URL set to https://clubregistry.vercel.app/reset-password
-- Email templates pasted in (all 3)
-- SMTP via Resend configured
-- Admin user ID set in AuthContext.jsx
-- Email confirmation disabled (fine for internal tool)
+### `contact_submissions` + `contact_replies`
+### `notifications` (type, title, body, user_id, is_read)
 
----
-
-## To-do for next session (top priority)
-
-### Profile Page
-- ✅ **Move website field** — removed from Club Info, added to Social Media section
-- ✅ **Auto-format phone numbers** — `(###) ###-####` as user types on all phone fields
-- ✅ **Owner profile photos in settings** — primary, owner 2, owner 3 each have photo upload (requires Migration 006)
-- ✅ **Sticky save bar** — Save My Profile / Save & Return to Map fixed to bottom of screen
-
-### Map — Dashboard Panel
-- ✅ **Dashboard phone formatting** — displays as `(###) ###-####` in club detail panel
-- ✅ **Disable mailto on email** — club email shown as plain text, not a clickable link
-- ✅ **Dashboard: club open since** — shows "Open since Month Year" in club detail header
-- ✅ **Owner profile photos in dashboard** — circular avatar next to each owner name; falls back to 👤 icon
-- ✅ **Radius presets update** — changed to 3 mi, 10 mi, 20 mi, 30 mi
-
-### Map — Pins & Tooltips
-- ✅ **Hover tooltip: both owners + open since** — all owner names + "Open since Month Year" shown in tooltip
-- ✅ **Club logo in hover tooltip** — logo image (or initials fallback) displayed in tooltip header; white card design with black text
-- ✅ **Map pin emoji** — replaced Leaflet markers with 📍 DivIcon pins; teal tint = your club, green tint = others, gold tint = selected
-
-### Map — UI & Controls
-- ✅ **Auto-load market data on pin click** — clicking any pin automatically activates the demo panel and loads data for that club's coordinates
-- ✅ **Remove Topo base map** — only Clean / Street / Aerial remain
-- ✅ **Panel position toggle** — replaced arrow emoji with SVG layout icons showing the panel position visually (left/bottom/right block diagrams)
-- ✅ **Set default map extent** — "Set Default View" button (⭐) saves current center + zoom to localStorage per user; loads automatically on next visit with a confirmation toast
+### RLS Notes
+- `app_settings`: authenticated users can SELECT, INSERT, and UPDATE (insert policy added in migration-011)
+- `locations`: users can only update their own row
 
 ---
 
-## Pending / not yet built
+## Migrations (run in order)
+| File | Description |
+|------|-------------|
+| `migration-006-owner-photos.sql` | owner_photo_url fields |
+| `migration-007-welcome-disclaimer.sql` | welcome_disclaimer column |
+| `migration-008-terms-accepted.sql` | user_terms_acceptance table + onboarding_done |
+| `migration-009-col-widths.sql` | app_settings.col_widths |
+| `migration-010-vetting-survey.sql` | All survey_* columns on locations + pending_survey on user_terms_acceptance |
+| `migration-011-settings-rls-fix.sql` | INSERT policy for app_settings + all missing columns |
 
-- ✅ **Google / Facebook OAuth login** — buttons on login + signup pages, both providers configured in Supabase
-- ✅ **Custom domain** — nemecekorgclubs domain connected
-- **Password reset end-to-end verification** — built but not tested live yet
-- **Demographics: health indicators** (CDC PLACES obesity/inactivity data) — discussed, not yet added
-- **Demographics: spending behavior** (Census consumer expenditure) — discussed, not yet added
-- ✅ **Map search bar address autocomplete** — done (MapSearchAutocomplete component)
-- ✅ **Remove Street base map** — only Clean and Aerial remain
-- ✅ **My Club card collapsible** — collapsed by default showing logo + name, expands on click
-- **Welcome message preview button** in Admin Settings
-- ✅ **Contact form on landing page** — modal form saves to contact_submissions table; admin Messages tab shows all submissions with reply-by-email link
-- **Welcome message entry box larger** — match YouTube embed field width
-- ✅ **Index/landing page** — two-card welcome page at /, routes to /login or /signup
-- ✅ **Signup page** — two-panel layout: value prop left, form right
-- **Sort/rearrange club featured photos**
-- **Crop profile pics before uploading**
-- **Profile photos show in club map click panel**
-- **Club map click — link to open full club details on mobile**
-- **New member approval — vetting questions** (upline, etc.)
+**Also needed (run manually if not done):**
+```sql
+ALTER TABLE locations ADD COLUMN IF NOT EXISTS herbalife_level TEXT DEFAULT NULL;
+ALTER TABLE locations ADD COLUMN IF NOT EXISTS story_before TEXT DEFAULT NULL;
+ALTER TABLE locations ADD COLUMN IF NOT EXISTS story_goal TEXT DEFAULT NULL;
+```
 
 ---
 
-## Known items
-
-- ✅ All migrations applied (001–007)
-- The `chip` CSS class may have a stale reference — not used in new directory cards but harmless
-- Photo upload requires Supabase Storage bucket `club-photos` to be created (Migration 002 includes this)
+## Supabase Edge Function
+**`check-email-exists`** — queries `auth.users` to verify email exists before sending password reset. Deployed to Supabase.
 
 ---
 
-## Session workflow
+## Email Templates (in zip root)
+Paste into Supabase Auth Templates (Auth > Email Templates):
+- `email-confirm-signup.html`
+- `email-reset-password.html`
+- `email-change-email.html`
 
-- **Start of session:** Upload current repo zip → Claude unpacks and reads all files for full context
-- **During session:** Claude delivers full `my-club-locator.zip` after every meaningful update
-- **End of session:** Claude updates this SESSION_SUMMARY.md before final zip delivery
-- **Context management:** Claude will flag when context window is getting full and recommend starting a new chat
-- **Before building:** Claude always asks "Ready to build?" before starting any new feature
+Branded dark green with large CTA buttons.
+
+---
+
+## Feature Details
+
+### Signup & Auth Flow
+1. `/signup` — email + password + terms checkbox
+2. Confirmation email → user clicks link
+3. Redirects to `/onboarding` (card-by-card vetting survey)
+4. After survey (or skipping) → `/app/profile`
+5. Profile saved → pending approval → admin approves → visible on map/directory
+- Google + Facebook OAuth also supported
+- Forgot password uses `check-email-exists` edge function before sending reset
+
+### OnboardingPage (`/onboarding`)
+Card-by-card survey shown once after email confirmation. Skippable but data is captured if entered. Cards:
+1. Welcome
+2. Who is your upline?
+3. How long Herbalife member? (month optional + year)
+4. Actively operating a club? (Yes/No) → if Yes, club tenure fields appear inline
+5. Trainings attended (multi-select checkboxes): local events, Zoom calls, STS, regional quarterly, Extravaganza, All of the above
+6. How did you hear about this platform? (radio: upline told me, club owner, zoom call, at an event, Other + text field)
+7. Primary goal for joining (textarea)
+8. Done — "pending review" message + "Set up my club" CTA
+
+On completion, `onboarding_done = true` saved to `user_terms_acceptance`. Survey answers saved to `locations` if profile exists, else to `pending_survey` in `user_terms_acceptance`. Page skips straight to `/app/profile` if `onboarding_done` is already true.
+
+### ProfilePage — Key Features
+
+**Herbalife Level Picker** (Card 5, required field)
+Three-tier system with Option C confirm flow:
+- **Future Tab Team:** DS, SB, SP (green), WT, AWT (gray)
+- **Future Pres Team 🚀:** GT (red), GP (amber), MT (teal), MP (light blue)
+- **Pres Team 💎:** single PT button → K level sub-picker (PT=base, 15K–150K) → optional diamonds 1–4
+- **Chairman's & Founders 🥈✦:** single CC/FC button → K level (CC=base CC 5💎min, FC=base FC 10💎min, or 15K–150K) → required diamonds 5–15 (auto-labels CC for 5–9, FC for 10–15)
+
+Confirm flow (Option C):
+- All required selections made → dark green "Confirm level: [label]" button appears
+- On confirm → picker dims with overlay, green locked state bar shows "Level confirmed: PT 30K 2 💎" + "Change" button
+- Save disabled until confirmed
+- On load: restores all selections from saved herbalife_level and starts in confirmed/locked state
+
+Stored value format: `Presidents Team 30K 2 💎`, `Chairmans Club 7 💎`, `Founders Circle 100K 12 💎`
+
+**Story Questions** (Card 6, all optional) — in this order:
+1. Why did you decide to open your club?
+2. What is your favorite part of club ownership?
+3. What did you do for work (your former occupation) before owning your club?
+4. What is your next big goal in Herbalife?
+5. What are your favorite products?
+6. What is something unique and interesting about yourself?
+
+**Member Survey** (Card 7, persistent "Incomplete" badge)
+Same questions as onboarding survey. Amber "Incomplete" badge disappears only when ALL fields have something in them. Pre-fills from onboarding answers. Always visible so answers can be updated.
+
+**Unsaved Changes Detection**
+`savedFormRef` snapshots form on load and after each save. `isDirty = JSON.stringify(form) !== JSON.stringify(savedFormRef.current)`. Save bar:
+- Default: plain white sticky bar with Save buttons
+- When dirty: amber top border, warm yellow background, "⚠ Unsaved changes" alert on left
+
+**Other profile features:**
+- CropModal (canvas circle crop) for logo + all 3 owner photos — drag/zoom/save
+- Club photos drag-to-reorder (first = cover badge), fullscreen PhotoGallery modal
+- Address autocomplete
+- TimePicker — hours in numerical order 1–12, 15-min intervals, AM/PM
+- Hours copy modal (to-do — not yet built)
+
+### MapPage — Key Features
+- Circle markers: red=yours, periwinkle=others, gold=selected
+- Clean + Aerial base maps
+- Market Data Research Mode: crosshair cursor, pulsing SVG reticle, dark green header, Exit button
+- My Club card: collapsed by default, reduced size (~2/3 original height — logo 28px, padding 7px 10px)
+- PhotoGallery: cover photo → fullscreen modal, keyboard nav
+- Demographics panel: 6 data sources, user preferences, admin toggles
+
+### DirectoryPage — Full Rewrite
+**Default state:** All cards hidden. Empty state with search icon: "Search or filter to find clubs"
+
+**Controls bar:** Search input | Sort (Name/City/Newest/Oldest) | Filter by state | Filter by level | "✕ Clear" button
+
+**Cards:** Collapsed by default when results load. Toggle to expand.
+
+**Collapsed header shows:** Logo/initials (32px) | Club name | Street address, City, State
+
+**Expanded card shows:**
+- Owner rows: circular profile photo (32px, if filled) | "Primary Owner" / "Co-Owner" bold title | Owner name | Level pill (condensed format)
+- Level pill condensed: Presidents Team → PT, Chairmans Club → CC, Founders Circle → FC, etc.
+- Phone + email as plain text (not clickable)
+- Website (clickable) + Instagram (clickable) if filled
+- Hours: condensed format — consecutive days with same hours grouped (Mon–Fri 7:00 AM – 3:00 PM)
+- Day dots below hours
+- Footer: Since [month] [year] + social links (FB, TK, YT)
+- "Edit my profile →" for your own card
+
+### AdminPage — Key Features
+
+**Tab order:** Settings | Messages | Members (Settings is default tab)
+
+**Settings Tab:**
+- Welcome modal controls (video, title, message, disclaimer, placeholder)
+- Require approval toggle
+- Demographics category toggles (13)
+- Preview buttons for message and disclaimer
+- **Unsaved changes detection:** same dirty/alert bar as ProfilePage. `savedSettingsRef` snapshots on load and after save. Fixed RLS (insert policy added) and explicit field list in save payload.
+
+**Messages Tab:**
+- Contact sub-tab: unread dot/badge, mark read, reply via Brevo
+- Member Activity sub-tab: new_signup, new_profile, pending_approval notifications
+- Real-time Supabase subscriptions
+- Red unread badge on tab
+
+**Members Tab:**
+- Desktop table with **resizable columns** — drag handle on right edge of each header, green highlight on hover
+- Column widths saved to `app_settings.col_widths` as JSON on drag-end, loaded on page open (persists across devices)
+- Table width = sum of column widths, wrapper scrolls horizontally
+- Default column widths: [48, 160, 130, 120, 120, 180, 80, 90, 120, 90, 100]
+- 11 columns: Logo | Club name | Owner | City/State | Phone | Email | Opened | Hours | Status | Joined | Actions
+- Mobile: card tap-to-expand
+- Member detail modal shows: level badge, survey answers (to-do — surface survey data)
+- Approve / Revoke / Remove inline actions
+
+---
+
+## Herbalife Level System — Full Reference
+
+### Stored value format
+`[Tier] [K level] [diamonds] 💎`
+- `Presidents Team` (base PT, no K)
+- `Presidents Team 30K` (PT with K level, no diamonds)
+- `Presidents Team 30K 2 💎` (PT with K and diamonds)
+- `Chairmans Club` (base CC = 5 diamonds minimum)
+- `Chairmans Club 30K 7 💎`
+- `Founders Circle 100K 12 💎`
+
+### Condensed display (used in directory pill, admin badge)
+| Full | Short |
+|------|-------|
+| Presidents Team | PT |
+| Chairmans Club | CC |
+| Founders Circle | FC |
+| Millionaire Team 7500 | MP |
+| Millionaire Team | MT |
+| Get Team 2500 | GP |
+| Get Team | GT |
+| Active World Team | AWT |
+| World Team | WT |
+| Supervisor | SP |
+| Success Builder | SB |
+| Distributor | DS |
+
+### Diamond ranges
+- PT: 1–4 💎 (optional)
+- CC: 5–9 💎 (required for FCCC tier)
+- FC: 10–15 💎 (required for FCCC tier)
+
+### K levels (15K increments)
+PT=base, 15K, 20K, 30K, 40K, 50K, 60K, 70K, 80K, 90K, 100K, 110K, 120K, 130K, 140K, 150K
+
+---
+
+## Pending To-Do List
+
+### Profile
+- Modal for copying hours to multiple days
+
+### Admin
+- Surface vetting survey answers in member detail card (data saves, need to display it)
+- New member approval — send nudge email if survey incomplete
+
+### Auth / Login
+- New welcome message for returning users on login
+
+### Mobile Overhaul *(tabled for end)*
+- Full mobile-friendly pass including map club detail on tap
+
+### Major Upcoming Feature — Public Club Finder
+- Homepage redesign (public-facing)
+- Customer-facing address search
+- Nearest clubs list with distance
+- Club info cards: name, address, distance, hours, Google Maps directions, social links, website
+- Radius/distance filter options
+- Public user login to save favorites
+- Member login moves to navigation
+
+---
+
+## Known Issues / Notes
+- `app_settings` upsert previously failed silently due to missing INSERT RLS policy — fixed in migration-011
+- `herbalife_level` confirmation state (`lvlConfirmed`) is local React state — does not persist across page refreshes intentionally (user must re-confirm if they reload mid-edit without saving)
+- `pending_survey` in `user_terms_acceptance` stores JSON for users who complete onboarding before setting up their profile — needs to be applied to `locations` on first profile save (not yet implemented — survey data may sit in pending_survey if user skips profile setup)
+- Survey "Incomplete" badge in ProfilePage: `survey_active_club` can be boolean or string ('true'/'false') depending on how it was saved — comparison handles both
+
+---
+
+## Environment Variables (Vercel)
+```
+VITE_SUPABASE_URL=https://ulezfnzqwebkupgxqprs.supabase.co
+VITE_SUPABASE_ANON_KEY=[anon key]
+VITE_CENSUS_API_KEY=[census key]
+```

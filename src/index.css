@@ -5926,3 +5926,29 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
+
+/* ── Unsaved changes save bar ────────────────────────────────── */
+.save-bar--dirty {
+  border-top: 2px solid #F59E0B !important;
+  background: #FFFBEB !important;
+}
+
+.save-bar-alert {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #B45309;
+  flex: 1;
+}
+
+.save-bar-btns {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.save-bar--sticky {
+  align-items: center !important;
+}
