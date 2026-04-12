@@ -208,6 +208,9 @@ export default function AdminPage() {
     login_msg_pending: "Welcome back, {name}! {club} is pending approval. You'll appear on the map once approved.",
     login_msg_no_profile_enabled: true,
     login_msg_no_profile: "Welcome back! Your club profile isn't set up yet. Finish setting it up to appear on the map.",
+    public_finder_welcome: 'Find a nutrition club near you',
+    public_finder_disclaimer_enabled: true,
+    public_finder_disclaimer: 'This directory is provided for informational purposes only. My Club Locator is not affiliated with or endorsed by Herbalife International. Club hours and availability may vary — contact the club directly to confirm.',
     demo_population: true,
     demo_income: true,
     demo_age_fit: true,
@@ -233,6 +236,7 @@ export default function AdminPage() {
   const [demoOpen, setDemoOpen]               = useState(false)
   const [welcomeModalOpen, setWelcomeModalOpen] = useState(false)
   const [loginMsgsOpen, setLoginMsgsOpen]       = useState(false)
+  const [finderMsgsOpen, setFinderMsgsOpen]     = useState(false)
 
   // Contacts state
   const [contacts, setContacts]             = useState([])
@@ -419,6 +423,9 @@ export default function AdminPage() {
       login_msg_pending:             settings.login_msg_pending,
       login_msg_no_profile_enabled:  settings.login_msg_no_profile_enabled,
       login_msg_no_profile:          settings.login_msg_no_profile,
+      public_finder_welcome:             settings.public_finder_welcome,
+      public_finder_disclaimer_enabled:  settings.public_finder_disclaimer_enabled,
+      public_finder_disclaimer:          settings.public_finder_disclaimer,
       demo_population:            settings.demo_population,
       demo_income:                settings.demo_income,
       demo_age_fit:               settings.demo_age_fit,
@@ -991,6 +998,68 @@ export default function AdminPage() {
                         )}
                       </div>
                     ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Public Finder Messages */}
+              <div className="admin-section" style={{ padding: 0, overflow: 'hidden' }}>
+                <button type="button" className="survey-toggle-btn" style={{ padding: '14px 20px' }} onClick={() => setFinderMsgsOpen(o => !o)}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
+                    <h3 className="admin-section-title" style={{ margin: 0 }}>Public Finder Messages</h3>
+                  </div>
+                  <svg className={`survey-chevron ${finderMsgsOpen ? 'open' : ''}`} width="14" height="14" viewBox="0 0 16 16" fill="none">
+                    <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+                {finderMsgsOpen && (
+                  <div style={{ padding: '0 20px 16px' }}>
+                    <p className="admin-section-desc" style={{ marginBottom: 16 }}>Customize what public visitors see on the club finder page before and during their search. These are the people looking for a club — not club owners.</p>
+
+                    {/* Welcome heading */}
+                    <div className="field" style={{ marginBottom: 16 }}>
+                      <label>Finder page heading</label>
+                      <input
+                        type="text"
+                        value={settings.public_finder_welcome}
+                        onChange={e => setSettings(s => ({ ...s, public_finder_welcome: e.target.value }))}
+                        placeholder="Find a nutrition club near you"
+                      />
+                      <span className="field-hint">Shown as the main heading on the public search page</span>
+                    </div>
+
+                    {/* Disclaimer */}
+                    <div className="login-msg-block">
+                      <div className="login-msg-header">
+                        <div className="login-msg-label-wrap">
+                          <span className="login-msg-dot" style={{ background: '#854F0B' }} />
+                          <span className="admin-toggle-label">Disclaimer / acknowledgement</span>
+                        </div>
+                        <ToggleSwitch
+                          on={settings.public_finder_disclaimer_enabled}
+                          onChange={v => setSettings(s => ({ ...s, public_finder_disclaimer_enabled: v }))}
+                        />
+                      </div>
+                      <div className="login-msg-audience" style={{ borderLeftColor: '#854F0B', background: '#FEF3C7' }}>
+                        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0, marginTop: 1 }}>
+                          <circle cx="8" cy="8" r="6.5" stroke="#854F0B" strokeWidth="1.2"/>
+                          <circle cx="8" cy="5.5" r="1" fill="#854F0B"/>
+                          <line x1="8" y1="8" x2="8" y2="11.5" stroke="#854F0B" strokeWidth="1.2" strokeLinecap="round"/>
+                        </svg>
+                        <span style={{ color: '#854F0B' }}>Shown to every public visitor before they can search. They must tap "I understand" to proceed. Use this for legal disclaimers, terms of use, or any notice you want visitors to acknowledge.</span>
+                      </div>
+                      {settings.public_finder_disclaimer_enabled && (
+                        <div style={{ marginTop: 8 }}>
+                          <textarea
+                            rows={4}
+                            className="admin-tall-textarea"
+                            value={settings.public_finder_disclaimer}
+                            onChange={e => setSettings(s => ({ ...s, public_finder_disclaimer: e.target.value }))}
+                            placeholder="This directory is provided for informational purposes only..."
+                          />
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>

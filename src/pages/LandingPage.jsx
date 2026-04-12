@@ -118,6 +118,22 @@ export default function LandingPage() {
 
         {/* Cards */}
         <div className="landing-cards">
+          <div className="landing-card landing-card--public">
+            <span className="landing-badge landing-badge--public">Find a club</span>
+            <h2 className="landing-card-title">Looking for a nutrition club?</h2>
+            <p className="landing-card-desc">
+              Search for independently owned nutrition clubs near you. See hours, location, and owner info.
+            </p>
+            <ul className="landing-perks">
+              <li><span className="landing-perk-dot landing-perk-dot--teal"></span>Search by address or zip code</li>
+              <li><span className="landing-perk-dot landing-perk-dot--teal"></span>See today's hours at a glance</li>
+              <li><span className="landing-perk-dot landing-perk-dot--teal"></span>No account required</li>
+            </ul>
+            <button className="landing-btn landing-btn--teal" onClick={() => navigate('/find')}>
+              Find a club near me →
+            </button>
+          </div>
+
           <div className="landing-card landing-card--returning">
             <span className="landing-badge landing-badge--returning">Returning member</span>
             <h2 className="landing-card-title">Good to have you back</h2>

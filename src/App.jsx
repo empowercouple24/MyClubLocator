@@ -12,6 +12,7 @@ import ProfilePage from './pages/ProfilePage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
 import ForgotPasswordPage from './pages/ForgotPasswordPage'
 import AdminPage from './pages/AdminPage'
+import PublicFinderPage from './pages/PublicFinderPage'
 
 // Lazy load MapPage so Leaflet only initializes when the map route renders
 const MapPage = lazy(() => import('./pages/MapPage'))
@@ -30,6 +31,7 @@ export default function App() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/onboarding" element={<OnboardingPage />} />
       <Route path="/signup" element={<SignupPage />} />
+      <Route path="/find" element={<PublicFinderPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route
