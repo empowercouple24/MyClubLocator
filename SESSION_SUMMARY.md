@@ -3,10 +3,10 @@
 **Live URL:** https://myclublocator.com
 **Vercel project:** clubregistry (empowercouple24s-projects)
 **Supabase URL:** https://ulezfnzqwebkupgxqprs.supabase.co
-**GitHub repo:** Private — clubregistry
+**GitHub repo:** Private — MyClubLocator (public)
 **Admin user ID:** ed1f34a7-7838-4d01-a29c-63220c43e9f1
 **Brevo SMTP:** smtp-relay.brevo.com:587, login: empowercouple24@gmail.com
-**Brevo API key:** stored in Vercel environment variables only as VITE_BREVO_API_KEY (rotated April 2026)
+**Brevo API key:** stored in Vercel env only as VITE_BREVO_API_KEY (rotated April 2026)
 **support@myclublocator.com** forwards to empowercouple24@gmail.com via Namecheap
 
 ---
@@ -17,18 +17,25 @@ React + Vite (dev only) | **esbuild** (production build) | Supabase (auth + DB +
 ---
 
 ## Build System (IMPORTANT)
-Production builds now use **esbuild** via `node build.mjs`, NOT `vite build`.
+Production builds use **esbuild** via `node build.mjs`, NOT `vite build`.
 - `npm run build` → `node build.mjs`
 - Vite is only used for dev (`npm run dev`)
-- esbuild was necessary to avoid a Rollup TDZ const-reordering bug
 - `build.mjs` injects env vars into `dist/index.html` as `window.__env = {...}`
 - All `import.meta.env.VITE_*` references in bundle point to `window.__env.*`
-- Bundle is identical across environments — env vars live in HTML, not JS
 
 **Vercel build settings:**
 - Build Command: `npm run build` (override ON)
 - Install Command: `npm install --legacy-peer-deps` (override ON)
 - Output Directory: `dist`
+
+**Zip command (always use this exactly):**
+```bash
+cd /home/claude && zip -r my-club-locator.zip MyClubLocator-main/ \
+  --exclude "MyClubLocator-main/node_modules/*" \
+  --exclude "MyClubLocator-main/dist/*" \
+  --exclude "MyClubLocator-main/package-lock.json" \
+  --exclude "MyClubLocator-main/SESSION_SUMMARY.md"
+```
 
 ---
 
@@ -61,8 +68,6 @@ src/
     supabase.js
     AuthContext.jsx
     demographics.js
-    leaflet-esm.js      ← esbuild leaflet ESM wrapper (unused but harmless)
-    leaflet-shim.js     ← unused but harmless
   App.jsx
   index.css
   main.jsx
@@ -102,6 +107,7 @@ build.mjs               ← esbuild production build script
 
 ### `locations`
 All club profile fields plus:
+- `club_index INT DEFAULT 0` — **NEW as of April 12 session** — 0 = primary club, 1 = second club, etc. Migration: `ALTER TABLE locations ADD COLUMN IF NOT EXISTS club_index INT DEFAULT 0;`
 - `herbalife_level TEXT` — e.g. `Presidents Team 30K 2 💎`
 - `owner2_herbalife_level TEXT`, `owner3_herbalife_level TEXT`
 - `owner_photo_url`, `owner2_photo_url`, `owner3_photo_url`
@@ -111,7 +117,7 @@ All club profile fields plus:
 - `survey_hl_month TEXT`, `survey_hl_year TEXT`
 - `survey_active_club BOOLEAN`
 - `survey_club_month TEXT`, `survey_club_year TEXT`
-- `survey_trainings TEXT` — comma-separated: local,zoom,sts,regional,extrav,all
+- `survey_trainings TEXT` — comma-separated
 - `survey_hear_how TEXT`, `survey_hear_detail TEXT`
 - `survey_goal TEXT`
 - `survey_completed_at TIMESTAMPTZ`
@@ -120,60 +126,28 @@ All club profile fields plus:
 - `user_id UUID`, `accepted_at`, `onboarding_done BOOLEAN`, `pending_survey TEXT`
 
 ### `app_settings` (single row, id=1)
-- `welcome_video_enabled BOOLEAN`, `welcome_video_url TEXT`, `welcome_video_placeholder TEXT`
-- `welcome_title TEXT`, `welcome_message TEXT`, `welcome_disclaimer TEXT`
-- `require_approval BOOLEAN`
-- `demo_population`, `demo_income`, `demo_age_fit`, `demo_poverty`, `demo_competition`
-- `demo_unemployment`, `demo_households`, `demo_median_age`, `demo_health`
-- `demo_spending`, `demo_growth`, `demo_commute`, `demo_competitors` — all BOOLEAN
-- `col_widths TEXT` — JSON array of admin Members table column widths
+- Welcome modal config, require_approval, 13 demographics toggles, col_widths
 
 ### `user_demo_preferences`
-- `user_id UUID`, `preferences JSONB`, `created_at`, `updated_at`
-- Per-user toggles for which market research factors to show
-- RLS: users can read/insert/update their own row
+- `user_id UUID`, `preferences JSONB`
+- Per-user toggles for market research factors
 
 ### `contact_submissions` + `contact_replies`
-### `notifications` (type, title, body, user_id, is_read BOOLEAN default false)
+### `notifications`
 
 ### RLS Policies
+- `locations`: SELECT all, UPDATE own row — **needs INSERT policy added for multi-club**
 - `app_settings`: authenticated SELECT + UPDATE + INSERT
-- `contact_submissions`: anon+auth INSERT, auth SELECT+UPDATE
-- `notifications`: auth INSERT+SELECT+UPDATE
-- `locations`: SELECT all, UPDATE own row only
 - `user_demo_preferences`: SELECT/INSERT/UPDATE own row only
 
 ---
 
-## Migrations (run in order in Supabase SQL Editor)
-| File | Description |
-|------|-------------|
-| `migration-006-owner-photos.sql` | owner_photo_url fields |
-| `migration-007-welcome-disclaimer.sql` | welcome_disclaimer on app_settings |
-| `migration-008-terms-accepted.sql` | user_terms_acceptance table |
-| `migration-009-col-widths.sql` | app_settings.col_widths |
-| `migration-010-vetting-survey.sql` | All survey_* columns + onboarding_done + pending_survey |
-| `migration-011-settings-rls-fix.sql` | INSERT policy + missing columns + seed row for app_settings |
-| `migration-012-messages-rls-fix.sql` | RLS on contact_submissions + notifications + backfill is_read NULLs |
-| `migration-013-owner-levels.sql` | owner2_herbalife_level + owner3_herbalife_level |
-| `migration-014-user-demo-preferences.sql` | user_demo_preferences table + RLS |
-
-**Also needed if not already run:**
+## Migrations Run (through migration-014)
+All migrations have been run against live DB. New migration needed for multi-club:
 ```sql
-ALTER TABLE locations ADD COLUMN IF NOT EXISTS herbalife_level TEXT DEFAULT NULL;
-ALTER TABLE locations ADD COLUMN IF NOT EXISTS story_before TEXT DEFAULT NULL;
-ALTER TABLE locations ADD COLUMN IF NOT EXISTS story_goal TEXT DEFAULT NULL;
+ALTER TABLE locations ADD COLUMN IF NOT EXISTS club_index INT DEFAULT 0;
 ```
-
----
-
-## Environment Variables (Vercel Dashboard Only — never in code)
-```
-VITE_SUPABASE_URL=https://ulezfnzqwebkupgxqprs.supabase.co
-VITE_SUPABASE_ANON_KEY=[anon key]
-VITE_BREVO_API_KEY=[rotated April 2026]
-VITE_CENSUS_API_KEY=[census key]
-```
+Also update RLS to allow INSERT on locations for authenticated users owning the row.
 
 ---
 
@@ -181,69 +155,54 @@ VITE_CENSUS_API_KEY=[census key]
 
 **Markers:** red=own, periwinkle=others, gold=selected
 
-**Hover tooltip (min 293px, max 347px):**
-- Logo/initials + club name + address under name (in header)
-- Owner rows: 22px circular photo or initials + name + per-owner level pill
-- Level pills show full condensed format: "PT 30K 2💎", "CC 7💎", "MT", "AWT" etc.
-- Condensed hours (Mon–Fri grouped if same hours)
-- "Club open since [month] [year]" in green
-- "View in directory →" — navigates to `/app/directory?search=ClubName`
-- Tooltip stays open 3 seconds after mouse leaves marker
-- Hovering over tooltip itself keeps it open
+**Hover tooltip:**
+- Stays open on hover over entire tooltip container (fixed April 12)
+- `ev.tooltip._container` used (not querySelector) to target correct tooltip per marker
+- CSS bottom padding bridges gap between marker and tooltip
+- "View in Directory →" navigates to `/app/directory?search=ClubName`
+- Level pills: condensed format with space before 💎 — `PT 30K 2 💎`, `CC 7 💎`
 
-**Club detail panel (left sidebar):**
-- My Club card: collapsed by default, reduced size
-- Club Details: hidden when Research Mode is active
-- Hours shown in condensed grouped format
+**Toolbar (top center):**
+- Search box: 308px wide
+- Market Data button: 140px min-width, pulses when active, pointer cursor always (even in research mode)
+- Scroll Zoom toggle button: on/off, persisted to localStorage
+- +/− zoom buttons: shown only when scroll zoom is off, 38px square, large font
 
 **Market Data Research Mode:**
-- Activates crosshair + pulsing reticle
+- Crosshair cursor on map area only — toolbar buttons always show pointer cursor
 - My Club auto-collapses, Club Details hides
-- Click map → proxies through `/api/geocode` (Vercel fn) → Census geocoder
-- Loads: compact metric widgets (Population, Median Income, Age 18–49, Nearby Clubs), market score/grade, full demographics sections
-- Admin-controlled factor toggles loaded from `app_settings` at MapPage mount
+- Click map → `/api/geocode` proxy → Census geocoder → demographics panel
+- `app_settings` demo factor toggles loaded at mount
 - Per-user factor prefs saved to `user_demo_preferences`
-- Exit button restores normal state
-
-**Census geocoder:** proxied via `api/geocode.js` (Vercel serverless) to fix CORS
-**CDC PLACES:** uses `locationid` param (5-digit county FIPS) — dataset `swc5-untb`
-**FIPS codes:** padded to 2-digit state + 3-digit county to ensure correct 5-digit format
 
 ---
 
-## ProfilePage — All Cards
+## ProfilePage — Current Card Structure
 
 **CARD 1: Owners**
-- All three owner cards (Primary, Owner 2, Owner 3) are collapsible (▲/▼ toggle)
-- Primary owner: first/last name, email, owner photo (CropModal circle crop)
-- Herbalife Level Picker (REQUIRED for owner 1 — see section below)
-- Owner 2 / Owner 3: same name/email/photo + **full level picker** (same as owner 1)
-- Owner 2/3 full picker: Tab Team → Future Pres → PT K+diamonds → CC/FC K+diamonds
-- Confirm/lock/change flow same as owner 1
+- Primary Owner: name, email, photo, Herbalife Level (uses `OwnerLevelPicker` component — collapses when confirmed)
+- Owner 2 / Owner 3: same fields + `OwnerLevelPicker` — all collapsible
+- All three owner cards collapse/expand independently
 
-**CARD 2: Club Info**
-- Club name, phone (auto-formatted to (xxx) xxx-xxxx), email, website, Instagram
-- Address autocomplete (Nominatim) — city/state/zip auto-fill
-- Opened month + year (optional)
+**🔴 NEXT: My Clubs wrapper card (replaces current CARD 2/3/4)**
+- See full spec in NEXT FEATURE section of session starter
+- Per-club fields: club name, address, phone, website, Instagram, hours, logo, photos, opened month/year, club email
+- Per-person fields (stay outside): owners, Your Story, Member Survey
 
-**CARD 3: Hours**
-- TimePicker: hours 1–12 in order, 15-min intervals, AM/PM
-- Open/close per day, or mark closed
+**CARD 5 (was CARD 6): Your Story**
+- Collapsible (collapsed by default)
+- Progress badge: "X of 6 filled" or "Complete"
+- Uses same `survey-toggle-btn` / `survey-chevron` CSS as Member Survey
 
-**CARD 4: Photos**
-- Club logo: CropModal circle crop, uploads to Supabase Storage
-- Gallery: up to 10 photos, drag to reorder (first = cover), fullscreen PhotoGallery
+**CARD 6 (was CARD 7): Member Survey**
+- Collapsible (collapsed by default)
+- Progress badge: "X of 7 answered" or "Complete"
 
-**CARD 5: Herbalife Level Picker (REQUIRED for owner 1)**
-Three-tier flow:
-Tier 1 — Tab Team: DS | SB | SP | WT | AWT
-Tier 2 — Future Pres: GT | GP | MT | MP
-Tier 3 — Pres Team: PT → K level → optional diamonds 1–4
-Tier 4 — CC/FC: CC/FC → K level → required diamonds (5–9=CC, 10–15=FC)
-Confirm flow → locked green state with "Change"
-
-**CARD 6: Your Story** (all optional)
-**CARD 7: Member Survey** (collapsible)
+**`OwnerLevelPicker` component (defined in ProfilePage.jsx):**
+- Self-contained: parses existing value on mount, manages own tier/k/dia/confirmed state
+- Collapses to locked green checkmark row when confirmed
+- "Change" button reopens picker
+- Used for all 3 owners
 
 ---
 
@@ -256,40 +215,35 @@ Confirm flow → locked green state with "Change"
 ---
 
 ## AdminPage
-
-**Settings Tab:**
-- Welcome modal config, require approval toggle, 13 demographics toggles
-- Demo factor toggles affect what market research data is shown on the map
-
+**Settings Tab:** Welcome modal config, require approval, 13 demographics toggles
 **Messages Tab:** Contact + Member Activity sub-tabs
 **Members Tab:** Resizable columns, filters, approve/revoke/remove actions
 
 ---
 
 ## Herbalife Level — Quick Reference
-
 Stored: `Presidents Team 30K 2 💎` | `Chairmans Club 7 💎` | `Founders Circle 100K 12 💎`
-Condensed (map bubbles): `PT 30K 2💎` | `CC 7💎` | `FC 100K 12💎` | `MP` | `MT` | `GT` etc.
-
+Condensed: `PT 30K 2 💎` | `CC 7 💎` | `FC 100K 12 💎` | `MP` | `MT` | `GT` etc.
 Diamonds: PT=1–4 optional | CC=5–9 required | FC=10–15 required
 K levels: PT=base,15K–150K | CC/FC=CC,FC,15K–150K
 
 ---
 
 ## Pending To-Do List
-
-- [ ] Hours copy modal (copy one day's hours to multiple days)
-- [ ] Surface vetting survey answers in admin member detail modal
-- [ ] Welcome message for returning users on login
-- [ ] Apply `pending_survey` data to `locations` on first profile save
-- [ ] Mobile overhaul (tabled for end)
-- [ ] PUBLIC CLUB FINDER: homepage redesign, customer address search, nearest clubs list, distance/radius, public user login to save favorites, member login moves to nav
+- [ ] #7 Map non-research mode: marker click opens club in panel, not Market Data
+- [ ] #8 Add second club for empowercouple24@gmail.com (dual-club panel test)
+- [ ] #9 Hours copy modal
+- [ ] #10 Surface vetting survey in admin member detail modal
+- [ ] #11 Welcome message for returning users on login
+- [ ] #12 Apply `pending_survey` to `locations` on first profile save
+- [ ] #13 Mobile overhaul (tabled)
+- [ ] #14 Public Club Finder (big feature)
+- [ ] #15 My Clubs card + Add Club + multi-club DB architecture 🔴 NEXT
 
 ---
 
-## Known Issues / Notes
-- `survey_active_club` can be boolean or string — all comparisons handle both
-- `pending_survey` JSON not auto-applied to `locations` on first profile save (gap)
-- `lvlConfirmed` is local state — doesn't persist across page reload (intentional)
-- `leaflet-shim.js` and `leaflet-esm.js` in src/lib are unused artifacts — harmless
-- esbuild TDZ bug was the original blank screen issue — root cause was `const condenseLvl` declared after its first use inside a useEffect in MapPage (fixed)
+## Known Notes
+- `survey_active_club` can be boolean or string — comparisons handle both
+- `lvlConfirmed` and all manual Owner 1 level picker state removed April 12 — `OwnerLevelPicker` handles everything
+- `leaflet-shim.js` and `leaflet-esm.js` removed from repo April 12
+- esbuild used instead of Vite for prod due to Rollup TDZ const-reordering bug
