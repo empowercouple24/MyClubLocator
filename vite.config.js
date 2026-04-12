@@ -1,16 +1,12 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import path from 'path'
 
 export default defineConfig({
   plugins: [react()],
-  build: {
-    rollupOptions: {
-      external: ['leaflet'],
-      output: {
-        globals: {
-          leaflet: 'L',
-        },
-      },
+  resolve: {
+    alias: {
+      'leaflet': path.resolve('./src/lib/leaflet-shim.js'),
     },
   },
 })
