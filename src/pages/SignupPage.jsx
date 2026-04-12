@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
@@ -54,6 +54,18 @@ export default function SignupPage() {
   const [loading, setLoading]           = useState(false)
   const [oauthLoading, setOauthLoading] = useState('')
   const [termsAccepted, setTermsAccepted] = useState(false)
+  const [signupsEnabled, setSignupsEnabled] = useState(true)
+  const [checkingSettings, setCheckingSettings] = useState(true)
+
+  useEffect(() => {
+    async function checkSettings() {
+      const { data } = await supabase
+        .from('app_settings').select('member_signups_enabled').eq('id', 1).single()
+      if (data && data.member_signups_enabled === false) setSignupsEnabled(false)
+      setCheckingSettings(false)
+    }
+    checkSettings()
+  }, [])
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -63,10 +75,8 @@ export default function SignupPage() {
     const { data, error } = await supabase.auth.signUp({ email, password })
     if (error) { setError(error.message); setLoading(false) }
     else {
-      // Record terms acceptance
       if (data?.user?.id) {
         await supabase.from('user_terms_acceptance').insert({ user_id: data.user.id })
-        // Notify admin
         await supabase.from('notifications').insert({
           type: 'new_signup',
           title: 'New member signed up',
@@ -87,6 +97,8 @@ export default function SignupPage() {
     })
     if (error) { setError(error.message); setOauthLoading('') }
   }
+
+  if (checkingSettings) return <div className="loading">Loading…</div>
 
   return (
     <div className="auth-page auth-page--signup">
@@ -113,67 +125,90 @@ export default function SignupPage() {
           </ul>
         </div>
 
-        {/* Right panel — form */}
+        {/* Right panel — form or closed message */}
         <div className="signup-panel signup-panel--right">
           <div className="signup-form-wrap">
-            <h1 className="signup-form-title">Create your account</h1>
-            <p className="signup-form-sub">It only takes a minute to get on the map.</p>
 
-            {error && <div className="error-msg">{error}</div>}
-
-            <div className="oauth-btns">
-              <button className="oauth-btn oauth-btn--google" onClick={() => handleOAuth('google')} disabled={!!oauthLoading}>
-                <GoogleIcon />
-                {oauthLoading === 'google' ? 'Redirecting…' : 'Sign up with Google'}
-              </button>
-              <button className="oauth-btn oauth-btn--facebook" onClick={() => handleOAuth('facebook')} disabled={!!oauthLoading}>
-                <FacebookIcon />
-                {oauthLoading === 'facebook' ? 'Redirecting…' : 'Sign up with Facebook'}
-              </button>
-            </div>
-
-            <div className="oauth-divider"><span>or sign up with email</span></div>
-
-            <form onSubmit={handleSubmit}>
-              <div className="field">
-                <label>Email address</label>
-                <input type="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} required autoFocus />
-              </div>
-              <div className="field">
-                <label>Password</label>
-                <div className="input-wrap">
-                  <input type={showPassword ? 'text' : 'password'} placeholder="Create a password (min. 6 characters)" value={password} onChange={e => setPassword(e.target.value)} required minLength={6} />
-                  <button type="button" className="eye-btn" onClick={() => setShowPassword(v => !v)} aria-label={showPassword ? 'Hide password' : 'Show password'}>
-                    <EyeIcon open={showPassword} />
-                  </button>
+            {!signupsEnabled ? (
+              <div className="signup-closed">
+                <div className="signup-closed-icon">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="10" stroke="#B45309" strokeWidth="1.5"/>
+                    <path d="M12 7v6" stroke="#B45309" strokeWidth="1.5" strokeLinecap="round"/>
+                    <circle cx="12" cy="16.5" r="0.75" fill="#B45309"/>
+                  </svg>
+                </div>
+                <h1 className="signup-closed-title">Registration is currently closed</h1>
+                <p className="signup-closed-msg">New member signups are temporarily paused. Please check back soon or contact your upline for access.</p>
+                <div className="auth-toggle" style={{ marginTop: '1.5rem' }}>
+                  Already registered? <Link to="/login">Log in instead</Link>
+                </div>
+                <div className="auth-toggle" style={{ marginTop: '8px' }}>
+                  <Link to="/">← Back to welcome page</Link>
                 </div>
               </div>
-              <div className="signup-terms-row">
-                <input
-                  type="checkbox"
-                  id="terms-accept"
-                  checked={termsAccepted}
-                  onChange={e => setTermsAccepted(e.target.checked)}
-                  className="signup-terms-checkbox"
-                />
-                <label htmlFor="terms-accept" className="signup-terms-label">
-                  I accept the terms of the{' '}
-                  <Link to="/privacy" target="_blank" rel="noreferrer" className="signup-terms-link">
-                    Privacy & Use Policy
-                  </Link>
-                </label>
-              </div>
-              <button className="btn-full btn-full--indigo" type="submit" disabled={loading || !!oauthLoading || !termsAccepted}>
-                {loading ? 'Creating account…' : 'Create my free account'}
-              </button>
-            </form>
+            ) : (
+              <>
+                <h1 className="signup-form-title">Create your account</h1>
+                <p className="signup-form-sub">It only takes a minute to get on the map.</p>
 
-            <div className="auth-toggle" style={{ marginTop: '1.25rem' }}>
-              Already registered? <Link to="/login">Log in instead</Link>
-            </div>
-            <div className="auth-toggle" style={{ marginTop: '8px' }}>
-              <Link to="/">← Back to welcome page</Link>
-            </div>
+                {error && <div className="error-msg">{error}</div>}
+
+                <div className="oauth-btns">
+                  <button className="oauth-btn oauth-btn--google" onClick={() => handleOAuth('google')} disabled={!!oauthLoading}>
+                    <GoogleIcon />
+                    {oauthLoading === 'google' ? 'Redirecting…' : 'Sign up with Google'}
+                  </button>
+                  <button className="oauth-btn oauth-btn--facebook" onClick={() => handleOAuth('facebook')} disabled={!!oauthLoading}>
+                    <FacebookIcon />
+                    {oauthLoading === 'facebook' ? 'Redirecting…' : 'Sign up with Facebook'}
+                  </button>
+                </div>
+
+                <div className="oauth-divider"><span>or sign up with email</span></div>
+
+                <form onSubmit={handleSubmit}>
+                  <div className="field">
+                    <label>Email address</label>
+                    <input type="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} required autoFocus />
+                  </div>
+                  <div className="field">
+                    <label>Password</label>
+                    <div className="input-wrap">
+                      <input type={showPassword ? 'text' : 'password'} placeholder="Create a password (min. 6 characters)" value={password} onChange={e => setPassword(e.target.value)} required minLength={6} />
+                      <button type="button" className="eye-btn" onClick={() => setShowPassword(v => !v)} aria-label={showPassword ? 'Hide password' : 'Show password'}>
+                        <EyeIcon open={showPassword} />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="signup-terms-row">
+                    <input
+                      type="checkbox"
+                      id="terms-accept"
+                      checked={termsAccepted}
+                      onChange={e => setTermsAccepted(e.target.checked)}
+                      className="signup-terms-checkbox"
+                    />
+                    <label htmlFor="terms-accept" className="signup-terms-label">
+                      I accept the terms of the{' '}
+                      <Link to="/privacy" target="_blank" rel="noreferrer" className="signup-terms-link">
+                        Privacy & Use Policy
+                      </Link>
+                    </label>
+                  </div>
+                  <button className="btn-full btn-full--indigo" type="submit" disabled={loading || !!oauthLoading || !termsAccepted}>
+                    {loading ? 'Creating account…' : 'Create my free account'}
+                  </button>
+                </form>
+
+                <div className="auth-toggle" style={{ marginTop: '1.25rem' }}>
+                  Already registered? <Link to="/login">Log in instead</Link>
+                </div>
+                <div className="auth-toggle" style={{ marginTop: '8px' }}>
+                  <Link to="/">← Back to welcome page</Link>
+                </div>
+              </>
+            )}
           </div>
         </div>
 

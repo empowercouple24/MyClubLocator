@@ -6906,3 +6906,78 @@ input.input-ok {
 }
 .ac-ls-body.on  .ac-ls-rocker { background: #fff;    margin-top: -6px; }
 .ac-ls-body.off .ac-ls-rocker { background: #f09595; margin-bottom: -6px; }
+
+/* ── Welcome card (post-login) ───────────────────────────── */
+.welcome-card {
+  text-align: center;
+  padding: 2.5rem 2rem;
+}
+.welcome-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1.25rem;
+}
+.welcome-icon--green { background: #E1F5EE; }
+.welcome-icon--amber { background: #FEF3C7; }
+.welcome-icon--blue  { background: #EFF6FF; }
+
+.welcome-title {
+  font-size: 22px;
+  font-weight: 600;
+  color: #1A3C2E;
+  margin-bottom: 0.75rem;
+}
+.welcome-msg {
+  font-size: 15px;
+  color: #444;
+  line-height: 1.6;
+  margin-bottom: 0.25rem;
+}
+.welcome-sub {
+  font-size: 13px;
+  color: #888;
+  margin-top: 0.5rem;
+}
+.btn-text-link {
+  display: block;
+  width: 100%;
+  background: none;
+  border: none;
+  color: #888;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 0.5rem;
+  text-decoration: underline;
+}
+.btn-text-link:hover { color: #1A3C2E; }
+
+/* ── Signup closed state ─────────────────────────────────── */
+.signup-closed {
+  text-align: center;
+  padding: 2rem 0;
+}
+.signup-closed-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: #FEF3C7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1.25rem;
+}
+.signup-closed-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #1A3C2E;
+  margin-bottom: 0.75rem;
+}
+.signup-closed-msg {
+  font-size: 14px;
+  color: #666;
+  line-height: 1.6;
+}

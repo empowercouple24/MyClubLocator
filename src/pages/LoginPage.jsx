@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
@@ -36,6 +36,8 @@ function FacebookIcon() {
   )
 }
 
+const ADMIN_ID = 'ed1f34a7-7838-4d01-a29c-63220c43e9f1'
+
 export default function LoginPage() {
   const navigate = useNavigate()
   const [email, setEmail]               = useState('')
@@ -45,13 +47,72 @@ export default function LoginPage() {
   const [loading, setLoading]           = useState(false)
   const [oauthLoading, setOauthLoading] = useState('')
 
+  // Welcome state — shown after successful login for returning users
+  const [welcome, setWelcome] = useState(null) // null | { type, name, clubName, approved }
+
   async function handleSubmit(e) {
     e.preventDefault()
     setError('')
     setLoading(true)
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) { setError(error.message); setLoading(false) }
-    else navigate('/app/map')
+
+    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ email, password })
+    if (authError) { setError(authError.message); setLoading(false); return }
+
+    const user = authData.user
+    const isAdmin = user.id === ADMIN_ID
+
+    // Admin bypasses all checks
+    if (isAdmin) { navigate('/app/map'); return }
+
+    // Check member_login_enabled
+    const { data: settings } = await supabase
+      .from('app_settings').select('member_login_enabled').eq('id', 1).single()
+    if (settings && settings.member_login_enabled === false) {
+      await supabase.auth.signOut()
+      setError('Access is temporarily unavailable. Please try again later.')
+      setLoading(false)
+      return
+    }
+
+    // Check onboarding status and profile for welcome message
+    const { data: uta } = await supabase
+      .from('user_terms_acceptance')
+      .select('onboarding_done')
+      .eq('user_id', user.id)
+      .single()
+
+    const { data: loc } = await supabase
+      .from('locations')
+      .select('first_name, club_name, approved')
+      .eq('user_id', user.id)
+      .eq('club_index', 0)
+      .single()
+
+    // Route based on state
+    if (!uta?.onboarding_done) {
+      // Never completed onboarding — send there now
+      navigate('/onboarding')
+      return
+    }
+
+    if (!loc) {
+      // Completed onboarding but no profile yet
+      setWelcome({ type: 'no_profile', name: null })
+      setLoading(false)
+      return
+    }
+
+    if (loc.approved === false) {
+      // Has profile but pending approval
+      setWelcome({ type: 'pending', name: loc.first_name, clubName: loc.club_name })
+      setLoading(false)
+      return
+    }
+
+    // Has profile and approved — show welcome back message briefly then go to map
+    setWelcome({ type: 'approved', name: loc.first_name, clubName: loc.club_name })
+    setLoading(false)
+    setTimeout(() => navigate('/app/map'), 2200)
   }
 
   async function handleOAuth(provider) {
@@ -62,6 +123,72 @@ export default function LoginPage() {
       options: { redirectTo: `${window.location.origin}/app/map` },
     })
     if (error) { setError(error.message); setOauthLoading('') }
+  }
+
+  // Welcome screen shown after login
+  if (welcome) {
+    return (
+      <div className="auth-page">
+        <div className="auth-card welcome-card">
+          {welcome.type === 'approved' && (
+            <>
+              <div className="welcome-icon welcome-icon--green">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="#4CAF82"/>
+                </svg>
+              </div>
+              <h1 className="welcome-title">Welcome back{welcome.name ? `, ${welcome.name}` : ''}!</h1>
+              <p className="welcome-msg">
+                {welcome.clubName
+                  ? <><strong>{welcome.clubName}</strong> is live on the map.</>
+                  : 'Your club is live on the map.'
+                }
+              </p>
+              <p className="welcome-sub">Taking you to the map…</p>
+            </>
+          )}
+          {welcome.type === 'pending' && (
+            <>
+              <div className="welcome-icon welcome-icon--amber">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="10" stroke="#F59E0B" strokeWidth="1.5"/>
+                  <path d="M12 7v6" stroke="#F59E0B" strokeWidth="1.5" strokeLinecap="round"/>
+                  <circle cx="12" cy="16.5" r="0.75" fill="#F59E0B"/>
+                </svg>
+              </div>
+              <h1 className="welcome-title">Welcome back{welcome.name ? `, ${welcome.name}` : ''}!</h1>
+              <p className="welcome-msg">
+                {welcome.clubName
+                  ? <><strong>{welcome.clubName}</strong> is pending approval.</>
+                  : 'Your club is pending approval.'
+                } You'll appear on the map once approved.
+              </p>
+              <button className="btn-full" style={{ marginTop: '1.5rem' }} onClick={() => navigate('/app/map')}>
+                Go to the map →
+              </button>
+            </>
+          )}
+          {welcome.type === 'no_profile' && (
+            <>
+              <div className="welcome-icon welcome-icon--blue">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="10" stroke="#6B8DD6" strokeWidth="1.5"/>
+                  <path d="M12 8v4l3 3" stroke="#6B8DD6" strokeWidth="1.5" strokeLinecap="round"/>
+                </svg>
+              </div>
+              <h1 className="welcome-title">Welcome back!</h1>
+              <p className="welcome-msg">Your club profile isn't set up yet. Finish setting it up to appear on the map.</p>
+              <button className="btn-full" style={{ marginTop: '1.5rem' }} onClick={() => navigate('/app/profile')}>
+                Set up my club →
+              </button>
+              <button className="btn-text-link" style={{ marginTop: '0.75rem' }} onClick={() => navigate('/app/map')}>
+                Go to map first
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    )
   }
 
   return (
