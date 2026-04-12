@@ -221,6 +221,10 @@ export default function AdminPage() {
     marker_color_team:     '#7C3AED',
     landing_eyebrow_color: '#F1EFE8',
     landing_hero_panel_color: '#1A3C2E',
+    theme_page_bg:          '#E8E3D8',
+    theme_card_header_bg:   '#1A3C2E',
+    theme_card_header_text: '#ffffff',
+    theme_card_body:        '#ffffff',
     demo_population: true,
     demo_income: true,
     demo_age_fit: true,
@@ -248,6 +252,7 @@ export default function AdminPage() {
   const [finderMsgsOpen, setFinderMsgsOpen]     = useState(false)
   const [markerColorsOpen, setMarkerColorsOpen] = useState(false)
   const [landingOpen, setLandingOpen] = useState(false)
+  const [appThemeOpen, setAppThemeOpen] = useState(false)
   const [memberApprovalOpen, setMemberApprovalOpen] = useState(false)
   const [teamCreationOpen, setTeamCreationOpen] = useState(false)
   const [previewBasemap, setPreviewBasemap] = useState('streets')
@@ -298,6 +303,15 @@ export default function AdminPage() {
     loadMembers()
     loadSettings()
   }, [isAdmin])
+
+  // Live-apply theme vars as admin changes pickers
+  useEffect(() => {
+    const root = document.documentElement
+    if (settings.theme_page_bg)          root.style.setProperty('--theme-page-bg',          settings.theme_page_bg)
+    if (settings.theme_card_header_bg)   root.style.setProperty('--theme-card-header-bg',   settings.theme_card_header_bg)
+    if (settings.theme_card_header_text) root.style.setProperty('--theme-card-header-text', settings.theme_card_header_text)
+    if (settings.theme_card_body)        root.style.setProperty('--theme-card-body',         settings.theme_card_body)
+  }, [settings.theme_page_bg, settings.theme_card_header_bg, settings.theme_card_header_text, settings.theme_card_body])
 
   async function loadMembers() {
     setLoadingMembers(true)
@@ -526,6 +540,10 @@ export default function AdminPage() {
       marker_color_team:                 settings.marker_color_team,
       landing_eyebrow_color:             settings.landing_eyebrow_color,
       landing_hero_panel_color:          settings.landing_hero_panel_color,
+      theme_page_bg:                     settings.theme_page_bg,
+      theme_card_header_bg:              settings.theme_card_header_bg,
+      theme_card_header_text:            settings.theme_card_header_text,
+      theme_card_body:                   settings.theme_card_body,
       demo_population:            settings.demo_population,
       demo_income:                settings.demo_income,
       demo_age_fit:               settings.demo_age_fit,
@@ -1214,6 +1232,155 @@ export default function AdminPage() {
                   </div>
                 )}
               </div>
+
+              {/* App Theme */}
+              {(() => {
+                const PAGE_BG_OPTIONS = [
+                  { value: '#F5F3EE', label: 'Soft cream' },
+                  { value: '#EDE9E0', label: 'Warm linen' },
+                  { value: '#E8E3D8', label: 'Sandy beige' },
+                  { value: '#DDD8CC', label: 'Warm stone' },
+                  { value: '#D8D3C8', label: 'Deep sand' },
+                  { value: '#F4F7F5', label: 'Cool mint' },
+                  { value: '#EDECEA', label: 'Stone grey' },
+                  { value: '#F0F0F0', label: 'Light grey' },
+                ]
+                const HEADER_BG_OPTIONS = [
+                  { value: '#1A3C2E', label: 'Forest green' },
+                  { value: '#0C447C', label: 'Navy blue' },
+                  { value: '#2C2C2A', label: 'Charcoal' },
+                  { value: '#4338CA', label: 'Indigo' },
+                  { value: '#7C3AED', label: 'Purple' },
+                  { value: '#854F0B', label: 'Amber dark' },
+                  { value: '#185FA5', label: 'Steel blue' },
+                  { value: '#0F6E56', label: 'Teal green' },
+                ]
+                const HEADER_TEXT_OPTIONS = [
+                  { value: '#ffffff', label: 'White' },
+                  { value: '#F0EEE8', label: 'Off-white' },
+                  { value: '#C8D4CC', label: 'Soft sage' },
+                  { value: '#1A1A1A', label: 'Near black' },
+                ]
+                const CARD_BODY_OPTIONS = [
+                  { value: '#ffffff', label: 'Pure white' },
+                  { value: '#FAFAF7', label: 'Warm white' },
+                  { value: '#F7F5F0', label: 'Cream' },
+                  { value: '#F3F1EC', label: 'Light sand' },
+                ]
+                const curPageBg    = PAGE_BG_OPTIONS.find(o => o.value === settings.theme_page_bg) || PAGE_BG_OPTIONS[2]
+                const curHeaderBg  = HEADER_BG_OPTIONS.find(o => o.value === settings.theme_card_header_bg) || HEADER_BG_OPTIONS[0]
+                const curHeaderTxt = HEADER_TEXT_OPTIONS.find(o => o.value === settings.theme_card_header_text) || HEADER_TEXT_OPTIONS[0]
+                const curCardBody  = CARD_BODY_OPTIONS.find(o => o.value === settings.theme_card_body) || CARD_BODY_OPTIONS[0]
+                return (
+                  <div className="admin-section" style={{ padding: 0, overflow: 'hidden' }}>
+                    <button type="button" className="survey-toggle-btn" style={{ padding: '14px 20px' }} onClick={() => setAppThemeOpen(o => !o)}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1 }}>
+                        <h3 className="admin-section-title" style={{ margin: 0 }}>App Theme</h3>
+                        <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                          {[settings.theme_page_bg, settings.theme_card_header_bg, settings.theme_card_body].map((c, i) => (
+                            <span key={i} style={{ width: 13, height: 13, borderRadius: 3, background: c || '#888', border: '1.5px solid rgba(255,255,255,0.3)', display: 'inline-block', flexShrink: 0 }} />
+                          ))}
+                        </div>
+                      </div>
+                      <svg className={`survey-chevron ${appThemeOpen ? 'open' : ''}`} width="14" height="14" viewBox="0 0 16 16" fill="none">
+                        <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </button>
+                    {appThemeOpen && (
+                      <div style={{ padding: '0 20px 20px' }}>
+                        <p className="admin-section-desc" style={{ marginBottom: 18 }}>Customize the page background and card colors across the entire app. Changes preview live as you click.</p>
+
+                        {/* Live mini-preview */}
+                        <div style={{ marginBottom: 22 }}>
+                          <div className="mc-preview-label" style={{ marginBottom: 8 }}>Preview</div>
+                          <div style={{ background: settings.theme_page_bg || '#E8E3D8', borderRadius: 10, padding: 12, border: '1px solid rgba(0,0,0,0.08)' }}>
+                            <div style={{ background: settings.theme_card_body || '#fff', borderRadius: 8, overflow: 'hidden', border: '1px solid rgba(0,0,0,0.1)' }}>
+                              <div style={{ background: settings.theme_card_header_bg || '#1A3C2E', padding: '9px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                <span style={{ fontSize: 12, fontWeight: 500, color: settings.theme_card_header_text || '#fff' }}>Card Title</span>
+                                <svg width="11" height="11" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke={settings.theme_card_header_text || '#fff'} strokeOpacity="0.5" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                              </div>
+                              <div style={{ padding: '10px 14px' }}>
+                                <div style={{ fontSize: 11, color: '#888', marginBottom: 8 }}>Card body content appears here with your chosen background.</div>
+                                <div style={{ height: 8, background: 'rgba(0,0,0,0.06)', borderRadius: 4, marginBottom: 5, width: '75%' }} />
+                                <div style={{ height: 8, background: 'rgba(0,0,0,0.04)', borderRadius: 4, width: '55%' }} />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* 2×2 picker grid */}
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18 }}>
+
+                          {/* Page background */}
+                          <div>
+                            <div className="mc-picker-label" style={{ marginBottom: 4 }}>Page background</div>
+                            <div className="admin-section-desc" style={{ marginBottom: 10 }}>Behind all cards across the app</div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+                              {PAGE_BG_OPTIONS.map(opt => (
+                                <button key={opt.value} title={opt.label}
+                                  onClick={() => setSettings(s => ({ ...s, theme_page_bg: opt.value }))}
+                                  style={{ width: 34, height: 34, borderRadius: 7, background: opt.value, border: settings.theme_page_bg === opt.value ? '2.5px solid #1A3C2E' : '1.5px solid rgba(0,0,0,0.15)', cursor: 'pointer', transform: settings.theme_page_bg === opt.value ? 'scale(1.15)' : 'scale(1)', transition: 'transform 0.1s', position: 'relative', flexShrink: 0 }}>
+                                  {settings.theme_page_bg === opt.value && <svg style={{ position: 'absolute', inset: 0, margin: 'auto' }} width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M3 8l4 4 6-6" stroke="#1A3C2E" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                                </button>
+                              ))}
+                            </div>
+                            <div style={{ marginTop: 5, fontSize: 11, color: '#888' }}>{curPageBg.label}</div>
+                          </div>
+
+                          {/* Card header background */}
+                          <div>
+                            <div className="mc-picker-label" style={{ marginBottom: 4 }}>Card header background</div>
+                            <div className="admin-section-desc" style={{ marginBottom: 10 }}>The colored band at the top of each card</div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+                              {HEADER_BG_OPTIONS.map(opt => (
+                                <button key={opt.value} title={opt.label}
+                                  onClick={() => setSettings(s => ({ ...s, theme_card_header_bg: opt.value }))}
+                                  style={{ width: 34, height: 34, borderRadius: 7, background: opt.value, border: settings.theme_card_header_bg === opt.value ? '2.5px solid #fff' : '1.5px solid rgba(0,0,0,0.15)', cursor: 'pointer', transform: settings.theme_card_header_bg === opt.value ? 'scale(1.15)' : 'scale(1)', transition: 'transform 0.1s', position: 'relative', flexShrink: 0 }}>
+                                  {settings.theme_card_header_bg === opt.value && <svg style={{ position: 'absolute', inset: 0, margin: 'auto' }} width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M3 8l4 4 6-6" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                                </button>
+                              ))}
+                            </div>
+                            <div style={{ marginTop: 5, fontSize: 11, color: '#888' }}>{curHeaderBg.label}</div>
+                          </div>
+
+                          {/* Card header text */}
+                          <div>
+                            <div className="mc-picker-label" style={{ marginBottom: 4 }}>Card header text</div>
+                            <div className="admin-section-desc" style={{ marginBottom: 10 }}>Title text color inside the header band</div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+                              {HEADER_TEXT_OPTIONS.map(opt => (
+                                <button key={opt.value} title={opt.label}
+                                  onClick={() => setSettings(s => ({ ...s, theme_card_header_text: opt.value }))}
+                                  style={{ width: 34, height: 34, borderRadius: 7, background: settings.theme_card_header_bg || '#1A3C2E', border: settings.theme_card_header_text === opt.value ? '2.5px solid #4CAF82' : '1.5px solid rgba(0,0,0,0.15)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'transform 0.1s', transform: settings.theme_card_header_text === opt.value ? 'scale(1.15)' : 'scale(1)', flexShrink: 0 }}>
+                                  <span style={{ fontSize: 11, fontWeight: 600, color: opt.value, lineHeight: 1 }}>Aa</span>
+                                </button>
+                              ))}
+                            </div>
+                            <div style={{ marginTop: 5, fontSize: 11, color: '#888' }}>{curHeaderTxt.label}</div>
+                          </div>
+
+                          {/* Card body background */}
+                          <div>
+                            <div className="mc-picker-label" style={{ marginBottom: 4 }}>Card body background</div>
+                            <div className="admin-section-desc" style={{ marginBottom: 10 }}>The main content area of each card</div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+                              {CARD_BODY_OPTIONS.map(opt => (
+                                <button key={opt.value} title={opt.label}
+                                  onClick={() => setSettings(s => ({ ...s, theme_card_body: opt.value }))}
+                                  style={{ width: 34, height: 34, borderRadius: 7, background: opt.value, border: settings.theme_card_body === opt.value ? '2.5px solid #1A3C2E' : '1.5px solid rgba(0,0,0,0.15)', cursor: 'pointer', transform: settings.theme_card_body === opt.value ? 'scale(1.15)' : 'scale(1)', transition: 'transform 0.1s', position: 'relative', flexShrink: 0 }}>
+                                  {settings.theme_card_body === opt.value && <svg style={{ position: 'absolute', inset: 0, margin: 'auto' }} width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M3 8l4 4 6-6" stroke="#1A3C2E" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                                </button>
+                              ))}
+                            </div>
+                            <div style={{ marginTop: 5, fontSize: 11, color: '#888' }}>{curCardBody.label}</div>
+                          </div>
+
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )
+              })()}
 
               {/* Landing Page Appearance */}
               {(() => {

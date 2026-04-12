@@ -1,6 +1,7 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from './lib/AuthContext'
+import { supabase } from './lib/supabase'
 import Layout from './components/Layout'
 import LandingPage from './pages/LandingPage'
 import LoginPage from './pages/LoginPage'
@@ -14,7 +15,6 @@ import ForgotPasswordPage from './pages/ForgotPasswordPage'
 import AdminPage from './pages/AdminPage'
 import PublicFinderPage from './pages/PublicFinderPage'
 
-// Lazy load MapPage so Leaflet only initializes when the map route renders
 const MapPage = lazy(() => import('./pages/MapPage'))
 
 function RequireAuth({ children }) {
@@ -24,6 +24,23 @@ function RequireAuth({ children }) {
 }
 
 export default function App() {
+  useEffect(() => {
+    async function applyTheme() {
+      const { data } = await supabase
+        .from('app_settings')
+        .select('theme_page_bg, theme_card_header_bg, theme_card_header_text, theme_card_body')
+        .eq('id', 1)
+        .single()
+      if (!data) return
+      const root = document.documentElement
+      if (data.theme_page_bg)          root.style.setProperty('--theme-page-bg',          data.theme_page_bg)
+      if (data.theme_card_header_bg)   root.style.setProperty('--theme-card-header-bg',   data.theme_card_header_bg)
+      if (data.theme_card_header_text) root.style.setProperty('--theme-card-header-text', data.theme_card_header_text)
+      if (data.theme_card_body)        root.style.setProperty('--theme-card-body',         data.theme_card_body)
+    }
+    applyTheme()
+  }, [])
+
   return (
     <Routes>
       <Route path="/" element={<LandingPage />} />

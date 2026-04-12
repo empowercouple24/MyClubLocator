@@ -410,3 +410,30 @@ ALTER TABLE app_settings
   - 8 hero panel swatches (default: Forest green `#1A3C2E`)
   - Live mini-preview updates instantly
 - **SQL to run:** `ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS landing_eyebrow_color TEXT DEFAULT '#F1EFE8', ADD COLUMN IF NOT EXISTS landing_hero_panel_color TEXT DEFAULT '#1A3C2E';`
+
+---
+
+## App Theme System (completed Apr 12 2026)
+CSS custom properties drive all card and page colors. Injected on `document.documentElement` at app boot (App.jsx) and live-updated as admin changes pickers.
+
+Variables: `--theme-page-bg`, `--theme-card-header-bg`, `--theme-card-header-text`, `--theme-card-body`
+
+Defaults: `#E8E3D8` / `#1A3C2E` / `#ffffff` / `#ffffff`
+
+Landing page background intentionally NOT themed — stays `#f4f7f5` always.
+
+Admin → Settings → **App Theme** card (collapsible, above Landing Page Appearance):
+- 8 page background swatches (creams/sands/greys)
+- 8 card header background swatches (same as eyebrow options)
+- 4 card header text options (shown as "Aa" on actual header bg color)
+- 4 card body swatches (whites/creams)
+- Live mini-preview updates instantly
+
+**SQL to run:**
+```sql
+ALTER TABLE app_settings
+  ADD COLUMN IF NOT EXISTS theme_page_bg TEXT DEFAULT '#E8E3D8',
+  ADD COLUMN IF NOT EXISTS theme_card_header_bg TEXT DEFAULT '#1A3C2E',
+  ADD COLUMN IF NOT EXISTS theme_card_header_text TEXT DEFAULT '#ffffff',
+  ADD COLUMN IF NOT EXISTS theme_card_body TEXT DEFAULT '#ffffff';
+```
