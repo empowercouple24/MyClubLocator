@@ -5603,3 +5603,43 @@ body {
   text-underline-offset: 2px;
   padding: 0;
 }
+
+/* ── Directory owner photo ───────────────────────────────────── */
+.dc-owner-photo {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 1.5px solid #e0ece6;
+}
+
+.dc-owner-details {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: 1;
+  min-width: 0;
+}
+
+.dc-owner-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+}
+
+.dc-owner-title {
+  font-size: 10px;
+  font-weight: 700;
+  color: #1A3C2E;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  line-height: 1.2;
+}
+
+.dc-owner-name {
+  font-size: 13px;
+  color: #333;
+  line-height: 1.3;
+}

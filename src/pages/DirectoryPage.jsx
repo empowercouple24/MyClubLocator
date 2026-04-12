@@ -26,10 +26,69 @@ function getDaysOpen(loc) {
   return days.map((d, i) => ({
     label: labels[i],
     day: d,
+    dayFull: d.slice(0,3).replace(/^\w/, c => c.toUpperCase()),
     open: !!(loc[`hours_${d}_open`] && loc[`hours_${d}_close`]),
-    openTime:  loc[`hours_${d}_open`],
-    closeTime: loc[`hours_${d}_close`],
+    openTime:  loc[`hours_${d}_open`]  || '',
+    closeTime: loc[`hours_${d}_close`] || '',
   }))
+}
+
+const DAY_NAMES_FULL = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
+
+function condenseHours(dayDots) {
+  // Only consider days that are open
+  const open = dayDots.filter(d => d.open)
+  if (open.length === 0) return []
+
+  // Group consecutive days with identical hours into ranges
+  const ranges = []
+  let run = [open[0]]
+
+  for (let i = 1; i < open.length; i++) {
+    const prev = run[run.length - 1]
+    const curr = open[i]
+    // Check consecutive in week AND same hours
+    const prevIdx = dayDots.indexOf(prev)
+    const currIdx = dayDots.indexOf(curr)
+    const consecutive = currIdx === prevIdx + 1
+    const sameHours = prev.openTime === curr.openTime && prev.closeTime === curr.closeTime
+    if (consecutive && sameHours) {
+      run.push(curr)
+    } else {
+      ranges.push(run)
+      run = [curr]
+    }
+  }
+  ranges.push(run)
+
+  return ranges.map(run => {
+    const first = run[0]
+    const last  = run[run.length - 1]
+    const label = run.length === 1
+      ? first.dayFull
+      : `${first.dayFull}–${last.dayFull}`
+    return {
+      label,
+      time: `${formatTime(first.openTime)} – ${formatTime(first.closeTime)}`
+    }
+  })
+}
+
+function condenseLevelLabel(level) {
+  if (!level) return ''
+  return level
+    .replace('Presidents Team', 'PT')
+    .replace('Chairmans Club', 'CC')
+    .replace('Founders Circle', 'FC')
+    .replace('Millionaire Team 7500', 'MP')
+    .replace('Millionaire Team', 'MT')
+    .replace('Get Team 2500', 'GP')
+    .replace('Get Team', 'GT')
+    .replace('Active World Team', 'AWT')
+    .replace('World Team', 'WT')
+    .replace('Supervisor', 'SP')
+    .replace('Success Builder', 'SB')
+    .replace('Distributor', 'DS')
 }
 
 function LevelPill({ level }) {
@@ -41,9 +100,10 @@ function LevelPill({ level }) {
   else if (/^(Supervisor|World Team|Active World Team|Distributor|Success Builder)/.test(level)) { bg = '#f0f0f0'; color = '#555'; border = '#ccc' }
   else if (/^(Get Team|Millionaire)/.test(level)) { bg = '#e8f8f0'; color = '#0c5a32'; border = '#A8DFC4' }
 
-  const display = level.includes(' 💎')
-    ? <>{level.replace(/ (\d+) 💎$/, (_, d) => ` ${d} `)}<span style={{ fontSize: 10 }}>💎</span></>
-    : level
+  const condensed = condenseLevelLabel(level)
+  const display = condensed.includes(' 💎')
+    ? <>{condensed.replace(/ (\d+) 💎$/, (_, d) => ` ${d} `)}<span style={{ fontSize: 10 }}>💎</span></>
+    : condensed
 
   return (
     <span style={{
@@ -65,7 +125,10 @@ function DirCard({ loc, isYours, defaultExpanded, navigate }) {
   const owner3Name = [loc.owner3_first_name, loc.owner3_last_name].filter(Boolean).join(' ')
   const dayDots    = getDaysOpen(loc)
   const hasDays    = dayDots.some(d => d.open)
-  const openDays   = dayDots.filter(d => d.open)
+  const condensed  = condenseHours(dayDots)
+
+  // Address formatted: street, city, state
+  const addressLine = [loc.address, loc.city, loc.state].filter(Boolean).join(', ')
 
   return (
     <div className={`dir-card ${isYours ? 'dir-card-mine' : ''} ${expanded ? 'expanded' : ''}`}>
@@ -82,10 +145,9 @@ function DirCard({ loc, isYours, defaultExpanded, navigate }) {
               <span className="dc-name">{loc.club_name || 'Unnamed Club'}</span>
               {isYours && <span className="badge-yours">Yours</span>}
             </div>
-            <div className="dc-city-line">
-              {loc.city}{loc.state ? `, ${loc.state}` : ''}
-              {loc.address ? ` · ${loc.address}` : ''}
-            </div>
+            {addressLine && (
+              <div className="dc-city-line">{addressLine}</div>
+            )}
           </div>
         </div>
         <svg className={`dc-chevron ${expanded ? 'open' : ''}`}
@@ -101,21 +163,39 @@ function DirCard({ loc, isYours, defaultExpanded, navigate }) {
           {/* Owners */}
           {ownerName && (
             <div className="dc-owners-block">
+              {/* Owner 1 */}
               <div className="dc-owner-row">
-                <span className="dc-owner-title">Primary Owner</span>
-                <span className="dc-owner-name">{ownerName}</span>
+                {loc.owner_photo_url && (
+                  <img src={loc.owner_photo_url} alt={ownerName} className="dc-owner-photo" />
+                )}
+                <div className="dc-owner-details">
+                  <span className="dc-owner-title">Primary Owner</span>
+                  <span className="dc-owner-name">{ownerName}</span>
+                </div>
                 <LevelPill level={loc.herbalife_level} />
               </div>
+              {/* Owner 2 */}
               {owner2Name && (
-                <div className="dc-owner-row" style={{ marginTop: 4 }}>
-                  <span className="dc-owner-title">Co-Owner</span>
-                  <span className="dc-owner-name">{owner2Name}</span>
+                <div className="dc-owner-row" style={{ marginTop: 6 }}>
+                  {loc.owner2_photo_url && (
+                    <img src={loc.owner2_photo_url} alt={owner2Name} className="dc-owner-photo" />
+                  )}
+                  <div className="dc-owner-details">
+                    <span className="dc-owner-title">Co-Owner</span>
+                    <span className="dc-owner-name">{owner2Name}</span>
+                  </div>
                 </div>
               )}
+              {/* Owner 3 */}
               {owner3Name && (
-                <div className="dc-owner-row" style={{ marginTop: 4 }}>
-                  <span className="dc-owner-title">Co-Owner</span>
-                  <span className="dc-owner-name">{owner3Name}</span>
+                <div className="dc-owner-row" style={{ marginTop: 6 }}>
+                  {loc.owner3_photo_url && (
+                    <img src={loc.owner3_photo_url} alt={owner3Name} className="dc-owner-photo" />
+                  )}
+                  <div className="dc-owner-details">
+                    <span className="dc-owner-title">Co-Owner</span>
+                    <span className="dc-owner-name">{owner3Name}</span>
+                  </div>
                 </div>
               )}
             </div>
@@ -157,13 +237,13 @@ function DirCard({ loc, isYours, defaultExpanded, navigate }) {
             )}
           </div>
 
-          {/* Hours — full per-day */}
-          {hasDays && (
+          {/* Hours — condensed */}
+          {condensed.length > 0 && (
             <div className="dc-hours-block">
-              {openDays.map(d => (
-                <div key={d.day} className="dc-hours-row-full">
-                  <span className="dc-hours-day">{d.day.slice(0,3).replace(/^\w/, c => c.toUpperCase())}</span>
-                  <span className="dc-hours-time">{formatTime(d.openTime)} – {formatTime(d.closeTime)}</span>
+              {condensed.map((r, i) => (
+                <div key={i} className="dc-hours-row-full">
+                  <span className="dc-hours-day">{r.label}</span>
+                  <span className="dc-hours-time">{r.time}</span>
                 </div>
               ))}
             </div>
