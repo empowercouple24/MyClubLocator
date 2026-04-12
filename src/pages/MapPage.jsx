@@ -1011,22 +1011,16 @@ export default function MapPage() {
           {panelPosition !== 'bottom' && (
             <div className="panel-width-row">
               <button
-                className={`panel-width-pill ${panelWidth === 'normal' ? 'active' : ''}`}
-                onClick={() => panelWidth !== 'normal' && togglePanelWidth()}
-              >
-                <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
-                  <path d="M8 2l3 4-3 4M4 2L1 6l3 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-                Normal
-              </button>
-              <button
-                className={`panel-width-pill ${panelWidth === 'wide' ? 'active' : ''}`}
-                onClick={() => panelWidth !== 'wide' && togglePanelWidth()}
+                className={`panel-wide-pill ${panelWidth === 'wide' ? 'active' : ''}`}
+                onClick={togglePanelWidth}
               >
                 <svg width="13" height="11" viewBox="0 0 14 12" fill="none">
                   <path d="M10 2l3 4-3 4M4 2L1 6l3 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
-                Wide
+                <span className="panel-wide-pill-label">Wide panel</span>
+                <span className="panel-wide-pill-sub">
+                  {panelWidth === 'wide' ? 'click to disable' : 'click to enable'}
+                </span>
               </button>
             </div>
           )}
