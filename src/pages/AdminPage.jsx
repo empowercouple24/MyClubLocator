@@ -246,6 +246,8 @@ export default function AdminPage() {
   const [loginMsgsOpen, setLoginMsgsOpen]       = useState(false)
   const [finderMsgsOpen, setFinderMsgsOpen]     = useState(false)
   const [markerColorsOpen, setMarkerColorsOpen] = useState(false)
+  const [memberApprovalOpen, setMemberApprovalOpen] = useState(false)
+  const [teamCreationOpen, setTeamCreationOpen] = useState(false)
   const [previewBasemap, setPreviewBasemap] = useState('streets')
 
   // Contacts state
@@ -1004,20 +1006,6 @@ export default function AdminPage() {
                 )}
               </div>
 
-              {/* Member Approval */}
-              <div className="admin-section">
-                <h3 className="admin-section-title">Member Approval</h3>
-                <p className="admin-section-desc">When enabled, new signups must be approved before appearing on the map.</p>
-                <div className="admin-toggle-row">
-                  <div>
-                    <div className="admin-toggle-label">Require approval for new members</div>
-                    <div className="admin-toggle-hint">New clubs will be hidden until you approve them</div>
-                  </div>
-                  <ToggleSwitch on={settings.require_approval}
-                    onChange={v => setSettings(s => ({ ...s, require_approval: v }))} />
-                </div>
-              </div>
-
               {/* Login Welcome Messages */}
               <div className="admin-section" style={{ padding: 0, overflow: 'hidden' }}>
                 <button type="button" className="survey-toggle-btn" style={{ padding: '14px 20px' }} onClick={() => setLoginMsgsOpen(o => !o)}>
@@ -1267,31 +1255,73 @@ export default function AdminPage() {
                 )}
               </div>
 
-              {/* Team Creation Settings */}
-              <div className="admin-section">
-                <h3 className="admin-section-title">Team Creation</h3>
-                <p className="admin-section-desc">Control which members can create and manage teams.</p>
-                <div className="admin-toggle-row" style={{ marginBottom: 14 }}>
-                  <div>
-                    <div className="admin-toggle-label">Allow team creation</div>
-                    <div className="admin-toggle-hint">When off, no member can create new teams</div>
+              {/* Team Creation Settings — collapsible */}
+              <div className="admin-section" style={{ padding: 0, overflow: 'hidden' }}>
+                <button type="button" className="survey-toggle-btn" style={{ padding: '14px 20px' }} onClick={() => setTeamCreationOpen(o => !o)}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
+                    <h3 className="admin-section-title" style={{ margin: 0 }}>Team Creation</h3>
+                    <span className="survey-progress-badge" style={{ background: settings.team_creation_enabled ? '#E1F5EE' : '#FFF3CD', color: settings.team_creation_enabled ? '#0F6E56' : '#854F0B' }}>
+                      {settings.team_creation_enabled ? 'Enabled' : 'Disabled'}
+                    </span>
                   </div>
-                  <ToggleSwitch on={settings.team_creation_enabled}
-                    onChange={v => setSettings(s => ({ ...s, team_creation_enabled: v }))} />
-                </div>
-                <div className="field">
-                  <label>Minimum level to create a team</label>
-                  <select
-                    value={settings.team_creation_min_level}
-                    onChange={e => setSettings(s => ({ ...s, team_creation_min_level: e.target.value }))}
-                    disabled={!settings.team_creation_enabled}
-                  >
-                    {['Distributor','Success Builder','Supervisor','World Team','Active World Team','Get Team','Get Team 2500','Millionaire Team','Millionaire Team 7500','Presidents Team','Chairmans Club','Founders Circle'].map(l => (
-                      <option key={l} value={l}>{l}</option>
-                    ))}
-                  </select>
-                  <span className="field-hint">Members below this level will not see the team creation option</span>
-                </div>
+                  <svg className={`survey-chevron ${teamCreationOpen ? 'open' : ''}`} width="14" height="14" viewBox="0 0 16 16" fill="none">
+                    <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+                {teamCreationOpen && (
+                  <div style={{ padding: '0 20px 20px' }}>
+                    <p className="admin-section-desc" style={{ marginBottom: 14 }}>Control which members can create and manage teams.</p>
+                    <div className="admin-toggle-row" style={{ marginBottom: 14 }}>
+                      <div>
+                        <div className="admin-toggle-label">Allow team creation</div>
+                        <div className="admin-toggle-hint">When off, no member can create new teams</div>
+                      </div>
+                      <ToggleSwitch on={settings.team_creation_enabled}
+                        onChange={v => setSettings(s => ({ ...s, team_creation_enabled: v }))} />
+                    </div>
+                    <div className="field">
+                      <label>Minimum level to create a team</label>
+                      <select
+                        value={settings.team_creation_min_level}
+                        onChange={e => setSettings(s => ({ ...s, team_creation_min_level: e.target.value }))}
+                        disabled={!settings.team_creation_enabled}
+                      >
+                        {['Distributor','Success Builder','Supervisor','World Team','Active World Team','Get Team','Get Team 2500','Millionaire Team','Millionaire Team 7500','Presidents Team','Chairmans Club','Founders Circle'].map(l => (
+                          <option key={l} value={l}>{l}</option>
+                        ))}
+                      </select>
+                      <span className="field-hint">Members below this level will not see the team creation option</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Member Approval — collapsible */}
+              <div className="admin-section" style={{ padding: 0, overflow: 'hidden' }}>
+                <button type="button" className="survey-toggle-btn" style={{ padding: '14px 20px' }} onClick={() => setMemberApprovalOpen(o => !o)}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
+                    <h3 className="admin-section-title" style={{ margin: 0 }}>Member Approval</h3>
+                    <span className="survey-progress-badge" style={{ background: settings.require_approval ? '#E1F5EE' : '#F5F5F5', color: settings.require_approval ? '#0F6E56' : '#888' }}>
+                      {settings.require_approval ? 'Required' : 'Auto-approve'}
+                    </span>
+                  </div>
+                  <svg className={`survey-chevron ${memberApprovalOpen ? 'open' : ''}`} width="14" height="14" viewBox="0 0 16 16" fill="none">
+                    <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+                {memberApprovalOpen && (
+                  <div style={{ padding: '0 20px 20px' }}>
+                    <p className="admin-section-desc" style={{ marginBottom: 14 }}>When enabled, new signups must be approved before appearing on the map.</p>
+                    <div className="admin-toggle-row">
+                      <div>
+                        <div className="admin-toggle-label">Require approval for new members</div>
+                        <div className="admin-toggle-hint">New clubs will be hidden until you approve them</div>
+                      </div>
+                      <ToggleSwitch on={settings.require_approval}
+                        onChange={v => setSettings(s => ({ ...s, require_approval: v }))} />
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Demographics */}

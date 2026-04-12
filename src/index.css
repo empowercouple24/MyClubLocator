@@ -1105,18 +1105,75 @@ body {
   z-index: 500;
   background: #fff;
   border: 1px solid #e0e8e0;
-  border-radius: 10px;
-  padding: 10px 14px;
-  font-size: 12px;
-  pointer-events: none;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  border-radius: 11px;
+  padding: 11px 14px;
+  font-size: 13px;
+  pointer-events: auto;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.10);
+  min-width: 170px;
 }
 
 .legend-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  line-height: 1.8;
+  gap: 9px;
+  line-height: 2;
+}
+
+.legend-circle {
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  border: 2px solid white;
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.12);
+  flex-shrink: 0;
+}
+
+.legend-divider {
+  height: 1px;
+  background: #eee;
+  margin: 7px 0;
+}
+
+.legend-visibility {
+  margin-bottom: 0;
+}
+
+.legend-visibility-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: #aaa;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 5px;
+}
+
+.legend-visibility-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.legend-vis-pill {
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 20px;
+  border: 1px solid #dde8e2;
+  background: #f7fdf9;
+  color: #555;
+  cursor: pointer;
+  transition: background 0.13s, color 0.13s, border-color 0.13s;
+  white-space: nowrap;
+}
+.legend-vis-pill:hover {
+  border-color: #4CAF82;
+  color: #1A3C2E;
+}
+.legend-vis-pill.active {
+  background: #1A3C2E;
+  color: #fff;
+  border-color: #1A3C2E;
 }
 
 .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
@@ -3991,12 +4048,14 @@ body {
 /* ── Map legend circles ──────────────────────────────────── */
 .legend-circle {
   display: inline-block;
-  width: 12px;
-  height: 12px;
+  width: 13px;
+  height: 13px;
   border-radius: 50%;
   border: 2px solid white;
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.12);
   flex-shrink: 0;
 }
+/* legacy color classes kept for safety */
 .legend-circle--own      { background: #D94F4F; }
 .legend-circle--other    { background: #6B8DD6; }
 .legend-circle--selected { background: #F59E0B; }

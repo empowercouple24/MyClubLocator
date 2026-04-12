@@ -713,7 +713,11 @@ export default function MapPage() {
   const [panelCollapsed, setPanelCollapsed] = useState(false)
   const [clickBehavior,  setClickBehavior]  = useState('zoom')     // 'zoom' | 'pan' | 'stay'
   const [teamFilter, setTeamFilter]           = useState(false)      // show my team clubs highlighted
-  const [teamLocationIds, setTeamLocationIds] = useState(new Set()) // location IDs in my teams
+  const [teamLocationIds, setTeamLocationIds] = useState(new Set()) // location IDs in my teams (owned)
+  const [memberTeamLocationIds, setMemberTeamLocationIds] = useState(new Set()) // location IDs in teams I belong to
+  const [isTeamOwner, setIsTeamOwner]         = useState(false)     // true if user owns at least one team
+  const [isTeamMember, setIsTeamMember]       = useState(false)     // true if user belongs to a team (not as owner)
+  const [visibilityMode, setVisibilityMode]   = useState('all')     // 'all' | 'mine' | 'team' | 'mine_team' | 'others' | 'none'
   const [markerColors, setMarkerColors]       = useState({
     own: '#D94F4F', other: '#6B8DD6', selected: '#F59E0B', team: '#7C3AED'
   })
@@ -743,14 +747,49 @@ export default function MapPage() {
   useEffect(() => {
     if (!user) return
     async function loadTeamIds() {
-      const { data: teams } = await supabase
+      // Teams I own → all accepted member location IDs
+      const { data: ownedTeams } = await supabase
         .from('teams')
         .select('team_members(location_id, status)')
         .eq('owner_user_id', user.id)
-      if (teams) {
-        const ids = new Set()
-        teams.forEach(t => t.team_members?.forEach(m => { if (m.status === 'accepted') ids.add(m.location_id) }))
-        setTeamLocationIds(ids)
+
+      const ownedIds = new Set()
+      if (ownedTeams) {
+        ownedTeams.forEach(t => t.team_members?.forEach(m => {
+          if (m.status === 'accepted') ownedIds.add(m.location_id)
+        }))
+      }
+      setTeamLocationIds(ownedIds)
+      setIsTeamOwner(ownedTeams && ownedTeams.length > 0)
+
+      // Teams I belong to as a member → find my location IDs first, then get sibling locations
+      const myLocationIds = [] // will fill from locations after load, use a direct query instead
+      const { data: myLocs } = await supabase
+        .from('locations')
+        .select('id')
+        .eq('user_id', user.id)
+
+      if (myLocs && myLocs.length > 0) {
+        const myLocIds = myLocs.map(l => l.id)
+        // Find teams where one of my locations is an accepted member
+        const { data: memberRows } = await supabase
+          .from('team_members')
+          .select('team_id')
+          .in('location_id', myLocIds)
+          .eq('status', 'accepted')
+
+        if (memberRows && memberRows.length > 0) {
+          const myTeamIds = [...new Set(memberRows.map(r => r.team_id))]
+          // Get all accepted members of those teams
+          const { data: teammates } = await supabase
+            .from('team_members')
+            .select('location_id')
+            .in('team_id', myTeamIds)
+            .eq('status', 'accepted')
+          const memberIds = new Set(teammates?.map(r => r.location_id) || [])
+          setMemberTeamLocationIds(memberIds)
+          setIsTeamMember(memberIds.size > 0)
+        }
       }
     }
     loadTeamIds()
@@ -918,7 +957,34 @@ export default function MapPage() {
     )
   }
 
+  // Combined team set for legend/filter: owned teams + member teams
+  const allTeamLocationIds = new Set([...teamLocationIds, ...memberTeamLocationIds])
+
   const filteredLocations = locations.filter(loc => {
+    // Visibility mode filter
+    const isOwn  = loc.user_id === user?.id
+    const isTeam = allTeamLocationIds.has(loc.id)
+    if (visibilityMode === 'none') return false
+    if (visibilityMode === 'mine') return isOwn
+    if (visibilityMode === 'team') return isTeam
+    if (visibilityMode === 'mine_team') return isOwn || isTeam
+    if (visibilityMode === 'others') return !isOwn
+    // 'all' falls through
+
+    // Radius filter
+    if (selected && radiusMiles) {
+      const dist = getDistanceMiles(selected.lat, selected.lng, loc.lat, loc.lng)
+      if (dist > radiusMiles) return false
+    }
+    // City filter
+    if (cityFilter) {
+      const hay = `${loc.city||''} ${loc.state||''} ${loc.address||''}`.toLowerCase()
+      return hay.includes(cityFilter.toLowerCase())
+    }
+    return true
+  }).filter(loc => {
+    // For modes other than 'all', still apply radius+city on top
+    if (visibilityMode === 'none' || visibilityMode === 'all') return true
     if (selected && radiusMiles) {
       const dist = getDistanceMiles(selected.lat, selected.lng, loc.lat, loc.lng)
       if (dist > radiusMiles) return false
@@ -932,7 +998,7 @@ export default function MapPage() {
 
   const activeBase = BASE_MAPS.find(b => b.id === baseMap) || BASE_MAPS[0]
   const defaultCenter = locations.length > 0 ? [locations[0].lat, locations[0].lng] : [39.5, -98.35]
-  const hasFilter = cityFilter || radiusMiles
+  const hasFilter = cityFilter || radiusMiles || visibilityMode !== 'all'
 
   return (
     <div className={`map-wrapper map-pos-${panelPosition}`}>
@@ -964,7 +1030,7 @@ export default function MapPage() {
             <MapController center={mapCenter} zoom={mapZoom} panelPosition={panelPosition} />
             <MapClickHandler active={demoActive} onMapClick={(lat, lng) => { setDemoLat(lat); setDemoLng(lng) }} />
             <TileLayer key={activeBase.id} attribution={activeBase.attribution} url={activeBase.url} />
-            <ClubMarkers locations={filteredLocations} selectedId={selected?.id} userId={user?.id} onSelect={handleSelectClub} navigate={navigate} teamFilter={teamFilter} teamLocationIds={teamLocationIds} markerColors={markerColors} />
+            <ClubMarkers locations={filteredLocations} selectedId={selected?.id} userId={user?.id} onSelect={handleSelectClub} navigate={navigate} teamFilter={teamFilter} teamLocationIds={allTeamLocationIds} markerColors={markerColors} />
             {selected && radiusMiles && (
               <Circle center={[selected.lat, selected.lng]} radius={milesToMeters(radiusMiles)}
                 pathOptions={{ color: '#1A3C2E', fillColor: '#4CAF82', fillOpacity: 0.08, weight: 2 }} />
@@ -1108,18 +1174,59 @@ export default function MapPage() {
         </div>
 
         <div className="map-legend">
-          <div className="legend-row">
-            <span className="legend-circle legend-circle--own"></span>
-            <span>Your club</span>
+          {/* Visibility mode selector */}
+          <div className="legend-visibility">
+            <div className="legend-visibility-label">Show</div>
+            <div className="legend-visibility-pills">
+              {[
+                { val: 'all',       label: 'All' },
+                { val: 'mine',      label: locations.filter(l => l.user_id === user?.id).length > 1 ? 'My clubs' : 'My club' },
+                ...(allTeamLocationIds.size > 0 ? [
+                  { val: 'team',      label: 'My team' },
+                  { val: 'mine_team', label: 'Mine + team' },
+                ] : []),
+                { val: 'others',    label: 'Others only' },
+                { val: 'none',      label: 'Hide all' },
+              ].map(({ val, label }) => (
+                <button
+                  key={val}
+                  className={`legend-vis-pill ${visibilityMode === val ? 'active' : ''}`}
+                  onClick={() => setVisibilityMode(val)}
+                >{label}</button>
+              ))}
+            </div>
           </div>
+
+          {/* Divider */}
+          <div className="legend-divider" />
+
+          {/* Marker key */}
+          {locations.some(l => l.user_id === user?.id) && (
+            <div className="legend-row">
+              <span className="legend-circle" style={{ background: markerColors.own }} />
+              <span>{locations.filter(l => l.user_id === user?.id).length > 1 ? 'My clubs' : 'My club'}</span>
+            </div>
+          )}
           <div className="legend-row">
-            <span className="legend-circle legend-circle--other"></span>
+            <span className="legend-circle" style={{ background: markerColors.other }} />
             <span>Other clubs</span>
           </div>
           <div className="legend-row">
-            <span className="legend-circle legend-circle--selected"></span>
+            <span className="legend-circle" style={{ background: markerColors.selected }} />
             <span>Selected</span>
           </div>
+          {isTeamOwner && (
+            <div className="legend-row">
+              <span className="legend-circle" style={{ background: markerColors.team }} />
+              <span>Your team</span>
+            </div>
+          )}
+          {isTeamMember && !isTeamOwner && (
+            <div className="legend-row">
+              <span className="legend-circle" style={{ background: markerColors.team }} />
+              <span>My team</span>
+            </div>
+          )}
         </div>
 
         {/* Club count */}
