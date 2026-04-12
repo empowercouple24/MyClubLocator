@@ -197,6 +197,11 @@ export default function AdminPage() {
     welcome_message: "You're now part of the network. Watch the video below to get started, then add your club to the map.",
     welcome_disclaimer: '',
     require_approval: false,
+    member_signups_enabled: true,
+    member_login_enabled: true,
+    public_search_enabled: true,
+    public_accounts_enabled: true,
+    public_login_enabled: true,
     demo_population: true,
     demo_income: true,
     demo_age_fit: true,
@@ -394,6 +399,11 @@ export default function AdminPage() {
       welcome_message:            settings.welcome_message,
       welcome_disclaimer:         settings.welcome_disclaimer,
       require_approval:           settings.require_approval,
+      member_signups_enabled:     settings.member_signups_enabled,
+      member_login_enabled:       settings.member_login_enabled,
+      public_search_enabled:      settings.public_search_enabled,
+      public_accounts_enabled:    settings.public_accounts_enabled,
+      public_login_enabled:       settings.public_login_enabled,
       demo_population:            settings.demo_population,
       demo_income:                settings.demo_income,
       demo_age_fit:               settings.demo_age_fit,
@@ -860,6 +870,75 @@ export default function AdminPage() {
                   </div>
                   <ToggleSwitch on={settings.require_approval}
                     onChange={v => setSettings(s => ({ ...s, require_approval: v }))} />
+                </div>
+              </div>
+
+              {/* Access Controls */}
+              <div className="admin-section">
+                <h3 className="admin-section-title">Access Controls</h3>
+                <p className="admin-section-desc">Master switches for platform access. Turning off login or signups never deletes data — it just pauses access. Your admin account is unaffected by all toggles.</p>
+
+                <div className="ac-group-label ac-group-member">Club owners</div>
+                <div className="ac-switches-grid">
+                  {[
+                    { key: 'member_signups_enabled', label: 'New member signups',  hint: 'Allow new club owners to create an account', onStatus: 'Open',   offStatus: 'Paused' },
+                    { key: 'member_login_enabled',   label: 'Member login',        hint: 'Allow existing club owners to log in',       onStatus: 'Active', offStatus: 'Paused' },
+                  ].map(({ key, label, hint, onStatus, offStatus }) => {
+                    const on = settings[key]
+                    return (
+                      <div key={key} className={`ac-switch-card ${on ? 'on' : 'off'}`} onClick={() => setSettings(s => ({ ...s, [key]: !on }))}>
+                        <div className="ac-switch-top">
+                          <div className="ac-switch-text">
+                            <div className="ac-switch-label">{label}</div>
+                            <div className="ac-switch-hint">{hint}</div>
+                            <div className={`ac-status-pill ${on ? 'on' : 'off'}`}>
+                              <span className={`ac-status-dot ${on ? 'on' : 'off'}`} />
+                              {on ? onStatus : offStatus}
+                            </div>
+                          </div>
+                          <div className={`ac-ls-body ${on ? 'on' : 'off'}`}>
+                            {on  && <span className="ac-ls-label">ON</span>}
+                            {!on && <span className="ac-ls-spacer" />}
+                            <div className="ac-ls-plate"><div className="ac-ls-rocker" /></div>
+                            {on  && <span className="ac-ls-spacer" />}
+                            {!on && <span className="ac-ls-label">OFF</span>}
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+
+                <div className="ac-group-label ac-group-public">Public users</div>
+                <div className="ac-switches-grid">
+                  {[
+                    { key: 'public_search_enabled',   label: 'Public club search',     hint: 'Allow visitors to search and find clubs',         onStatus: 'Visible', offStatus: 'Hidden'  },
+                    { key: 'public_accounts_enabled', label: 'Public account signups', hint: 'Allow visitors to create a public account',        onStatus: 'Open',    offStatus: 'Paused'  },
+                    { key: 'public_login_enabled',    label: 'Public account login',   hint: 'Allow existing public accounts to log in',         onStatus: 'Active',  offStatus: 'Paused'  },
+                  ].map(({ key, label, hint, onStatus, offStatus }) => {
+                    const on = settings[key]
+                    return (
+                      <div key={key} className={`ac-switch-card ${on ? 'on' : 'off'}`} onClick={() => setSettings(s => ({ ...s, [key]: !on }))}>
+                        <div className="ac-switch-top">
+                          <div className="ac-switch-text">
+                            <div className="ac-switch-label">{label}</div>
+                            <div className="ac-switch-hint">{hint}</div>
+                            <div className={`ac-status-pill ${on ? 'on' : 'off'}`}>
+                              <span className={`ac-status-dot ${on ? 'on' : 'off'}`} />
+                              {on ? onStatus : offStatus}
+                            </div>
+                          </div>
+                          <div className={`ac-ls-body ${on ? 'on' : 'off'}`}>
+                            {on  && <span className="ac-ls-label">ON</span>}
+                            {!on && <span className="ac-ls-spacer" />}
+                            <div className="ac-ls-plate"><div className="ac-ls-rocker" /></div>
+                            {on  && <span className="ac-ls-spacer" />}
+                            {!on && <span className="ac-ls-label">OFF</span>}
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
 

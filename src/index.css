@@ -6783,3 +6783,126 @@ input.input-ok {
   0%   { transform: translate(-50%, -50%) scale(0.5); opacity: 0.8; }
   100% { transform: translate(-50%, -50%) scale(2.2); opacity: 0; }
 }
+
+/* ── Access Control Light Switches ───────────────────────── */
+.ac-group-label {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--color-text-secondary, #888);
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  margin: 16px 0 8px;
+  padding-left: 8px;
+  border-left: 2px solid #4CAF82;
+}
+.ac-group-label.ac-group-public { border-left-color: #F59E0B; }
+
+.ac-switches-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.ac-switch-card {
+  border-radius: 12px;
+  padding: 14px 16px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  user-select: none;
+}
+.ac-switch-card.on {
+  background: #f7fdf9;
+  border: 0.5px solid #4CAF82;
+}
+.ac-switch-card.off {
+  background: #fdf5f5;
+  border: 0.5px solid #f09595;
+}
+.ac-switch-card:hover.on  { background: #edfaf3; }
+.ac-switch-card:hover.off { background: #fceaea; }
+
+.ac-switch-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+.ac-switch-text { flex: 1; min-width: 0; }
+.ac-switch-label {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #1A1A1A;
+  line-height: 1.3;
+}
+.ac-switch-hint {
+  font-size: 11px;
+  color: #888;
+  line-height: 1.4;
+  margin-top: 3px;
+}
+
+.ac-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 3px 8px;
+  border-radius: 20px;
+  margin-top: 7px;
+}
+.ac-status-pill.on  { background: #E1F5EE; color: #085041; }
+.ac-status-pill.off { background: #FCEBEB; color: #791F1F; }
+.ac-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.ac-status-dot.on  { background: #4CAF82; }
+.ac-status-dot.off { background: #E24B4A; }
+
+/* Light switch widget */
+.ac-ls-body {
+  width: 38px;
+  height: 60px;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 0 6px;
+  flex-shrink: 0;
+  transition: background 0.2s, border-color 0.2s;
+}
+.ac-ls-body.on  { background: #1A3C2E; border: 1.5px solid #0F6E56; }
+.ac-ls-body.off { background: #A32D2D; border: 1.5px solid #791F1F; }
+
+.ac-ls-label {
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  line-height: 1;
+}
+.ac-ls-body.on  .ac-ls-label { color: #4CAF82; }
+.ac-ls-body.off .ac-ls-label { color: #f09595; }
+.ac-ls-spacer { height: 10px; }
+
+.ac-ls-plate {
+  width: 26px;
+  height: 38px;
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ac-ls-body.on  .ac-ls-plate { background: rgba(255,255,255,0.12); }
+.ac-ls-body.off .ac-ls-plate { background: rgba(0,0,0,0.2); }
+
+.ac-ls-rocker {
+  width: 20px;
+  height: 18px;
+  border-radius: 3px;
+}
+.ac-ls-body.on  .ac-ls-rocker { background: #fff;    margin-top: -6px; }
+.ac-ls-body.off .ac-ls-rocker { background: #f09595; margin-bottom: -6px; }
