@@ -5431,3 +5431,175 @@ body {
   flex-shrink: 0;
 }
 .lvl-change-btn:hover { background: #c5ebd8; }
+
+/* ── Directory page redesign ─────────────────────────────────── */
+.dir-controls-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+  align-items: center;
+}
+
+.dir-filter {
+  font-size: 13px;
+  padding: 7px 10px;
+  border: 1px solid #dde4e0;
+  border-radius: 8px;
+  background: #fff;
+  color: #333;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.dir-clear-btn {
+  font-size: 12px;
+  padding: 6px 12px;
+  border: 1px solid #dde4e0;
+  border-radius: 8px;
+  background: #fff;
+  color: #888;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.dir-clear-btn:hover { background: #f4f4f4; color: #444; }
+
+.dir-results-count {
+  font-size: 12px;
+  color: #aaa;
+  margin-bottom: 10px;
+}
+
+.dir-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1rem;
+  text-align: center;
+  gap: 8px;
+}
+.dir-empty-icon { margin-bottom: 4px; opacity: 0.5; }
+.dir-empty-title { font-size: 15px; font-weight: 500; color: #333; }
+.dir-empty-sub   { font-size: 13px; color: #aaa; }
+
+/* Card collapsed toggle row */
+.dc-toggle-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 10px 14px;
+  gap: 10px;
+  text-align: left;
+}
+.dc-toggle-row:hover { background: #f8faf9; border-radius: 10px; }
+
+.dc-toggle-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+.dc-logo-sm {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.dc-initials-sm {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background: #1A3C2E;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.dc-toggle-info { min-width: 0; flex: 1; }
+.dc-name-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.dc-name { font-size: 14px; font-weight: 600; color: #111; }
+.dc-city-line { font-size: 12px; color: #888; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.dc-chevron { color: #aaa; transition: transform 0.2s; flex-shrink: 0; }
+.dc-chevron.open { transform: rotate(180deg); }
+
+/* Expanded content */
+.dc-expanded {
+  padding: 0 14px 12px;
+  border-top: 0.5px solid #f0f0f0;
+  margin-top: 0;
+}
+
+.dc-owners-block { margin: 10px 0 8px; }
+.dc-owner-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.dc-owner-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #1A3C2E;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  min-width: 90px;
+  flex-shrink: 0;
+}
+.dc-owner-name { font-size: 13px; color: #333; }
+
+.dc-contact-block {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin: 8px 0;
+}
+.dc-contact-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+}
+.dc-contact-icon { font-size: 12px; color: #aaa; width: 18px; text-align: center; flex-shrink: 0; }
+.dc-contact-val  { color: #555; }
+.dc-link { color: #1A3C2E; text-decoration: underline; text-underline-offset: 2px; font-size: 13px; }
+.dc-link:hover { color: #4CAF82; }
+
+.dc-hours-block {
+  margin: 8px 0 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.dc-hours-row-full {
+  display: flex;
+  gap: 10px;
+  font-size: 12px;
+}
+.dc-hours-day  { color: #888; min-width: 32px; }
+.dc-hours-time { color: #333; }
+
+.dc-edit-prompt {
+  margin-top: 10px;
+  background: none;
+  border: none;
+  color: #1A3C2E;
+  font-size: 12px;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  padding: 0;
+}
