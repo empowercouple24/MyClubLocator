@@ -682,6 +682,10 @@ export default function ProfilePage() {
       {/* Spacer so last card clears the sticky bar */}
       <div style={{ height: 88 }} />
 
+      <div className="profile-privacy-link">
+        <a href="/privacy" target="_blank" rel="noreferrer">Privacy & Use Policy</a>
+      </div>
+
       <div className={'toast' + (toast ? ' show' : '')}>{toast}</div>
     </div>
   )

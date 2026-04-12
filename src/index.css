@@ -4535,3 +4535,221 @@ body {
   line-height: 1.65;
   font-weight: 500;
 }
+
+/* ── Privacy page ────────────────────────────────────────── */
+.privacy-page {
+  min-height: 100vh;
+  background: #f4f7f5;
+  padding: 2rem 1rem 4rem;
+}
+
+.privacy-inner {
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.privacy-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.privacy-back {
+  font-size: 13px;
+  color: #1A3C2E;
+  text-decoration: none;
+  font-weight: 500;
+}
+.privacy-back:hover { text-decoration: underline; }
+
+.privacy-logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 500;
+  color: #1A3C2E;
+}
+
+.privacy-logo-pin {
+  width: 30px;
+  height: 30px;
+  background: #1A3C2E;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.privacy-card {
+  background: #fff;
+  border-radius: 16px;
+  border: 1px solid #e4e9e6;
+  padding: 2.5rem 2.5rem;
+}
+
+.privacy-title {
+  font-size: 26px;
+  font-weight: 500;
+  color: #111;
+  margin: 0 0 6px;
+  letter-spacing: -0.4px;
+}
+
+.privacy-updated {
+  font-size: 13px;
+  color: #aaa;
+  margin: 0 0 1.5rem;
+}
+
+.privacy-intro {
+  font-size: 15px;
+  color: #555;
+  line-height: 1.7;
+  margin: 0 0 2rem;
+  padding-bottom: 2rem;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.privacy-section {
+  margin-bottom: 2rem;
+  padding-bottom: 2rem;
+  border-bottom: 1px solid #f0f0f0;
+}
+.privacy-section:last-of-type { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+
+.privacy-section h2 {
+  font-size: 16px;
+  font-weight: 500;
+  color: #1A3C2E;
+  margin: 0 0 12px;
+}
+
+.privacy-section p {
+  font-size: 14px;
+  color: #444;
+  line-height: 1.75;
+  margin: 0 0 12px;
+}
+.privacy-section p:last-child { margin-bottom: 0; }
+
+.privacy-section ul {
+  margin: 8px 0 12px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.privacy-section ul li {
+  font-size: 14px;
+  color: #444;
+  line-height: 1.65;
+}
+
+.privacy-section a {
+  color: #1A3C2E;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.privacy-contact-block {
+  background: #f8faf9;
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.privacy-contact-row {
+  display: flex;
+  gap: 10px;
+  font-size: 13px;
+  color: #444;
+}
+
+.privacy-contact-row strong {
+  color: #1A3C2E;
+  min-width: 90px;
+  flex-shrink: 0;
+}
+
+.privacy-footer-note {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #f0f0f0;
+  font-size: 13px;
+  color: #888;
+  line-height: 1.6;
+  font-style: italic;
+}
+
+.privacy-page-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 1.5rem;
+  font-size: 12px;
+  color: #aaa;
+}
+
+.privacy-page-footer a {
+  color: #1A3C2E;
+  text-decoration: none;
+  font-weight: 500;
+}
+.privacy-page-footer a:hover { text-decoration: underline; }
+
+@media (max-width: 600px) {
+  .privacy-card { padding: 1.5rem; }
+  .privacy-title { font-size: 22px; }
+}
+
+/* ── Signup terms checkbox ───────────────────────────────── */
+.signup-terms-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.signup-terms-checkbox {
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  flex-shrink: 0;
+  accent-color: #4F46E5;
+  cursor: pointer;
+}
+
+.signup-terms-label {
+  font-size: 13px;
+  color: #555;
+  line-height: 1.5;
+  cursor: pointer;
+}
+
+.signup-terms-link {
+  color: #4F46E5;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.signup-terms-link:hover { color: #4338CA; }
+
+/* ── Profile privacy link ────────────────────────────────── */
+.profile-privacy-link {
+  text-align: center;
+  padding: 1rem 0 2rem;
+  font-size: 12px;
+}
+
+.profile-privacy-link a {
+  color: #aaa;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.profile-privacy-link a:hover { color: #666; }

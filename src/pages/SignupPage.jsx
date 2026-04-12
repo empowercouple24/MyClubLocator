@@ -53,14 +53,22 @@ export default function SignupPage() {
   const [error, setError]               = useState('')
   const [loading, setLoading]           = useState(false)
   const [oauthLoading, setOauthLoading] = useState('')
+  const [termsAccepted, setTermsAccepted] = useState(false)
 
   async function handleSubmit(e) {
     e.preventDefault()
+    if (!termsAccepted) { setError('You must accept the Privacy & Use Policy to continue.'); return }
     setError('')
     setLoading(true)
-    const { error } = await supabase.auth.signUp({ email, password })
+    const { data, error } = await supabase.auth.signUp({ email, password })
     if (error) { setError(error.message); setLoading(false) }
-    else navigate('/app/map')
+    else {
+      // Record terms acceptance
+      if (data?.user?.id) {
+        await supabase.from('user_terms_acceptance').insert({ user_id: data.user.id })
+      }
+      navigate('/app/map')
+    }
   }
 
   async function handleOAuth(provider) {
@@ -133,7 +141,22 @@ export default function SignupPage() {
                   </button>
                 </div>
               </div>
-              <button className="btn-full btn-full--indigo" type="submit" disabled={loading || !!oauthLoading}>
+              <div className="signup-terms-row">
+                <input
+                  type="checkbox"
+                  id="terms-accept"
+                  checked={termsAccepted}
+                  onChange={e => setTermsAccepted(e.target.checked)}
+                  className="signup-terms-checkbox"
+                />
+                <label htmlFor="terms-accept" className="signup-terms-label">
+                  I accept the terms of the{' '}
+                  <Link to="/privacy" target="_blank" rel="noreferrer" className="signup-terms-link">
+                    Privacy & Use Policy
+                  </Link>
+                </label>
+              </div>
+              <button className="btn-full btn-full--indigo" type="submit" disabled={loading || !!oauthLoading || !termsAccepted}>
                 {loading ? 'Creating account…' : 'Create my free account'}
               </button>
             </form>

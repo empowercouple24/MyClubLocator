@@ -157,6 +157,10 @@ export default function LandingPage() {
           <button className="landing-contact-link" onClick={() => setShowContact(true)}>
             Send us a message
           </button>
+          {' '}·{' '}
+          <a href="/privacy" className="landing-contact-link" style={{ textDecoration: 'underline' }}>
+            Privacy & Use Policy
+          </a>
         </p>
 
       </div>
