@@ -6,6 +6,7 @@ import { useAuth } from '../lib/AuthContext'
 import { useNavigate } from 'react-router-dom'
 import DemographicsPanel from '../components/DemographicsPanel'
 import MapSearchAutocomplete from '../components/MapSearchAutocomplete'
+import PhotoGallery from '../components/PhotoGallery'
 
 delete L.Icon.Default.prototype._getIconUrl
 
@@ -203,7 +204,7 @@ function MyClubCard({ myClub, onManage }) {
 }
 
 // ── Club detail panel content ───────────────────────────────
-function ClubDetail({ club, userId, onManage, radiusMiles, setRadiusMiles, customMiles, setCustomMiles, filteredCount }) {
+function ClubDetail({ club, userId, onManage, radiusMiles, setRadiusMiles, customMiles, setCustomMiles, filteredCount, setGalleryPhotos }) {
   if (!club) {
     return (
       <div className="cp-empty">
@@ -310,6 +311,41 @@ function ClubDetail({ club, userId, onManage, radiusMiles, setRadiusMiles, custo
         </div>
       )}
 
+      {/* Photos */}
+      {club.photo_urls && club.photo_urls.length > 0 && (
+        <div className="cp-section">
+          <div className="cp-section-title">Photos</div>
+          <div className="cp-photos-grid">
+            {/* Cover photo — large, clickable */}
+            <div className="cp-photo-cover" onClick={() => setGalleryPhotos({ photos: club.photo_urls, start: 0 })}>
+              <img src={club.photo_urls[0]} alt="Club cover" className="cp-photo-cover-img" />
+              {club.photo_urls.length > 1 && (
+                <div className="cp-photo-cover-overlay">
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                    <rect x="1" y="1" width="9" height="7" rx="1.5" stroke="white" strokeWidth="1.2"/>
+                    <rect x="6" y="8" width="9" height="7" rx="1.5" stroke="white" strokeWidth="1.2"/>
+                  </svg>
+                  {club.photo_urls.length} photos
+                </div>
+              )}
+            </div>
+            {/* Smaller thumbs */}
+            {club.photo_urls.length > 1 && (
+              <div className="cp-photo-thumbs">
+                {club.photo_urls.slice(1, 5).map((url, i) => (
+                  <div key={i} className="cp-photo-thumb" onClick={() => setGalleryPhotos({ photos: club.photo_urls, start: i + 1 })}>
+                    <img src={url} alt={`Photo ${i + 2}`} />
+                    {i === 3 && club.photo_urls.length > 5 && (
+                      <div className="cp-photo-more">+{club.photo_urls.length - 5}</div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Radius */}
       <div className="cp-section cp-radius-section">
         <div className="cp-section-title">Nearby Clubs</div>
@@ -346,6 +382,7 @@ export default function MapPage() {
   const [locations, setLocations]   = useState([])
   const [loading, setLoading]       = useState(true)
   const [selected, setSelected]     = useState(null)
+  const [galleryPhotos, setGalleryPhotos] = useState(null) // null = closed, array = open
   const [baseMap, setBaseMap]       = useState('carto')
   const [mapCenter, setMapCenter]   = useState(null)
   const [mapZoom, setMapZoom]       = useState(null)
@@ -647,8 +684,18 @@ export default function MapPage() {
               customMiles={customMiles}
               setCustomMiles={setCustomMiles}
               filteredCount={filteredLocations.length}
+              setGalleryPhotos={setGalleryPhotos}
             />
           </div>
+
+          {/* Photo gallery modal */}
+          {galleryPhotos && (
+            <PhotoGallery
+              photos={galleryPhotos.photos}
+              startIndex={galleryPhotos.start}
+              onClose={() => setGalleryPhotos(null)}
+            />
+          )}
 
           {/* Demographics panel — research mode */}
           {demoActive && (

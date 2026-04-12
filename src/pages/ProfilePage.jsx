@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 import TimePicker from '../components/TimePicker'
 import AddressAutocomplete from '../components/AddressAutocomplete'
+import CropModal from '../components/CropModal'
 
 const DAYS = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday']
 const DAY_LABELS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']
@@ -125,6 +126,14 @@ export default function ProfilePage() {
   const logoInputRef  = useRef()
   const photoInputRef = useRef()
 
+  // Crop modal state
+  const [cropSrc, setCropSrc]       = useState(null)
+  const [cropTarget, setCropTarget] = useState(null) // 'logo' | 'owner1' | 'owner2' | 'owner3'
+  const cropInputRef = useRef()
+
+  // Drag-to-reorder state
+  const dragIdx = useRef(null)
+
   // Owner profile photos
   const [ownerPhotoUrl,  setOwnerPhotoUrl]  = useState(null)
   const [owner2PhotoUrl, setOwner2PhotoUrl] = useState(null)
@@ -180,18 +189,53 @@ export default function ProfilePage() {
     setZipLooking(false)
   }
 
+  // Open crop modal for any circular photo
+  function openCrop(file, target) {
+    const reader = new FileReader()
+    reader.onload = e => { setCropSrc(e.target.result); setCropTarget(target) }
+    reader.readAsDataURL(file)
+  }
+
   async function handleLogoUpload(e) {
     const file = e.target.files && e.target.files[0]
     if (!file) return
-    setUploadingLogo(true)
-    const ext = file.name.split('.').pop()
-    const path = user.id + '/logo.' + ext
-    const { error } = await supabase.storage.from('club-photos').upload(path, file, { upsert: true })
-    if (!error) {
-      const { data } = supabase.storage.from('club-photos').getPublicUrl(path)
-      setLogoUrl(data.publicUrl)
+    openCrop(file, 'logo')
+    e.target.value = ''
+  }
+
+  async function saveCroppedPhoto(blob) {
+    if (!cropTarget) return
+    const target = cropTarget
+    setCropSrc(null); setCropTarget(null)
+
+    if (target === 'logo') {
+      setUploadingLogo(true)
+      const path = user.id + '/logo.jpg'
+      const { error } = await supabase.storage.from('club-photos').upload(path, blob, { upsert: true, contentType: 'image/jpeg' })
+      if (!error) {
+        const { data } = supabase.storage.from('club-photos').getPublicUrl(path)
+        setLogoUrl(data.publicUrl + '?t=' + Date.now())
+      }
+      setUploadingLogo(false)
+    } else if (target === 'owner1') {
+      setUploadingOwnerPhoto(true)
+      const path = user.id + '/owner-photo.jpg'
+      const { error } = await supabase.storage.from('club-photos').upload(path, blob, { upsert: true, contentType: 'image/jpeg' })
+      if (!error) { const { data } = supabase.storage.from('club-photos').getPublicUrl(path); setOwnerPhotoUrl(data.publicUrl + '?t=' + Date.now()) }
+      setUploadingOwnerPhoto(false)
+    } else if (target === 'owner2') {
+      setUploadingOwner2Photo(true)
+      const path = user.id + '/owner2-photo.jpg'
+      const { error } = await supabase.storage.from('club-photos').upload(path, blob, { upsert: true, contentType: 'image/jpeg' })
+      if (!error) { const { data } = supabase.storage.from('club-photos').getPublicUrl(path); setOwner2PhotoUrl(data.publicUrl + '?t=' + Date.now()) }
+      setUploadingOwner2Photo(false)
+    } else if (target === 'owner3') {
+      setUploadingOwner3Photo(true)
+      const path = user.id + '/owner3-photo.jpg'
+      const { error } = await supabase.storage.from('club-photos').upload(path, blob, { upsert: true, contentType: 'image/jpeg' })
+      if (!error) { const { data } = supabase.storage.from('club-photos').getPublicUrl(path); setOwner3PhotoUrl(data.publicUrl + '?t=' + Date.now()) }
+      setUploadingOwner3Photo(false)
     }
-    setUploadingLogo(false)
   }
 
   async function handlePhotoUpload(e) {
@@ -200,6 +244,7 @@ export default function ProfilePage() {
     setUploadingPhoto(true)
     const newUrls = [...photoUrls]
     for (const file of files) {
+      if (newUrls.length >= 6) break
       const ext = file.name.split('.').pop()
       const path = user.id + '/photos/' + Date.now() + '-' + Math.random().toString(36).slice(2) + '.' + ext
       const { error } = await supabase.storage.from('club-photos').upload(path, file)
@@ -215,16 +260,9 @@ export default function ProfilePage() {
   async function handleOwnerPhotoUpload(ownerNum, e, setUrl, setUploading) {
     const file = e.target.files && e.target.files[0]
     if (!file) return
-    setUploading(true)
-    const ext = file.name.split('.').pop()
-    const slot = ownerNum === 1 ? 'owner' : 'owner' + ownerNum
-    const path = user.id + '/' + slot + '-photo.' + ext
-    const { error } = await supabase.storage.from('club-photos').upload(path, file, { upsert: true })
-    if (!error) {
-      const { data } = supabase.storage.from('club-photos').getPublicUrl(path)
-      setUrl(data.publicUrl)
-    }
-    setUploading(false)
+    const target = ownerNum === 1 ? 'owner1' : ownerNum === 2 ? 'owner2' : 'owner3'
+    openCrop(file, target)
+    e.target.value = ''
   }
 
   function removePhoto(url) { setPhotoUrls(p => p.filter(u => u !== url)) }
@@ -645,12 +683,34 @@ export default function ProfilePage() {
 
         <div className="photo-section" style={{ marginTop: 20 }}>
           <div className="photo-section-title">Club Photos</div>
-          <p className="upload-hint" style={{ marginBottom: 12 }}>Show off your space, team, and vibe. Up to 6 photos.</p>
+          <p className="upload-hint" style={{ marginBottom: 12 }}>Up to 6 photos. Drag to reorder — first photo is your cover.</p>
           <div className="photos-grid">
             {photoUrls.map((url, i) => (
-              <div key={i} className="photo-thumb">
+              <div
+                key={url}
+                className={`photo-thumb ${dragIdx.current === i ? 'dragging' : ''}`}
+                draggable
+                onDragStart={() => { dragIdx.current = i }}
+                onDragOver={e => { e.preventDefault() }}
+                onDrop={() => {
+                  if (dragIdx.current === null || dragIdx.current === i) return
+                  const newUrls = [...photoUrls]
+                  const [moved] = newUrls.splice(dragIdx.current, 1)
+                  newUrls.splice(i, 0, moved)
+                  setPhotoUrls(newUrls)
+                  dragIdx.current = null
+                }}
+                onDragEnd={() => { dragIdx.current = null }}
+              >
                 <img src={url} alt={'Club photo ' + (i+1)} />
-                <button className="photo-remove-btn" onClick={() => removePhoto(url)}>✕</button>
+                {i === 0 && <span className="photo-cover-badge">Cover</span>}
+                <span className="photo-drag-handle">
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                    <circle cx="3" cy="3" r="1.2" fill="white"/><circle cx="3" cy="6" r="1.2" fill="white"/><circle cx="3" cy="9" r="1.2" fill="white"/>
+                    <circle cx="9" cy="3" r="1.2" fill="white"/><circle cx="9" cy="6" r="1.2" fill="white"/><circle cx="9" cy="9" r="1.2" fill="white"/>
+                  </svg>
+                </span>
+                <button className="photo-remove-btn" onClick={() => setPhotoUrls(p => p.filter((_, idx) => idx !== i))}>✕</button>
               </div>
             ))}
             {photoUrls.length < 6 && (
@@ -662,6 +722,15 @@ export default function ProfilePage() {
           <input ref={photoInputRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={handlePhotoUpload} />
         </div>
       </div>
+
+      {/* Crop modal */}
+      {cropSrc && (
+        <CropModal
+          imageSrc={cropSrc}
+          onSave={saveCroppedPhoto}
+          onCancel={() => { setCropSrc(null); setCropTarget(null) }}
+        />
+      )}
 
       {/* CARD 5: Your Story */}
       <div className="sec-card">
