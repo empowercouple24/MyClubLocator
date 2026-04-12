@@ -74,7 +74,7 @@ export default function SignupPage() {
           user_id: data.user.id,
         })
       }
-      navigate('/app/map')
+      navigate('/onboarding')
     }
   }
 

@@ -1,0 +1,16 @@
+-- Vetting survey fields on locations table
+ALTER TABLE locations ADD COLUMN IF NOT EXISTS survey_upline TEXT DEFAULT NULL;
+ALTER TABLE locations ADD COLUMN IF NOT EXISTS survey_hl_month TEXT DEFAULT NULL;
+ALTER TABLE locations ADD COLUMN IF NOT EXISTS survey_hl_year TEXT DEFAULT NULL;
+ALTER TABLE locations ADD COLUMN IF NOT EXISTS survey_active_club BOOLEAN DEFAULT NULL;
+ALTER TABLE locations ADD COLUMN IF NOT EXISTS survey_club_month TEXT DEFAULT NULL;
+ALTER TABLE locations ADD COLUMN IF NOT EXISTS survey_club_year TEXT DEFAULT NULL;
+ALTER TABLE locations ADD COLUMN IF NOT EXISTS survey_trainings TEXT DEFAULT NULL;
+ALTER TABLE locations ADD COLUMN IF NOT EXISTS survey_hear_how TEXT DEFAULT NULL;
+ALTER TABLE locations ADD COLUMN IF NOT EXISTS survey_hear_detail TEXT DEFAULT NULL;
+ALTER TABLE locations ADD COLUMN IF NOT EXISTS survey_goal TEXT DEFAULT NULL;
+ALTER TABLE locations ADD COLUMN IF NOT EXISTS survey_completed_at TIMESTAMPTZ DEFAULT NULL;
+
+-- Track whether onboarding survey was shown
+ALTER TABLE user_terms_acceptance ADD COLUMN IF NOT EXISTS onboarding_done BOOLEAN DEFAULT FALSE;
+ALTER TABLE user_terms_acceptance ADD COLUMN IF NOT EXISTS pending_survey TEXT DEFAULT NULL;

@@ -45,6 +45,9 @@ const DEFAULT_FORM = {
   story_why: '', story_favorite_part: '', story_favorite_products: '', story_unique: '',
   story_before: '', story_goal: '',
   herbalife_level: '',
+  survey_upline: '', survey_hl_month: '', survey_hl_year: '',
+  survey_active_club: null, survey_club_month: '', survey_club_year: '',
+  survey_trainings: '', survey_hear_how: '', survey_hear_detail: '', survey_goal: '',
 }
 
 async function geocodeAddress(address) {
@@ -1005,6 +1008,176 @@ export default function ProfilePage() {
           </div>
         ))}
       </div>
+
+      {/* CARD 7: Member Survey */}
+      {(() => {
+        const MONTHS_S = ['January','February','March','April','May','June','July','August','September','October','November','December']
+        const YEARS_S  = Array.from({length:30},(_,i)=>String(new Date().getFullYear()-i))
+        const surveyComplete = !!(
+          form.survey_upline && form.survey_hl_year &&
+          form.survey_active_club !== null && form.survey_active_club !== '' &&
+          (form.survey_active_club === false || form.survey_active_club === 'false' || form.survey_club_year) &&
+          form.survey_trainings && form.survey_hear_how && form.survey_goal
+        )
+        const toggleSurveyTraining = (val) => {
+          const current = form.survey_trainings ? form.survey_trainings.split(',').filter(Boolean) : []
+          const set = new Set(current)
+          if (val === 'all') { if (set.has('all')) set.clear(); else { set.clear(); set.add('all') } }
+          else { set.delete('all'); if (set.has(val)) set.delete(val); else set.add(val) }
+          setField('survey_trainings', [...set].join(','))
+        }
+        const tSet = new Set((form.survey_trainings || '').split(',').filter(Boolean))
+        const isActiveClub = form.survey_active_club === true || form.survey_active_club === 'true'
+
+        return (
+          <div className="sec-card">
+            <div className="sec-label" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              Member Survey
+              {!surveyComplete && <span className="survey-incomplete-badge">Incomplete</span>}
+            </div>
+            <p className="upload-hint" style={{ marginBottom: 14 }}>
+              Help us get to know you better. All questions are optional but appreciated.
+            </p>
+
+            <div className="pf story-field">
+              <label>Who is your upline or sponsor?</label>
+              <input type="text" value={form.survey_upline || ''} onChange={e => setField('survey_upline', e.target.value)} placeholder="Full name" />
+            </div>
+
+            <div className="pf story-field">
+              <label>How long have you been a Herbalife member?</label>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <select value={form.survey_hl_month || ''} onChange={e => setField('survey_hl_month', e.target.value)}
+                  style={{ flex: 1, padding: '8px 10px', border: '1px solid #c8d4cc', borderRadius: 8, fontSize: 14 }}>
+                  <option value="">Month (optional)</option>
+                  {MONTHS_S.map((m,i) => <option key={i} value={i+1}>{m}</option>)}
+                </select>
+                <select value={form.survey_hl_year || ''} onChange={e => setField('survey_hl_year', e.target.value)}
+                  style={{ flex: 1, padding: '8px 10px', border: '1px solid #c8d4cc', borderRadius: 8, fontSize: 14 }}>
+                  <option value="">Year</option>
+                  {YEARS_S.map(y => <option key={y} value={y}>{y}</option>)}
+                </select>
+              </div>
+            </div>
+
+            <div className="pf story-field">
+              <label>Are you actively operating a nutrition club?</label>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button type="button"
+                  style={{ flex: 1, padding: '9px', border: `1px solid ${isActiveClub ? '#4CAF82' : '#c8d4cc'}`,
+                    borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: 'pointer',
+                    background: isActiveClub ? '#E1F5EE' : 'transparent', color: isActiveClub ? '#0F6E56' : '#555' }}
+                  onClick={() => setField('survey_active_club', true)}>
+                  Yes
+                </button>
+                <button type="button"
+                  style={{ flex: 1, padding: '9px', border: `1px solid ${form.survey_active_club === false || form.survey_active_club === 'false' ? '#E24B4A' : '#c8d4cc'}`,
+                    borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: 'pointer',
+                    background: form.survey_active_club === false || form.survey_active_club === 'false' ? '#FCEBEB' : 'transparent',
+                    color: form.survey_active_club === false || form.survey_active_club === 'false' ? '#A32D2D' : '#555' }}
+                  onClick={() => setField('survey_active_club', false)}>
+                  No
+                </button>
+              </div>
+            </div>
+
+            {isActiveClub && (
+              <div className="pf story-field">
+                <label>How long have you been operating your club?</label>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <select value={form.survey_club_month || ''} onChange={e => setField('survey_club_month', e.target.value)}
+                    style={{ flex: 1, padding: '8px 10px', border: '1px solid #c8d4cc', borderRadius: 8, fontSize: 14 }}>
+                    <option value="">Month (optional)</option>
+                    {MONTHS_S.map((m,i) => <option key={i} value={i+1}>{m}</option>)}
+                  </select>
+                  <select value={form.survey_club_year || ''} onChange={e => setField('survey_club_year', e.target.value)}
+                    style={{ flex: 1, padding: '8px 10px', border: '1px solid #c8d4cc', borderRadius: 8, fontSize: 14 }}>
+                    <option value="">Year</option>
+                    {YEARS_S.map(y => <option key={y} value={y}>{y}</option>)}
+                  </select>
+                </div>
+              </div>
+            )}
+
+            <div className="pf story-field">
+              <label>Do you actively attend trainings and events?</label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                {[
+                  ['local',    'Local events and trainings (quickstarts, distributor workshops, etc.)'],
+                  ['zoom',     'Team Zoom calls'],
+                  ['sts',      'STS (Success Training Seminar)'],
+                  ['regional', 'Regional quarterly events (LDW/FSL, BAE, Amplify/Elevate, etc.)'],
+                  ['extrav',   'Extravaganza'],
+                  ['all',      'All of the above'],
+                ].map(([val, lbl]) => (
+                  <div key={val}
+                    onClick={() => toggleSurveyTraining(val)}
+                    style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '9px 12px',
+                      border: `1px solid ${tSet.has(val) ? '#4CAF82' : '#c8d4cc'}`,
+                      borderRadius: 8, cursor: 'pointer',
+                      background: tSet.has(val) ? '#f5fdf8' : 'transparent' }}>
+                    <div style={{ width: 16, height: 16, border: `1.5px solid ${tSet.has(val) ? '#4CAF82' : '#c8d4cc'}`,
+                      borderRadius: 4, flexShrink: 0, marginTop: 1,
+                      background: tSet.has(val) ? '#4CAF82' : 'transparent',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      {tSet.has(val) && (
+                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                          <path d="M1.5 5l2.5 2.5 4.5-5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      )}
+                    </div>
+                    <span style={{ fontSize: 13, lineHeight: 1.4 }}>{lbl}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="pf story-field">
+              <label>How did you hear about this platform?</label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                {[
+                  ['upline',    'A team member or my upline told me',  false],
+                  ['clubowner', 'A fellow club owner shared it',        false],
+                  ['zoom',      'Heard about it on a Zoom call',        false],
+                  ['event',     'Heard about it at an event',           false],
+                  ['other',     'Other',                                true],
+                ].map(([val, lbl, hasInput]) => (
+                  <div key={val}>
+                    <div onClick={() => { setField('survey_hear_how', val); setField('survey_hear_detail', '') }}
+                      style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px',
+                        border: `1px solid ${form.survey_hear_how === val ? '#4CAF82' : '#c8d4cc'}`,
+                        borderRadius: form.survey_hear_how === val && hasInput ? '8px 8px 0 0' : 8,
+                        cursor: 'pointer', background: form.survey_hear_how === val ? '#f5fdf8' : 'transparent' }}>
+                      <div style={{ width: 16, height: 16, border: `1.5px solid ${form.survey_hear_how === val ? '#4CAF82' : '#c8d4cc'}`,
+                        borderRadius: '50%', flexShrink: 0,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        {form.survey_hear_how === val && <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#4CAF82' }} />}
+                      </div>
+                      <span style={{ fontSize: 13 }}>{lbl}</span>
+                    </div>
+                    {hasInput && form.survey_hear_how === val && (
+                      <div style={{ border: '1px solid #4CAF82', borderTop: 'none', borderRadius: '0 0 8px 8px',
+                        background: '#f5fdf8', padding: '8px 12px' }}>
+                        <input type="text" value={form.survey_hear_detail || ''}
+                          onChange={e => setField('survey_hear_detail', e.target.value)}
+                          placeholder="Please share a few details…"
+                          style={{ width: '100%', padding: '7px 10px', border: '1px solid #c8d4cc',
+                            borderRadius: 6, fontSize: 13 }} />
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="pf story-field">
+              <label>What is your primary goal for joining this platform?</label>
+              <textarea rows={3} value={form.survey_goal || ''} onChange={e => setField('survey_goal', e.target.value)}
+                placeholder="Share your thoughts…" />
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Sticky Save Bar */}
       <div className="save-bar save-bar--sticky">
