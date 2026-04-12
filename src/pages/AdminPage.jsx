@@ -334,12 +334,12 @@ export default function AdminPage() {
   }
 
   async function markAllContactsRead() {
-    await supabase.from('contact_submissions').update({ is_read: true }).eq('is_read', false)
+    await supabase.from('contact_submissions').update({ is_read: true }).or('is_read.eq.false,is_read.is.null')
     setContacts(prev => prev.map(c => ({ ...c, is_read: true })))
   }
 
   async function markAllNotifsRead() {
-    await supabase.from('notifications').update({ is_read: true }).eq('is_read', false)
+    await supabase.from('notifications').update({ is_read: true }).or('is_read.eq.false,is_read.is.null')
     setNotifications(prev => prev.map(n => ({ ...n, is_read: true })))
   }
 
