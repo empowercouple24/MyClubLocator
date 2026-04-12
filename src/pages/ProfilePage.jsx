@@ -1037,13 +1037,22 @@ export default function ProfilePage() {
           return c
         }))
       } else {
-        // Brand new user
-        if (user.email) {
-          setPersonForm(f => ({ ...f, owner_email: user.email }))
-          // Will create a single blank club with email pre-filled
-          setClubs([{ ...DEFAULT_CLUB, club_email: user.email }])
-        } else {
-          setClubs([{ ...DEFAULT_CLUB }])
+        // Brand new user — pre-fill email
+        const baseClub = user.email ? { ...DEFAULT_CLUB, club_email: user.email } : { ...DEFAULT_CLUB }
+        setClubs([baseClub])
+        if (user.email) setPersonForm(f => ({ ...f, owner_email: user.email }))
+
+        // Check for pending_survey from onboarding
+        const { data: uta } = await supabase
+          .from('user_terms_acceptance')
+          .select('pending_survey')
+          .eq('user_id', user.id)
+          .single()
+        if (uta?.pending_survey) {
+          try {
+            const survey = JSON.parse(uta.pending_survey)
+            setPersonForm(f => ({ ...f, ...survey }))
+          } catch {}
         }
       }
       setLoading(false)
@@ -1126,6 +1135,10 @@ export default function ProfilePage() {
       setPersonErrors({ _general: error.message })
     } else {
       setSavedPersonForm({ ...personForm })
+      // Clear pending_survey now that it's been applied
+      supabase.from('user_terms_acceptance')
+        .update({ pending_survey: null })
+        .eq('user_id', user.id)
       setPersonToast('Owner info saved ✓')
       setTimeout(() => setPersonToast(''), 3000)
     }

@@ -41,9 +41,9 @@ function getIcons() {
 }
 
 const BASE_MAPS = [
+  { id: 'mapbox',    label: 'Mapbox',        url: `https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/256/{z}/{x}/{y}@2x?access_token=${import.meta.env.VITE_MAPBOX_TOKEN}`, attribution: '&copy; <a href="https://www.mapbox.com/about/maps/">Mapbox</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' },
   { id: 'carto',     label: 'OpenStreetMap', url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', attribution: '&copy; OpenStreetMap &copy; CARTO' },
   { id: 'satellite', label: 'Aerial',        url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', attribution: '&copy; Esri' },
-  { id: 'mapbox',    label: 'Mapbox',        url: `https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/256/{z}/{x}/{y}@2x?access_token=${import.meta.env.VITE_MAPBOX_TOKEN}`, attribution: '&copy; <a href="https://www.mapbox.com/about/maps/">Mapbox</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' },
 ]
 
 const RADIUS_PRESETS = [3, 10, 20, 30]
@@ -558,7 +558,7 @@ export default function MapPage() {
   const [loading, setLoading]       = useState(true)
   const [selected, setSelected]     = useState(null)
   const [galleryPhotos, setGalleryPhotos] = useState(null) // null = closed, array = open
-  const [baseMap, setBaseMap]       = useState('carto')
+  const [baseMap, setBaseMap]       = useState('mapbox')
   const [mapCenter, setMapCenter]   = useState(null)
   const [mapZoom, setMapZoom]       = useState(null)
   const [citySearch, setCitySearch] = useState('')
