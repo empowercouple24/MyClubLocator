@@ -357,6 +357,8 @@ export default function MapPage() {
   const [saveViewToast, setSaveViewToast] = useState(false)
   const [myClubCollapsed, setMyClubCollapsed] = useState(true)
   const mapRef = useRef(null)
+  const mapAreaRef = useRef(null)
+  const [mousePos, setMousePos] = useState({ x: -999, y: -999 })
 
   // Demographics
   const [demoActive, setDemoActive]   = useState(false)
@@ -479,7 +481,25 @@ export default function MapPage() {
     <div className={`map-wrapper map-pos-${panelPosition}`}>
 
       {/* ── Map area ── */}
-      <div className="map-area">
+      <div
+        className={`map-area${demoActive ? ' demo-research-mode' : ''}`}
+        ref={mapAreaRef}
+        onMouseMove={e => {
+          if (!demoActive) return
+          const rect = e.currentTarget.getBoundingClientRect()
+          setMousePos({ x: e.clientX - rect.left, y: e.clientY - rect.top })
+        }}
+        onMouseLeave={() => setMousePos({ x: -999, y: -999 })}
+      >
+        {/* Pulsing target cursor overlay */}
+        {demoActive && mousePos.x > 0 && (
+          <div className="demo-cursor-pulse" style={{ left: mousePos.x, top: mousePos.y }}>
+            <div className="demo-cursor-ring demo-cursor-ring--outer" />
+            <div className="demo-cursor-ring demo-cursor-ring--inner" />
+            <div className="demo-cursor-dot" />
+          </div>
+        )}
+
         {loading ? <div className="loading">Loading map…</div> : (
           <MapContainer center={defaultCenter} zoom={locations.length > 0 ? 11 : 5} style={{ height: '100%', width: '100%' }}>
             <MapRefCapture mapRef={mapRef} />
@@ -630,11 +650,44 @@ export default function MapPage() {
             />
           </div>
 
-          {/* Demographics panel */}
+          {/* Demographics panel — research mode */}
           {demoActive && (
             <div className="cp-demo-zone">
               <div className="cp-panel-divider" style={{ margin: '0 -16px 14px' }} />
-              <div className="cp-zone-label">Market Data</div>
+
+              {/* Research mode header */}
+              <div className="cp-research-header">
+                <div className="cp-research-header-icon">
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                    <circle cx="8" cy="8" r="6" stroke="#4CAF82" strokeWidth="1.5"/>
+                    <circle cx="8" cy="8" r="2" fill="#4CAF82"/>
+                    <line x1="8" y1="1" x2="8" y2="3.5" stroke="#4CAF82" strokeWidth="1.3" strokeLinecap="round"/>
+                    <line x1="8" y1="12.5" x2="8" y2="15" stroke="#4CAF82" strokeWidth="1.3" strokeLinecap="round"/>
+                    <line x1="1" y1="8" x2="3.5" y2="8" stroke="#4CAF82" strokeWidth="1.3" strokeLinecap="round"/>
+                    <line x1="12.5" y1="8" x2="15" y2="8" stroke="#4CAF82" strokeWidth="1.3" strokeLinecap="round"/>
+                  </svg>
+                </div>
+                <div className="cp-research-header-text">
+                  <div className="cp-research-title">Market Research Mode</div>
+                  <div className="cp-research-sub">Click anywhere on the map to analyze</div>
+                </div>
+                <button className="cp-research-exit" onClick={() => { setDemoActive(false); setDemoLat(null); setDemoLng(null) }}>
+                  Exit
+                </button>
+              </div>
+
+              {/* Instruction card — shown before first click */}
+              {demoLat == null && (
+                <div className="cp-research-instruction">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0, marginTop: 1 }}>
+                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="#0F6E56"/>
+                  </svg>
+                  <div className="cp-research-instruction-text">
+                    Your cursor has changed to a targeting reticle. Click any area on the map to load its market data, demographics, and score.
+                  </div>
+                </div>
+              )}
+
               <DemographicsPanel
                 lat={demoLat}
                 lng={demoLng}
