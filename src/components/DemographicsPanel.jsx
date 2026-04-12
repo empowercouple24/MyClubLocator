@@ -133,14 +133,14 @@ export default function DemographicsPanel({ lat, lng, locations, enabledFactors,
   useEffect(() => {
     if (!user) return
     async function loadPrefs() {
-      const { data } = await supabase
-        .from('user_demo_preferences')
-        .select('preferences')
-        .eq('user_id', user.id)
-        .single()
-      if (data?.preferences) {
-        setUserPrefs(data.preferences)
-      } else {
+      try {
+        const { data } = await supabase
+          .from('user_demo_preferences')
+          .select('preferences')
+          .eq('user_id', user.id)
+          .single()
+        setUserPrefs(data?.preferences || { ...DEFAULT_ENABLED_FACTORS })
+      } catch {
         setUserPrefs({ ...DEFAULT_ENABLED_FACTORS })
       }
     }
@@ -167,31 +167,43 @@ export default function DemographicsPanel({ lat, lng, locations, enabledFactors,
   async function loadData(lat, lng) {
     setLoading(true)
     setError(null)
+    setGeoInfo(null)
     setZipData(null); setCountyData(null); setHealthData(null)
     setSpendingData(null); setGrowthData(null); setCommuteData(null)
     setCompetitors(null); setMarketScore(null)
 
     const geo = await reverseGeocode(lat, lng)
     if (!geo) {
-      setError('Could not load data for this location. Try clicking a populated US area, or try again in a moment.')
+      setError('Could not determine location. Make sure you\'re clicking inside the US, then try again.')
       setLoading(false)
       return
     }
     setGeoInfo(geo)
 
-    const [zip, county, health, spending, growth, commute, comps] = await Promise.all([
-      geo.zip ? fetchZipData(geo.zip) : null,
-      geo.stateFips && geo.countyFips ? fetchCountyData(geo.stateFips, geo.countyFips) : null,
-      geo.stateFips && geo.countyFips ? fetchHealthData(geo.stateFips, geo.countyFips) : null,
-      geo.stateFips && geo.countyFips ? fetchSpendingData(geo.stateFips, geo.countyFips) : null,
-      geo.stateFips && geo.countyFips ? fetchGrowthData(geo.stateFips, geo.countyFips) : null,
-      geo.stateFips && geo.countyFips ? fetchCommuteData(geo.stateFips, geo.countyFips) : null,
+    // Fetch all data in parallel — show results as they arrive
+    const results = await Promise.allSettled([
+      geo.zip ? fetchZipData(geo.zip) : Promise.resolve(null),
+      geo.stateFips && geo.countyFips ? fetchCountyData(geo.stateFips, geo.countyFips) : Promise.resolve(null),
+      geo.stateFips && geo.countyFips ? fetchHealthData(geo.stateFips, geo.countyFips) : Promise.resolve(null),
+      geo.stateFips && geo.countyFips ? fetchSpendingData(geo.stateFips, geo.countyFips) : Promise.resolve(null),
+      geo.stateFips && geo.countyFips ? fetchGrowthData(geo.stateFips, geo.countyFips) : Promise.resolve(null),
+      geo.stateFips && geo.countyFips ? fetchCommuteData(geo.stateFips, geo.countyFips) : Promise.resolve(null),
       fetchCompetitors(lat, lng),
     ])
+
+    const [zip, county, health, spending, growth, commute, comps] = results.map(r =>
+      r.status === 'fulfilled' ? r.value : null
+    )
 
     setZipData(zip); setCountyData(county); setHealthData(health)
     setSpendingData(spending); setGrowthData(growth)
     setCommuteData(commute); setCompetitors(comps)
+
+    if (!zip && !county) {
+      setError('No Census data found for this area. Try clicking a different nearby location.')
+      setLoading(false)
+      return
+    }
 
     const nearbyCount = locations.filter(loc => {
       if (!loc.lat || !loc.lng) return false
@@ -209,20 +221,13 @@ export default function DemographicsPanel({ lat, lng, locations, enabledFactors,
 
   async function savePrefs(prefs) {
     setSavingPrefs(true)
-    const { data: existing } = await supabase
-      .from('user_demo_preferences')
-      .select('id')
-      .eq('user_id', user.id)
-      .single()
-
-    if (existing) {
+    try {
       await supabase.from('user_demo_preferences')
-        .update({ preferences: prefs, updated_at: new Date().toISOString() })
-        .eq('user_id', user.id)
-    } else {
-      await supabase.from('user_demo_preferences')
-        .insert({ user_id: user.id, preferences: prefs })
-    }
+        .upsert(
+          { user_id: user.id, preferences: prefs, updated_at: new Date().toISOString() },
+          { onConflict: 'user_id' }
+        )
+    } catch {}
     setUserPrefs(prefs)
     setSavingPrefs(false)
     setShowPrefs(false)
@@ -295,7 +300,12 @@ export default function DemographicsPanel({ lat, lng, locations, enabledFactors,
     return (
       <div className="demo-loading">
         <div className="demo-spinner" />
-        <span>Loading market data… this may take a moment</span>
+        <div>
+          <div>Loading market data…</div>
+          {geoInfo && <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+            {geoInfo.zip ? `ZIP ${geoInfo.zip} · ` : ''}{geoInfo.countyName || 'Fetching census data'}
+          </div>}
+        </div>
       </div>
     )
   }

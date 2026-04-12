@@ -551,7 +551,29 @@ export default function MapPage() {
     poverty: true, competition: true, health: true, spending: true,
     growth: true, commute: true, competitors: true,
   }
-  const [enabledFactors] = useState(defaultEnabledFactors)
+  const [enabledFactors, setEnabledFactors] = useState(defaultEnabledFactors)
+
+  // Load admin-controlled demo factor toggles from app_settings
+  useEffect(() => {
+    async function loadSettings() {
+      const { data } = await supabase.from('app_settings').select('*').eq('id', 1).single()
+      if (!data) return
+      setEnabledFactors({
+        population:  data.demo_population  !== false,
+        income:      data.demo_income      !== false,
+        ageFit:      data.demo_age_fit     !== false,
+        medianAge:   data.demo_median_age  !== false,
+        poverty:     data.demo_poverty     !== false,
+        competition: data.demo_competition !== false,
+        health:      data.demo_health      !== false,
+        spending:    data.demo_spending    !== false,
+        growth:      data.demo_growth      !== false,
+        commute:     data.demo_commute     !== false,
+        competitors: data.demo_competitors !== false,
+      })
+    }
+    loadSettings()
+  }, [])
 
   // Panel position — per user, stored in localStorage, default 'right'
   const posKey     = user ? `panel_position_${user.id}` : 'panel_position'
