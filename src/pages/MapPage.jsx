@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
 import { MapContainer, TileLayer, Marker, Circle, useMap } from 'react-leaflet'
-import L from 'leaflet'
+import { divIcon, tooltip as leafletTooltip, marker as leafletMarker } from 'leaflet'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 import { useNavigate } from 'react-router-dom'
@@ -20,7 +20,7 @@ function makeCircleIcon(type) {
   const { fill, stroke, size } = configs[type]
   const r = size / 2
   const svg = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg"><circle cx="${r}" cy="${r}" r="${r - 1.5}" fill="${fill}" stroke="white" stroke-width="2"/></svg>`
-  return L.divIcon({
+  return divIcon({
     className: '',
     html: `<div style="width:${size}px;height:${size}px;cursor:pointer;transform:translate(-50%,-50%);">${svg}</div>`,
     iconSize: [size, size],
@@ -261,14 +261,14 @@ function ClubMarkers({ locations, selectedId, userId, onSelect, navigate }) {
           ${dirLink}
         </div>`
 
-      const tooltip = L.tooltip({
+      const tooltip = leafletTooltip({
         permanent: false,
         direction: 'top',
         offset: [0, -28],
         className: 'club-tooltip',
       }).setContent(tooltipHtml)
 
-      const marker = L.marker([loc.lat, loc.lng], { icon })
+      const marker = leafletMarker([loc.lat, loc.lng], { icon })
         .addTo(map)
         .bindTooltip(tooltip)
         .on('click', () => onSelect(loc))
