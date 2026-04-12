@@ -29,9 +29,16 @@ function makeCircleIcon(type) {
   })
 }
 
-const ownIcon      = makeCircleIcon('own')
-const otherIcon    = makeCircleIcon('other')
-const selectedIcon = makeCircleIcon('selected')
+// Icons created lazily to avoid calling L.divIcon at module parse time
+let _ownIcon, _otherIcon, _selectedIcon
+function getIcons() {
+  if (!_ownIcon) {
+    _ownIcon      = makeCircleIcon('own')
+    _otherIcon    = makeCircleIcon('other')
+    _selectedIcon = makeCircleIcon('selected')
+  }
+  return { ownIcon: _ownIcon, otherIcon: _otherIcon, selectedIcon: _selectedIcon }
+}
 
 const BASE_MAPS = [
   { id: 'carto',     label: 'Clean',  url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', attribution: '&copy; OpenStreetMap &copy; CARTO' },
@@ -147,6 +154,7 @@ function ClubMarkers({ locations, selectedId, userId, onSelect, navigate }) {
   useEffect(() => {
     Object.values(markersRef.current).forEach(m => m.remove())
     markersRef.current = {}
+    const { ownIcon, otherIcon, selectedIcon } = getIcons()
 
     locations.forEach(loc => {
       const isOwn      = loc.user_id === userId
