@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import AddressAutocomplete from '../components/AddressAutocomplete'
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN
 
@@ -570,7 +571,17 @@ export default function PublicFinderPage() {
         <h1 className="pf-search-title">{settings?.public_finder_welcome || 'Find a nutrition club near you'}</h1>
         <form className="pf-search-form" onSubmit={handleSearch}>
           <div className="pf-search-row">
-            <input ref={inputRef} className="pf-search-input" type="text" placeholder="Enter city, address, or zip code…" value={query} onChange={e => setQuery(e.target.value)} autoFocus />
+            <AddressAutocomplete
+              value={query}
+              onChange={setQuery}
+              onSelect={({ street, city, state, zip, lat, lng }) => {
+                const full = [street, city, state, zip].filter(Boolean).join(', ')
+                setQuery(full)
+                setGeoError('')
+                setUserLat(lat); setUserLng(lng)
+                doSearch(lat, lng)
+              }}
+            />
             <button className="pf-search-btn" type="submit" disabled={searching}>
               {searching ? '…' : <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2"/><path d="M21 21l-4.35-4.35" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>}
             </button>
