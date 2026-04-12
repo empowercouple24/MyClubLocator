@@ -373,8 +373,10 @@ CREATE TABLE IF NOT EXISTS club_notes (
   forwarded BOOLEAN DEFAULT false, created_at TIMESTAMPTZ DEFAULT now()
 );
 
--- Marker colors
+-- Landing page appearance
 ALTER TABLE app_settings
+  ADD COLUMN IF NOT EXISTS landing_eyebrow_color TEXT DEFAULT '#F1EFE8',
+  ADD COLUMN IF NOT EXISTS landing_hero_panel_color TEXT DEFAULT '#1A3C2E';
   ADD COLUMN IF NOT EXISTS marker_color_own      TEXT DEFAULT '#D94F4F',
   ADD COLUMN IF NOT EXISTS marker_color_other    TEXT DEFAULT '#6B8DD6',
   ADD COLUMN IF NOT EXISTS marker_color_selected TEXT DEFAULT '#F59E0B',
@@ -394,3 +396,17 @@ ALTER TABLE app_settings
 - Working directory: `/home/claude/MyClubLocator-main/`
 - Build: `cd /home/claude/MyClubLocator-main && node build.mjs`
 - Always build and zip before presenting file to user
+
+---
+
+## Landing Page Redesign (completed Apr 12 2026)
+- **LandingPage.jsx** rebuilt — Option B hero card + eyebrow strip B
+- Hero: full-width two-column grid (content left / decorative panel right), eyebrow strip spans full bottom edge
+- Eyebrow strip: left col = "Club owners / Add & manage →", two cells = Log in + Add my club
+- Live club count pulled from Supabase `locations` on mount
+- Both colors (`landing_eyebrow_color`, `landing_hero_panel_color`) loaded from `app_settings` on mount
+- Admin → Settings → **Landing Page Appearance** card (collapsible, sits above Marker Colors):
+  - 7 eyebrow swatches (default: Cool grey `#F1EFE8`)
+  - 8 hero panel swatches (default: Forest green `#1A3C2E`)
+  - Live mini-preview updates instantly
+- **SQL to run:** `ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS landing_eyebrow_color TEXT DEFAULT '#F1EFE8', ADD COLUMN IF NOT EXISTS landing_hero_panel_color TEXT DEFAULT '#1A3C2E';`

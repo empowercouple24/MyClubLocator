@@ -219,6 +219,8 @@ export default function AdminPage() {
     marker_color_other:    '#6B8DD6',
     marker_color_selected: '#F59E0B',
     marker_color_team:     '#7C3AED',
+    landing_eyebrow_color: '#F1EFE8',
+    landing_hero_panel_color: '#1A3C2E',
     demo_population: true,
     demo_income: true,
     demo_age_fit: true,
@@ -240,12 +242,12 @@ export default function AdminPage() {
   const isSettingsDirty = savedSettingsRef.current !== null
     ? JSON.stringify(settings) !== JSON.stringify(savedSettingsRef.current)
     : false
-  const [previewModal, setPreviewModal]       = useState(null) // 'message' | 'disclaimer' | null
   const [demoOpen, setDemoOpen]               = useState(false)
   const [welcomeModalOpen, setWelcomeModalOpen] = useState(false)
   const [loginMsgsOpen, setLoginMsgsOpen]       = useState(false)
   const [finderMsgsOpen, setFinderMsgsOpen]     = useState(false)
   const [markerColorsOpen, setMarkerColorsOpen] = useState(false)
+  const [landingOpen, setLandingOpen] = useState(false)
   const [memberApprovalOpen, setMemberApprovalOpen] = useState(false)
   const [teamCreationOpen, setTeamCreationOpen] = useState(false)
   const [previewBasemap, setPreviewBasemap] = useState('streets')
@@ -522,6 +524,8 @@ export default function AdminPage() {
       marker_color_other:                settings.marker_color_other,
       marker_color_selected:             settings.marker_color_selected,
       marker_color_team:                 settings.marker_color_team,
+      landing_eyebrow_color:             settings.landing_eyebrow_color,
+      landing_hero_panel_color:          settings.landing_hero_panel_color,
       demo_population:            settings.demo_population,
       demo_income:                settings.demo_income,
       demo_age_fit:               settings.demo_age_fit,
@@ -937,69 +941,133 @@ export default function AdminPage() {
                   </svg>
                 </button>
                 {welcomeModalOpen && (
-                  <div style={{ padding: '0 20px 16px' }}>
-                    <p className="admin-section-desc" style={{ marginBottom: 14 }}>Controls the modal shown to members on first login.</p>
+                  <div style={{ padding: '0 20px 20px' }}>
+                    <p className="admin-section-desc" style={{ marginBottom: 16 }}>Controls the modal shown to members on first login.</p>
 
-                    <div className="admin-toggle-row">
-                      <div>
-                        <div className="admin-toggle-label">Show welcome video</div>
-                        <div className="admin-toggle-hint">When off, modal shows without a video</div>
-                      </div>
-                      <ToggleSwitch on={settings.welcome_video_enabled}
-                        onChange={v => setSettings(s => ({ ...s, welcome_video_enabled: v }))} />
-                    </div>
+                    {/* Two-column layout: fields left, live preview right */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, alignItems: 'start' }}>
 
-                    <div className="fgrid">
-                      <div className="field">
-                        <label>Modal title</label>
-                        <input type="text" value={settings.welcome_title}
-                          onChange={e => setSettings(s => ({ ...s, welcome_title: e.target.value }))}
-                          placeholder="Welcome to My Club Locator!" />
-                      </div>
+                      {/* Left: fields */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+                        <div className="admin-toggle-row" style={{ marginBottom: 16, paddingBottom: 16 }}>
+                          <div>
+                            <div className="admin-toggle-label">Show welcome video</div>
+                            <div className="admin-toggle-hint">When off, modal shows without a video</div>
+                          </div>
+                          <ToggleSwitch on={settings.welcome_video_enabled}
+                            onChange={v => setSettings(s => ({ ...s, welcome_video_enabled: v }))} />
+                        </div>
 
-                      <div className="field" style={{ gridColumn: '1 / -1' }}>
-                        <div className="admin-field-label-row">
+                        <div className="field">
+                          <label>Modal title</label>
+                          <input type="text" value={settings.welcome_title}
+                            onChange={e => setSettings(s => ({ ...s, welcome_title: e.target.value }))}
+                            placeholder="Welcome to My Club Locator!" />
+                        </div>
+
+                        <div className="field">
                           <label>Welcome message</label>
-                          <button className="admin-preview-btn" onClick={() => setPreviewModal('message')}>
-                            <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.2"/><circle cx="8" cy="6" r="1.2" fill="currentColor"/><line x1="8" y1="8.5" x2="8" y2="11.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>
-                            Preview
-                          </button>
+                          <textarea rows={3} value={settings.welcome_message}
+                            onChange={e => setSettings(s => ({ ...s, welcome_message: e.target.value }))}
+                            className="admin-tall-textarea" style={{ minHeight: 80 }} />
                         </div>
-                        <textarea rows={4} value={settings.welcome_message}
-                          onChange={e => setSettings(s => ({ ...s, welcome_message: e.target.value }))}
-                          className="admin-tall-textarea" />
-                      </div>
 
-                      <div className="field" style={{ gridColumn: '1 / -1' }}>
-                        <label>Video embed URL</label>
-                        <input type="url" value={settings.welcome_video_url}
-                          onChange={e => setSettings(s => ({ ...s, welcome_video_url: e.target.value }))}
-                          placeholder="https://www.youtube.com/embed/VIDEO_ID"
-                          disabled={!settings.welcome_video_enabled} />
-                        <span className="field-hint">YouTube embed format: youtube.com/embed/VIDEO_ID</span>
-                      </div>
-
-                      <div className="field" style={{ gridColumn: '1 / -1' }}>
-                        <label>Video placeholder URL <span className="field-optional">shown until you set a real video</span></label>
-                        <input type="url" value={settings.welcome_video_placeholder}
-                          onChange={e => setSettings(s => ({ ...s, welcome_video_placeholder: e.target.value }))}
-                          placeholder="https://www.youtube.com/embed/VIDEO_ID" />
-                        <span className="field-hint">Shown to new users when no video URL is set above</span>
-                      </div>
-
-                      <div className="field" style={{ gridColumn: '1 / -1' }}>
-                        <div className="admin-field-label-row">
-                          <label>Disclaimer text <span className="field-optional">shown to all users at bottom of modal</span></label>
-                          <button className="admin-preview-btn" onClick={() => setPreviewModal('disclaimer')}>
-                            <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.2"/><circle cx="8" cy="6" r="1.2" fill="currentColor"/><line x1="8" y1="8.5" x2="8" y2="11.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>
-                            Preview
-                          </button>
+                        <div className="field">
+                          <label>Video embed URL</label>
+                          <input type="url" value={settings.welcome_video_url}
+                            onChange={e => setSettings(s => ({ ...s, welcome_video_url: e.target.value }))}
+                            placeholder="https://www.youtube.com/embed/VIDEO_ID"
+                            disabled={!settings.welcome_video_enabled} />
+                          <span className="field-hint">YouTube embed format: youtube.com/embed/VIDEO_ID</span>
                         </div>
-                        <textarea rows={4} value={settings.welcome_disclaimer}
-                          onChange={e => setSettings(s => ({ ...s, welcome_disclaimer: e.target.value }))}
-                          placeholder="Enter your disclaimer here — e.g. terms of use, membership rules, etc."
-                          className="admin-tall-textarea" />
-                        <span className="field-hint">Leave blank to show the default placeholder text until you're ready</span>
+
+                        <div className="field">
+                          <label>Video placeholder URL <span className="field-optional">shown until you set a real video</span></label>
+                          <input type="url" value={settings.welcome_video_placeholder}
+                            onChange={e => setSettings(s => ({ ...s, welcome_video_placeholder: e.target.value }))}
+                            placeholder="https://www.youtube.com/embed/VIDEO_ID" />
+                          <span className="field-hint">Shown to new users when no video URL is set above</span>
+                        </div>
+
+                        <div className="field">
+                          <label>Disclaimer text <span className="field-optional">shown at bottom of modal</span></label>
+                          <textarea rows={3} value={settings.welcome_disclaimer}
+                            onChange={e => setSettings(s => ({ ...s, welcome_disclaimer: e.target.value }))}
+                            placeholder="Enter your disclaimer here — e.g. terms of use, membership rules, etc."
+                            className="admin-tall-textarea" style={{ minHeight: 80 }} />
+                          <span className="field-hint">Leave blank to show the default placeholder text until you're ready</span>
+                        </div>
+                      </div>
+
+                      {/* Right: live modal preview */}
+                      <div>
+                        <div className="mc-preview-label" style={{ marginBottom: 8 }}>Live preview</div>
+                        <div style={{
+                          background: 'rgba(0,0,0,0.35)',
+                          borderRadius: 12,
+                          padding: 16,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}>
+                          <div style={{
+                            background: '#fff',
+                            borderRadius: 16,
+                            padding: '24px 22px 20px',
+                            width: '100%',
+                            boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
+                          }}>
+                            {/* Logo mark */}
+                            <div style={{
+                              width: 40, height: 40, borderRadius: 10,
+                              background: '#EBF5EF',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              marginBottom: 14,
+                            }}>
+                              <svg width="22" height="22" viewBox="0 0 18 18" fill="none">
+                                <circle cx="9" cy="9" r="3.5" fill="#4CAF82"/>
+                                <circle cx="9" cy="9" r="7" stroke="#4CAF82" strokeWidth="1.5" fill="none"/>
+                                <line x1="9" y1="2" x2="9" y2="0.5" stroke="#4CAF82" strokeWidth="1.5" strokeLinecap="round"/>
+                                <line x1="9" y1="16" x2="9" y2="17.5" stroke="#4CAF82" strokeWidth="1.5" strokeLinecap="round"/>
+                                <line x1="2" y1="9" x2="0.5" y2="9" stroke="#4CAF82" strokeWidth="1.5" strokeLinecap="round"/>
+                                <line x1="16" y1="9" x2="17.5" y2="9" stroke="#4CAF82" strokeWidth="1.5" strokeLinecap="round"/>
+                              </svg>
+                            </div>
+                            {/* Title */}
+                            <div style={{ fontSize: 16, fontWeight: 700, color: '#1A1A1A', marginBottom: 8, lineHeight: 1.3 }}>
+                              {settings.welcome_title || 'Welcome to My Club Locator!'}
+                            </div>
+                            {/* Message */}
+                            <div style={{ fontSize: 12, color: '#555', lineHeight: 1.65, marginBottom: 12 }}>
+                              {settings.welcome_message || 'Your welcome message will appear here.'}
+                            </div>
+                            {/* Video placeholder */}
+                            {settings.welcome_video_enabled && (
+                              <div style={{
+                                background: '#111', borderRadius: 7,
+                                height: 72, display: 'flex', alignItems: 'center',
+                                justifyContent: 'center', marginBottom: 12,
+                              }}>
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                                  <circle cx="12" cy="12" r="10" stroke="#555" strokeWidth="1.5"/>
+                                  <path d="M10 8.5l6 3.5-6 3.5V8.5z" fill="#555"/>
+                                </svg>
+                              </div>
+                            )}
+                            {/* CTA button */}
+                            <div style={{ background: '#1A3C2E', color: '#fff', borderRadius: 8, padding: '10px 14px', fontSize: 12, fontWeight: 600, textAlign: 'center', marginBottom: 10 }}>
+                              Add My Club
+                            </div>
+                            {/* Disclaimer */}
+                            <div style={{
+                              fontSize: 10, color: '#888', lineHeight: 1.6,
+                              background: '#f8f8f6', borderRadius: 6, padding: '8px 10px',
+                              border: '1px solid #e8e8e4',
+                            }}>
+                              {settings.welcome_disclaimer || 'Disclaimer placeholder — edit this text in Admin → Settings.'}
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1146,6 +1214,166 @@ export default function AdminPage() {
                   </div>
                 )}
               </div>
+
+              {/* Landing Page Appearance */}
+              {(() => {
+                const EYEBROW_OPTIONS = [
+                  { value: '#F1EFE8', label: 'Cool grey',      textColor: '#5F5E5A', subColor: '#444441' },
+                  { value: '#FAF8F4', label: 'Warm parchment', textColor: '#a89880', subColor: '#6b5c48' },
+                  { value: '#1A3C2E', label: 'Dark green',     textColor: 'rgba(255,255,255,0.5)', subColor: 'rgba(255,255,255,0.9)' },
+                  { value: '#E1F5EE', label: 'Mint tint',      textColor: '#5a9e80', subColor: '#0F6E56' },
+                  { value: '#2C2C2A', label: 'Charcoal',       textColor: 'rgba(255,255,255,0.4)', subColor: 'rgba(255,255,255,0.85)' },
+                  { value: '#0C447C', label: 'Navy blue',      textColor: 'rgba(255,255,255,0.45)', subColor: 'rgba(255,255,255,0.9)' },
+                  { value: '#FAEEDA', label: 'Amber',          textColor: '#c49030', subColor: '#854F0B' },
+                ]
+                const PANEL_OPTIONS = [
+                  { value: '#1A3C2E', label: 'Forest green' },
+                  { value: '#0C447C', label: 'Navy blue' },
+                  { value: '#2C2C2A', label: 'Charcoal' },
+                  { value: '#4338CA', label: 'Indigo' },
+                  { value: '#7C3AED', label: 'Purple' },
+                  { value: '#854F0B', label: 'Amber dark' },
+                  { value: '#185FA5', label: 'Steel blue' },
+                  { value: '#0F6E56', label: 'Teal green' },
+                ]
+                const curEyebrow = EYEBROW_OPTIONS.find(o => o.value === settings.landing_eyebrow_color) || EYEBROW_OPTIONS[0]
+                const curPanel   = PANEL_OPTIONS.find(o => o.value === settings.landing_hero_panel_color) || PANEL_OPTIONS[0]
+                return (
+                  <div className="admin-section" style={{ padding: 0, overflow: 'hidden' }}>
+                    <button type="button" className="survey-toggle-btn" style={{ padding: '14px 20px' }} onClick={() => setLandingOpen(o => !o)}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1 }}>
+                        <h3 className="admin-section-title" style={{ margin: 0 }}>Landing Page Appearance</h3>
+                        <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
+                          <span style={{ width: 14, height: 14, borderRadius: 3, background: settings.landing_eyebrow_color || '#F1EFE8', border: '1.5px solid rgba(0,0,0,0.1)', display: 'inline-block' }} />
+                          <span style={{ fontSize: 11, color: '#aaa' }}>+</span>
+                          <span style={{ width: 14, height: 14, borderRadius: 3, background: settings.landing_hero_panel_color || '#1A3C2E', border: '1.5px solid rgba(0,0,0,0.1)', display: 'inline-block' }} />
+                        </div>
+                      </div>
+                      <svg className={`survey-chevron ${landingOpen ? 'open' : ''}`} width="14" height="14" viewBox="0 0 16 16" fill="none">
+                        <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </button>
+                    {landingOpen && (
+                      <div style={{ padding: '0 20px 20px' }}>
+                        <p className="admin-section-desc" style={{ marginBottom: 18 }}>Customize the color scheme of the public-facing landing page.</p>
+
+                        {/* Live mini-preview */}
+                        <div style={{ marginBottom: 20 }}>
+                          <div className="mc-preview-label" style={{ marginBottom: 8 }}>Preview</div>
+                          <div style={{ border: '1px solid #dde8e2', borderRadius: 10, overflow: 'hidden', fontSize: 12 }}>
+                            {/* stub hero */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px', background: '#fff' }}>
+                              <div style={{ padding: '12px 14px', borderBottom: '0.5px solid #e8f0eb' }}>
+                                <div style={{ display: 'inline-block', background: '#E6F1FB', color: '#185FA5', fontSize: 9, fontWeight: 600, padding: '2px 6px', borderRadius: 4, textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 6 }}>Find a club</div>
+                                <div style={{ fontSize: 13, fontWeight: 500, color: '#111', lineHeight: 1.2 }}>Looking for a nutrition club?</div>
+                              </div>
+                              <div style={{ background: settings.landing_hero_panel_color || '#1A3C2E', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <div style={{ textAlign: 'center' }}>
+                                  <div style={{ fontSize: 14, color: '#fff', fontWeight: 300 }}>340+</div>
+                                  <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '.5px' }}>clubs</div>
+                                </div>
+                              </div>
+                            </div>
+                            {/* eyebrow strip */}
+                            <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr 1fr', borderTop: '0.5px solid #e8f0eb' }}>
+                              <div style={{ background: settings.landing_eyebrow_color || '#F1EFE8', borderRight: '0.5px solid #e0ddd5', padding: '8px 12px', display: 'flex', flexDirection: 'column', justifyContent: 'center', minWidth: 80 }}>
+                                <div style={{ fontSize: 9, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.5px', color: curEyebrow.textColor, whiteSpace: 'nowrap' }}>Club owners</div>
+                                <div style={{ fontSize: 10, fontWeight: 500, color: curEyebrow.subColor, marginTop: 2, whiteSpace: 'nowrap' }}>Add &amp; manage →</div>
+                              </div>
+                              <div style={{ background: '#fff', padding: '8px 10px', borderRight: '0.5px solid #e8f0eb', display: 'flex', alignItems: 'center', gap: 7 }}>
+                                <div style={{ width: 20, height: 20, borderRadius: 5, background: '#E1F5EE', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none"><path d="M15 3h6v6M10 14L21 3M9 7H3v14h14v-6" stroke="#0F6E56" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                                </div>
+                                <div>
+                                  <div style={{ fontSize: 10, fontWeight: 500, color: '#222' }}>Log in to manage</div>
+                                  <div style={{ fontSize: 9, color: '#999' }}>Returning member</div>
+                                </div>
+                              </div>
+                              <div style={{ background: '#fff', padding: '8px 10px', display: 'flex', alignItems: 'center', gap: 7 }}>
+                                <div style={{ width: 20, height: 20, borderRadius: 5, background: '#EEF2FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="#4338CA" strokeWidth="2"/><path d="M12 8v8M8 12h8" stroke="#4338CA" strokeWidth="2" strokeLinecap="round"/></svg>
+                                </div>
+                                <div>
+                                  <div style={{ fontSize: 10, fontWeight: 500, color: '#222' }}>Add my club</div>
+                                  <div style={{ fontSize: 9, color: '#999' }}>New member</div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Eyebrow color picker */}
+                        <div style={{ marginBottom: 20 }}>
+                          <div className="mc-picker-label" style={{ marginBottom: 4 }}>Club owners eyebrow color</div>
+                          <div className="admin-section-desc" style={{ marginBottom: 10 }}>Background of the "Club owners / Add &amp; manage" label on the left side of the strip.</div>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                            {EYEBROW_OPTIONS.map(opt => (
+                              <button
+                                key={opt.value}
+                                title={opt.label}
+                                onClick={() => setSettings(s => ({ ...s, landing_eyebrow_color: opt.value }))}
+                                style={{
+                                  width: 36, height: 36, borderRadius: 8,
+                                  background: opt.value,
+                                  border: settings.landing_eyebrow_color === opt.value
+                                    ? '2.5px solid #1A3C2E'
+                                    : '1.5px solid rgba(0,0,0,0.12)',
+                                  cursor: 'pointer',
+                                  transform: settings.landing_eyebrow_color === opt.value ? 'scale(1.15)' : 'scale(1)',
+                                  transition: 'transform 0.1s, border-color 0.1s',
+                                  position: 'relative',
+                                  flexShrink: 0,
+                                }}
+                              >
+                                {settings.landing_eyebrow_color === opt.value && (
+                                  <svg style={{ position: 'absolute', inset: 0, margin: 'auto' }} width="14" height="14" viewBox="0 0 16 16" fill="none">
+                                    <path d="M3 8l4 4 6-6" stroke={['#1A3C2E','#2C2C2A','#0C447C'].includes(opt.value) ? '#fff' : '#1A3C2E'} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                                  </svg>
+                                )}
+                              </button>
+                            ))}
+                          </div>
+                          <div style={{ marginTop: 6, fontSize: 11, color: '#888' }}>{curEyebrow.label}</div>
+                        </div>
+
+                        {/* Hero panel color picker */}
+                        <div>
+                          <div className="mc-picker-label" style={{ marginBottom: 4 }}>Hero panel background color</div>
+                          <div className="admin-section-desc" style={{ marginBottom: 10 }}>Background of the decorative club-count panel on the right side of the hero card.</div>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                            {PANEL_OPTIONS.map(opt => (
+                              <button
+                                key={opt.value}
+                                title={opt.label}
+                                onClick={() => setSettings(s => ({ ...s, landing_hero_panel_color: opt.value }))}
+                                style={{
+                                  width: 36, height: 36, borderRadius: 8,
+                                  background: opt.value,
+                                  border: settings.landing_hero_panel_color === opt.value
+                                    ? '2.5px solid #1A3C2E'
+                                    : '1.5px solid rgba(0,0,0,0.12)',
+                                  cursor: 'pointer',
+                                  transform: settings.landing_hero_panel_color === opt.value ? 'scale(1.15)' : 'scale(1)',
+                                  transition: 'transform 0.1s, border-color 0.1s',
+                                  position: 'relative',
+                                  flexShrink: 0,
+                                }}
+                              >
+                                {settings.landing_hero_panel_color === opt.value && (
+                                  <svg style={{ position: 'absolute', inset: 0, margin: 'auto' }} width="14" height="14" viewBox="0 0 16 16" fill="none">
+                                    <path d="M3 8l4 4 6-6" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                                  </svg>
+                                )}
+                              </button>
+                            ))}
+                          </div>
+                          <div style={{ marginTop: 6, fontSize: 11, color: '#888' }}>{curPanel.label}</div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )
+              })()}
 
               {/* Marker Colors */}
               <div className="admin-section" style={{ padding: 0, overflow: 'hidden' }}>
@@ -1769,42 +1997,6 @@ export default function AdminPage() {
             </div>
           )}
 
-        </div>
-      )}
-
-      {/* ── Welcome preview modal ── */}
-      {previewModal && (
-        <div className="modal-overlay" onClick={() => setPreviewModal(null)}>
-          <div className="modal-card" style={{ maxWidth: 480 }} onClick={e => e.stopPropagation()}>
-            <div className="admin-preview-modal-label">
-              {previewModal === 'message' ? 'Welcome message preview' : 'Disclaimer preview'} — what users see
-            </div>
-            <h2 className="modal-title" style={{ fontSize: 18, marginBottom: 12 }}>
-              {settings.welcome_title || 'Welcome to My Club Locator!'}
-            </h2>
-            {settings.welcome_video_enabled && (
-              <div className="admin-preview-video-placeholder">
-                <span>Video plays here</span>
-              </div>
-            )}
-            <p className="admin-preview-message-text"
-              style={{ fontWeight: previewModal === 'message' ? 'normal' : 'normal',
-                       border: previewModal === 'message' ? '1.5px solid #1A3C2E' : 'none',
-                       background: previewModal === 'message' ? '#f0faf5' : 'transparent' }}>
-              {settings.welcome_message || 'Your welcome message will appear here.'}
-            </p>
-            {settings.welcome_disclaimer && (
-              <p className="admin-preview-disclaimer-text"
-                style={{ border: previewModal === 'disclaimer' ? '1.5px solid #1A3C2E' : 'none',
-                         background: previewModal === 'disclaimer' ? '#f0faf5' : 'transparent' }}>
-                {settings.welcome_disclaimer}
-              </p>
-            )}
-            <div className="modal-actions" style={{ marginTop: 16 }}>
-              <button className="modal-btn-primary">Add / Manage My Club</button>
-              <button className="modal-btn-secondary" onClick={() => setPreviewModal(null)}>Explore the Map</button>
-            </div>
-          </div>
         </div>
       )}
 

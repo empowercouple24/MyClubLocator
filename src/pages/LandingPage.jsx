@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
@@ -95,13 +95,50 @@ function ContactModal({ onClose }) {
   )
 }
 
+// Eyebrow color → readable text/sub colors
+const EYEBROW_TEXT = {
+  '#F1EFE8': { label: '#aaa89e', sub: '#5F5E5A' },
+  '#FAF8F4': { label: '#a89880', sub: '#6b5c48' },
+  '#1A3C2E': { label: 'rgba(255,255,255,0.5)', sub: 'rgba(255,255,255,0.9)' },
+  '#E1F5EE': { label: '#5a9e80', sub: '#0F6E56' },
+  '#2C2C2A': { label: 'rgba(255,255,255,0.4)', sub: 'rgba(255,255,255,0.85)' },
+  '#0C447C': { label: 'rgba(255,255,255,0.45)', sub: 'rgba(255,255,255,0.9)' },
+  '#FAEEDA': { label: '#c49030', sub: '#854F0B' },
+}
+
 export default function LandingPage() {
   const navigate = useNavigate()
   const [showContact, setShowContact] = useState(false)
+  const [clubCount, setClubCount]     = useState(null)
+  const [eyebrowColor, setEyebrowColor] = useState('#F1EFE8')
+  const [panelColor, setPanelColor]     = useState('#1A3C2E')
+
+  useEffect(() => {
+    async function loadAppearance() {
+      const { data } = await supabase
+        .from('app_settings').select('landing_eyebrow_color, landing_hero_panel_color').eq('id', 1).single()
+      if (data) {
+        if (data.landing_eyebrow_color)    setEyebrowColor(data.landing_eyebrow_color)
+        if (data.landing_hero_panel_color) setPanelColor(data.landing_hero_panel_color)
+      }
+    }
+    async function loadCount() {
+      const { count } = await supabase
+        .from('locations').select('id', { count: 'exact', head: true })
+        .not('lat', 'is', null).neq('approved', false)
+      if (count != null) setClubCount(count)
+    }
+    loadAppearance()
+    loadCount()
+  }, [])
+
+  const textColors = EYEBROW_TEXT[eyebrowColor] || EYEBROW_TEXT['#F1EFE8']
+  // Derive border color: slightly darker than eyebrow bg
+  const isDarkEyebrow = ['#1A3C2E','#2C2C2A','#0C447C'].includes(eyebrowColor)
 
   return (
     <div className="landing-page">
-      <div className="landing-inner">
+      <div className="landing-inner landing-inner--wide">
 
         {/* Logo */}
         <div className="landing-logo">
@@ -113,69 +150,96 @@ export default function LandingPage() {
         <h1 className="landing-headline">Welcome to My Club Locator</h1>
         <p className="landing-sub">
           The private locator for independently owned nutrition clubs.
-          Find clubs, explore markets, and manage your location.
         </p>
 
-        {/* Cards */}
-        <div className="landing-cards">
-          <div className="landing-card landing-card--public">
+        {/* Hero card */}
+        <div className="landing-hero-card">
+
+          {/* Left: find-a-club content */}
+          <div className="landing-hero-left">
             <span className="landing-badge landing-badge--public">Find a club</span>
-            <h2 className="landing-card-title">Looking for a nutrition club?</h2>
-            <p className="landing-card-desc">
-              Search for independently owned nutrition clubs near you. See hours, location, and owner info.
+            <h2 className="landing-hero-title">Looking for a nutrition club?</h2>
+            <p className="landing-hero-desc">
+              Search independently owned nutrition clubs near you. See hours, location, and owner info. No account required.
             </p>
-            <ul className="landing-perks">
+            <ul className="landing-perks" style={{ marginBottom: '1.75rem' }}>
               <li><span className="landing-perk-dot landing-perk-dot--teal"></span>Search by address or zip code</li>
               <li><span className="landing-perk-dot landing-perk-dot--teal"></span>See today's hours at a glance</li>
               <li><span className="landing-perk-dot landing-perk-dot--teal"></span>No account required</li>
             </ul>
-            <button className="landing-btn landing-btn--teal" onClick={() => navigate('/find')}>
+            <button className="landing-btn landing-btn--teal landing-hero-cta" onClick={() => navigate('/find')}>
               Find a club near me →
             </button>
           </div>
 
-          <div className="landing-card landing-card--returning">
-            <span className="landing-badge landing-badge--returning">Returning member</span>
-            <h2 className="landing-card-title">Good to have you back</h2>
-            <p className="landing-card-desc">
-              Your club is on the map. Log in to update your hours, photos, and club details.
-            </p>
-            <ul className="landing-perks">
-              <li><span className="landing-perk-dot landing-perk-dot--green"></span>Manage your club profile</li>
-              <li><span className="landing-perk-dot landing-perk-dot--green"></span>View market data near you</li>
-              <li><span className="landing-perk-dot landing-perk-dot--green"></span>Browse the full directory</li>
-            </ul>
-            <button className="landing-btn landing-btn--green" onClick={() => navigate('/login')}>
-              Log in to my account
+          {/* Right: decorative panel */}
+          <div className="landing-hero-panel" style={{ background: panelColor }}>
+            <div className="landing-panel-dots">
+              {Array.from({ length: 16 }).map((_, i) => (
+                <div key={i} className={`landing-panel-dot ${i === 1 || i === 4 || i === 10 ? 'big' : i === 6 || i === 12 ? 'gold' : ''}`} />
+              ))}
+            </div>
+            <div className="landing-panel-count">
+              <span className="landing-panel-number">{clubCount != null ? `${clubCount}` : '—'}</span>
+              <span className="landing-panel-label">clubs on the map</span>
+            </div>
+          </div>
+
+          {/* Bottom: eyebrow strip */}
+          <div className="landing-eyebrow-strip">
+            {/* Left eyebrow label */}
+            <div
+              className="landing-eyebrow-label"
+              style={{
+                background: eyebrowColor,
+                borderRight: `0.5px solid ${isDarkEyebrow ? 'rgba(0,0,0,0.25)' : 'rgba(0,0,0,0.08)'}`,
+              }}
+            >
+              <span className="landing-eyebrow-title" style={{ color: textColors.label }}>Club owners</span>
+              <span className="landing-eyebrow-sub" style={{ color: textColors.sub }}>Add &amp; manage →</span>
+            </div>
+
+            {/* Returning member */}
+            <button className="landing-strip-cell" onClick={() => navigate('/login')}>
+              <div className="landing-strip-icon landing-strip-icon--ret">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                  <path d="M15 3h6v6M10 14L21 3M9 7H3v14h14v-6" stroke="#0F6E56" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
+              <div className="landing-strip-text">
+                <span className="landing-strip-main">Log in to manage my club</span>
+                <span className="landing-strip-sub">Returning member</span>
+              </div>
+              <span className="landing-strip-arr">›</span>
+            </button>
+
+            {/* New member */}
+            <button className="landing-strip-cell" onClick={() => navigate('/signup')}>
+              <div className="landing-strip-icon landing-strip-icon--new">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="9" stroke="#4338CA" strokeWidth="1.7"/>
+                  <path d="M12 8v8M8 12h8" stroke="#4338CA" strokeWidth="1.7" strokeLinecap="round"/>
+                </svg>
+              </div>
+              <div className="landing-strip-text">
+                <span className="landing-strip-main">Add my club to the map</span>
+                <span className="landing-strip-sub">New member</span>
+              </div>
+              <span className="landing-strip-arr">›</span>
             </button>
           </div>
 
-          <div className="landing-card landing-card--new">
-            <span className="landing-badge landing-badge--new">New member</span>
-            <h2 className="landing-card-title">Put your club on the map</h2>
-            <p className="landing-card-desc">
-              Join the network, add your location, and connect with club owners across the country.
-            </p>
-            <ul className="landing-perks">
-              <li><span className="landing-perk-dot landing-perk-dot--indigo"></span>Get discovered by your network</li>
-              <li><span className="landing-perk-dot landing-perk-dot--indigo"></span>Explore nearby club density</li>
-              <li><span className="landing-perk-dot landing-perk-dot--indigo"></span>Free — takes under a minute</li>
-            </ul>
-            <button className="landing-btn landing-btn--indigo" onClick={() => navigate('/signup')}>
-              Create my free account
-            </button>
-          </div>
         </div>
 
         {/* Footer */}
         <p className="landing-footer">
-          Questions? Contact us here:{' '}
+          Questions?{' '}
           <button className="landing-contact-link" onClick={() => setShowContact(true)}>
             Send us a message
           </button>
           {' '}·{' '}
           <a href="/privacy" className="landing-contact-link" style={{ textDecoration: 'underline' }}>
-            Privacy & Use Policy
+            Privacy &amp; Use Policy
           </a>
         </p>
 
@@ -185,3 +249,4 @@ export default function LandingPage() {
     </div>
   )
 }
+

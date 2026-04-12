@@ -1505,12 +1505,16 @@ export default function ProfilePage() {
 
       {/* CARD 1: Owners */}
       <div className="sec-card">
+        <div className="sec-card-band">
+          <span className="sec-label">Owners</span>
+        </div>
+        <div className="sec-card-body">
         {personErrors._general && <div className="error-msg">{personErrors._general}</div>}
 
         {/* Owner 1 */}
         <div className="owner2-header" style={{ marginBottom: owner1Collapsed ? 0 : 12 }}>
-          <span className="sec-label" style={{ margin: 0 }}>Primary Owner</span>
-          <button className="owner2-remove" style={{ color: '#888', borderColor: '#ddd' }}
+          <span style={{ color: '#fff', fontSize: 12, fontWeight: 500 }}>Primary Owner</span>
+          <button className="owner2-remove"
             onClick={() => setOwner1Collapsed(c => !c)}>
             {owner1Collapsed ? '▼ Expand' : '▲ Collapse'}
           </button>
@@ -1734,6 +1738,7 @@ export default function ProfilePage() {
             </button>
           </div>
         )}
+        </div>{/* end sec-card-body */}
       </div>
 
       {/* Owner crop modal */}
@@ -1748,7 +1753,7 @@ export default function ProfilePage() {
       {/* CARD 2: My Clubs — tabbed */}
       <div className="sec-card my-clubs-card">
         <div className="my-clubs-header">
-          <span className="sec-label" style={{ margin: 0 }}>My Clubs</span>
+          <span className="sec-label">My Clubs</span>
         </div>
 
         {/* Tab row */}
