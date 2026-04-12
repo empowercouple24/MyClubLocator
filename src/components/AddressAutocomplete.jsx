@@ -8,7 +8,7 @@ function debounce(fn, ms) {
   }
 }
 
-export default function AddressAutocomplete({ value, onChange, onSelect, error }) {
+export default function AddressAutocomplete({ value, onChange, onSelect, error, tabIndex }) {
   const [query, setQuery] = useState(value || '')
   const [results, setResults] = useState([])
   const [loading, setLoading] = useState(false)
@@ -108,7 +108,7 @@ export default function AddressAutocomplete({ value, onChange, onSelect, error }
           onKeyDown={handleKeyDown}
           onFocus={() => results.length > 0 && setOpen(true)}
           placeholder="Start typing your address…"
-          tabIndex={1}
+          tabIndex={tabIndex !== undefined ? tabIndex : 1}
           autoComplete="off"
           className={`addr-ac-input${error ? ' input-err' : ''}`}
         />

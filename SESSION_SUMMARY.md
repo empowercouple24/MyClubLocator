@@ -242,6 +242,11 @@ K levels: PT=base,15K–150K | CC/FC=CC,FC,15K–150K
 
 ---
 
+## Session Conventions
+- **After every build:** Claude prints an updated to-do list in chat showing ✅ completed and ⬜ pending items
+
+---
+
 ## Known Notes
 - `survey_active_club` can be boolean or string — comparisons handle both
 - `lvlConfirmed` and all manual Owner 1 level picker state removed April 12 — `OwnerLevelPicker` handles everything

@@ -40,14 +40,15 @@ export default function CropModal({ imageSrc, onSave, onCancel, circular = true 
     const y = (SIZE - h) / 2 + offset.y
     ctx.drawImage(img, x, y, w, h)
 
-    // Dark overlay outside circle
+    // Dark overlay only OUTSIDE the circle — using even-odd winding
     ctx.save()
     ctx.fillStyle = 'rgba(0,0,0,0.55)'
-    ctx.fillRect(0, 0, SIZE, SIZE)
-    ctx.globalCompositeOperation = 'destination-out'
     ctx.beginPath()
-    ctx.arc(SIZE / 2, SIZE / 2, SIZE / 2 - 8, 0, Math.PI * 2)
-    ctx.fill()
+    // Outer rectangle (clockwise)
+    ctx.rect(0, 0, SIZE, SIZE)
+    // Inner circle (counter-clockwise) — punches a hole
+    ctx.arc(SIZE / 2, SIZE / 2, SIZE / 2 - 8, 0, Math.PI * 2, true)
+    ctx.fill('evenodd')
     ctx.restore()
 
     // Circle border

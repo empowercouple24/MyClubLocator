@@ -26,7 +26,7 @@ function formatDisplay(hour, minute, period) {
   return `${hour}:${minute} ${period}`
 }
 
-export default function TimePicker({ value, onChange, placeholder = 'Select', defaultPeriod = 'AM' }) {
+export default function TimePicker({ value, onChange, placeholder = 'Select', defaultPeriod = 'AM', tabIndex }) {
   const parsed = parseValue(value)
   const [open,   setOpen]   = useState(false)
   const [hour,   setHour]   = useState(parsed.hour   || null)
@@ -72,6 +72,7 @@ export default function TimePicker({ value, onChange, placeholder = 'Select', de
   return (
     <div className="tp-wrap" ref={ref}>
       <button type="button" className={`tp-btn ${open ? 'open' : ''} ${display ? 'has-value' : ''}`}
+        tabIndex={tabIndex}
         onClick={() => setOpen(o => !o)}>
         <span className={display ? 'tp-val' : 'tp-placeholder'}>{display || placeholder}</span>
         <span className="tp-caret">{open ? '▲' : '▼'}</span>
@@ -82,7 +83,7 @@ export default function TimePicker({ value, onChange, placeholder = 'Select', de
           <div className="tp-col">
             <div className="tp-col-hdr">Hour</div>
             {HOURS.map(h => (
-              <button key={h} type="button"
+              <button key={h} type="button" tabIndex={-1}
                 className={`tp-item ${hour === h ? 'sel' : ''}`}
                 onClick={() => select('hour', h)}>{h}</button>
             ))}
@@ -90,7 +91,7 @@ export default function TimePicker({ value, onChange, placeholder = 'Select', de
           <div className="tp-col">
             <div className="tp-col-hdr">Min</div>
             {MINUTES.map(m => (
-              <button key={m} type="button"
+              <button key={m} type="button" tabIndex={-1}
                 className={`tp-item ${minute === m ? 'sel' : ''}`}
                 onClick={() => select('minute', m)}>{m}</button>
             ))}
@@ -98,13 +99,13 @@ export default function TimePicker({ value, onChange, placeholder = 'Select', de
           <div className="tp-col tp-col-period">
             <div className="tp-col-hdr">AM/PM</div>
             {PERIODS.map(p => (
-              <button key={p} type="button"
+              <button key={p} type="button" tabIndex={-1}
                 className={`tp-item ${period === p ? 'sel' : ''}`}
                 onClick={() => select('period', p)}>{p}</button>
             ))}
           </div>
           {display && (
-            <button type="button" className="tp-clear" onClick={clear}>✕</button>
+            <button type="button" className="tp-clear" tabIndex={-1} onClick={clear}>✕</button>
           )}
         </div>
       )}

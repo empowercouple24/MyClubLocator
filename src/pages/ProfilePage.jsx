@@ -61,10 +61,13 @@ const DEFAULT_PERSON = {
 
 async function geocodeAddress(address) {
   try {
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 5000)
     const res = await fetch(
       `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1`,
-      { headers: { 'Accept-Language': 'en' } }
+      { headers: { 'Accept-Language': 'en' }, signal: controller.signal }
     )
+    clearTimeout(timeout)
     const data = await res.json()
     if (data?.[0]) return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) }
   } catch {}
@@ -336,7 +339,7 @@ function ClubEditor({ club, clubIndex, userId, isOnly, onSaved, onRemove, userEm
   const [logoUrl, setLogoUrl]     = useState(club.logo_url || null)
   const [photoUrls, setPhotoUrls] = useState(club.photo_urls || [])
   const [uploadingLogo, setUploadingLogo]   = useState(false)
-  const [uploadingPhoto, setUploadingPhoto] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState(null) // null | { done, total }
   const logoInputRef  = useRef()
   const photoInputRef = useRef()
 
@@ -397,10 +400,12 @@ function ClubEditor({ club, clubIndex, userId, isOnly, onSaved, onRemove, userEm
   async function handlePhotoUpload(e) {
     const files = Array.from(e.target.files || [])
     if (!files.length) return
-    setUploadingPhoto(true)
+    const slots = Math.min(files.length, 10 - photoUrls.length)
+    if (slots <= 0) return
+    setUploadProgress({ done: 0, total: slots })
     const newUrls = [...photoUrls]
-    for (const file of files) {
-      if (newUrls.length >= 10) break
+    for (let i = 0; i < slots; i++) {
+      const file = files[i]
       const ext = file.name.split('.').pop()
       const path = userId + '/photos/' + Date.now() + '-' + Math.random().toString(36).slice(2) + '.' + ext
       const { error } = await supabase.storage.from('club-photos').upload(path, file)
@@ -408,9 +413,10 @@ function ClubEditor({ club, clubIndex, userId, isOnly, onSaved, onRemove, userEm
         const { data } = supabase.storage.from('club-photos').getPublicUrl(path)
         newUrls.push(data.publicUrl)
       }
+      setUploadProgress({ done: i + 1, total: slots })
     }
     setPhotoUrls(newUrls)
-    setUploadingPhoto(false)
+    setUploadProgress(null)
   }
 
   function validate() {
@@ -441,19 +447,13 @@ function ClubEditor({ club, clubIndex, userId, isOnly, onSaved, onRemove, userEm
     }
     setSaveAction(action); setSaving(true)
 
-    const fullAddress = [form.address, form.city, form.state, form.zip].filter(Boolean).join(', ')
-    const coords = fullAddress ? await geocodeAddress(fullAddress) : null
-
     const record = {
       user_id: userId,
       club_index: clubIndex,
       ...form,
-      id: undefined,  // don't include id in spread
       state_zip: (form.state + ' ' + form.zip).trim(),
       logo_url: logoUrl,
       photo_urls: photoUrls,
-      lat: coords ? coords.lat : null,
-      lng: coords ? coords.lng : null,
     }
     delete record.id
 
@@ -484,6 +484,16 @@ function ClubEditor({ club, clubIndex, userId, isOnly, onSaved, onRemove, userEm
         user_id: userId,
       })
       onSaved && onSaved(savedRow)
+    }
+
+    // Geocode in background — don't block the save
+    const fullAddress = [form.address, form.city, form.state, form.zip].filter(Boolean).join(', ')
+    if (fullAddress) {
+      geocodeAddress(fullAddress).then(coords => {
+        if (coords) {
+          supabase.from('locations').update({ lat: coords.lat, lng: coords.lng }).eq('id', savedRow.id)
+        }
+      })
     }
 
     if (action === 'map') {
@@ -533,13 +543,14 @@ function ClubEditor({ club, clubIndex, userId, isOnly, onSaved, onRemove, userEm
           <div className="pf" style={{ gridColumn: '1 / -1' }}>
             <label>Club name <span className="req-star">*</span></label>
             <input type="text" value={form.club_name} onChange={e => setField('club_name', e.target.value)}
-              placeholder="Your Club Name" className={errors.club_name ? 'input-err' : ''} />
+              placeholder="Your Club Name" className={errors.club_name ? 'input-err' : ''} tabIndex={1} />
             {errors.club_name && <span className="field-err">{errors.club_name}</span>}
           </div>
           <div className="pf" style={{ gridColumn: '1 / -1' }}>
             <label>Club email <span className="req-star">*</span></label>
             <input type="email" value={form.club_email} onChange={e => setField('club_email', e.target.value)}
               placeholder="hello@yourclub.com" className={errors.club_email ? 'input-err' : ''}
+              tabIndex={2}
               readOnly={!form.id && clubIndex === 0 && !!userEmail}
               style={!form.id && clubIndex === 0 && userEmail ? { background: '#f8faf9', color: '#555', cursor: 'default' } : {}} />
             {!form.id && clubIndex === 0 && userEmail && (
@@ -551,7 +562,7 @@ function ClubEditor({ club, clubIndex, userId, isOnly, onSaved, onRemove, userEm
             <label>Club phone <span className="optional-tag">optional</span></label>
             <input type="tel" value={form.club_phone}
               onChange={e => handlePhoneChange(e.target.value)}
-              placeholder="(555) 000-0000" />
+              placeholder="(555) 000-0000" tabIndex={3} />
           </div>
         </div>
 
@@ -567,6 +578,7 @@ function ClubEditor({ club, clubIndex, userId, isOnly, onSaved, onRemove, userEm
                 if (errors.address) setErrors(e => ({ ...e, address: null }))
               }}
               error={!!errors.address}
+              tabIndex={4}
             />
             {errors.address && <span className="field-err">{errors.address}</span>}
           </div>
@@ -596,7 +608,7 @@ function ClubEditor({ club, clubIndex, userId, isOnly, onSaved, onRemove, userEm
           <div className="pf">
             <label>Month opened <span className="req-star">*</span></label>
             <select value={form.opened_month} onChange={e => setField('opened_month', e.target.value)}
-              className={errors.opened_month ? 'input-err' : ''}>
+              className={errors.opened_month ? 'input-err' : ''} tabIndex={5}>
               <option value="">Select month</option>
               {MONTHS.map(m => <option key={m} value={m}>{m}</option>)}
             </select>
@@ -605,7 +617,7 @@ function ClubEditor({ club, clubIndex, userId, isOnly, onSaved, onRemove, userEm
           <div className="pf">
             <label>Year opened <span className="req-star">*</span></label>
             <select value={form.opened_year} onChange={e => setField('opened_year', e.target.value)}
-              className={errors.opened_year ? 'input-err' : ''}>
+              className={errors.opened_year ? 'input-err' : ''} tabIndex={6}>
               <option value="">Select year</option>
               {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
             </select>
@@ -626,6 +638,7 @@ function ClubEditor({ club, clubIndex, userId, isOnly, onSaved, onRemove, userEm
                   onChange={v => setField('hours_' + day + '_open', v)}
                   placeholder="Open"
                   defaultPeriod="AM"
+                  tabIndex={7 + i * 2}
                 />
                 <span className="hrs-dash">–</span>
                 <TimePicker
@@ -633,9 +646,10 @@ function ClubEditor({ club, clubIndex, userId, isOnly, onSaved, onRemove, userEm
                   onChange={v => setField('hours_' + day + '_close', v)}
                   placeholder="Close"
                   defaultPeriod="PM"
+                  tabIndex={8 + i * 2}
                 />
               </div>
-              <button className="copy-hours-btn" title="Copy to other days"
+              <button className="copy-hours-btn" tabIndex={-1} title="Copy to other days"
                 disabled={!form['hours_' + day + '_open'] || !form['hours_' + day + '_close']}
                 onClick={() => { setCopySource(day); setCopyTargets({}) }}>⇢</button>
             </div>
@@ -672,18 +686,128 @@ function ClubEditor({ club, clubIndex, userId, isOnly, onSaved, onRemove, userEm
         {/* Social + Website */}
         <div className="sec-sublabel" style={{ marginTop: 24 }}>Social media &amp; website <span className="optional-tag">all optional</span></div>
         {[
-          { key: 'website',          label: 'Website',   placeholder: 'yoursite.com' },
-          { key: 'social_facebook',  label: 'Facebook',  placeholder: 'facebook.com/yourpage' },
-          { key: 'social_instagram', label: 'Instagram', placeholder: '@yourhandle' },
-          { key: 'social_tiktok',    label: 'TikTok',    placeholder: '@yourhandle' },
-          { key: 'social_youtube',   label: 'YouTube',   placeholder: 'youtube.com/yourchannel' },
-        ].map(({ key, label, placeholder }) => (
-          <div className="soc-row" key={key}>
-            <span className="soc-lbl">{label}</span>
-            <div className="pf"><input type="text" value={form[key] || ''}
-              onChange={e => setField(key, e.target.value)} placeholder={placeholder} /></div>
-          </div>
-        ))}
+          {
+            key: 'website',
+            label: 'Website',
+            placeholder: 'yoursite.com',
+            validate: v => {
+              if (!v) return null
+              // must look like a domain or URL
+              return /^(https?:\/\/)?[\w-]+(\.[\w-]+)+/.test(v) ? null : 'Enter a valid website URL'
+            },
+            previewUrl: v => {
+              if (!v) return null
+              return /^https?:\/\//.test(v) ? v : 'https://' + v
+            },
+            previewLabel: v => v,
+          },
+          {
+            key: 'social_facebook',
+            label: 'Facebook',
+            placeholder: 'facebook.com/yourpage or yourpage',
+            validate: v => {
+              if (!v) return null
+              const handle = v.replace(/^(https?:\/\/)?(www\.)?facebook\.com\//, '').replace(/^@/, '').trim()
+              return handle.length >= 1 ? null : 'Enter a valid Facebook page name'
+            },
+            previewUrl: v => {
+              if (!v) return null
+              const handle = v.replace(/^(https?:\/\/)?(www\.)?facebook\.com\//, '').replace(/^@/, '').trim()
+              return handle ? `https://facebook.com/${handle}` : null
+            },
+            previewLabel: v => {
+              const handle = v.replace(/^(https?:\/\/)?(www\.)?facebook\.com\//, '').replace(/^@/, '').trim()
+              return `facebook.com/${handle}`
+            },
+          },
+          {
+            key: 'social_instagram',
+            label: 'Instagram',
+            placeholder: '@yourhandle',
+            validate: v => {
+              if (!v) return null
+              const handle = v.replace(/^(https?:\/\/)?(www\.)?instagram\.com\//, '').replace(/^@/, '').replace(/\/$/, '').trim()
+              return /^[\w](?:[\w.]{1,28}[\w])?$/.test(handle) ? null : 'Instagram handles are 3–30 characters: letters, numbers, periods, underscores'
+            },
+            previewUrl: v => {
+              if (!v) return null
+              const handle = v.replace(/^(https?:\/\/)?(www\.)?instagram\.com\//, '').replace(/^@/, '').replace(/\/$/, '').trim()
+              return handle ? `https://instagram.com/${handle}` : null
+            },
+            previewLabel: v => {
+              const handle = v.replace(/^(https?:\/\/)?(www\.)?instagram\.com\//, '').replace(/^@/, '').replace(/\/$/, '').trim()
+              return `@${handle}`
+            },
+          },
+          {
+            key: 'social_tiktok',
+            label: 'TikTok',
+            placeholder: '@yourhandle',
+            validate: v => {
+              if (!v) return null
+              const handle = v.replace(/^(https?:\/\/)?(www\.)?tiktok\.com\/@?/, '').replace(/^@/, '').replace(/\/$/, '').trim()
+              return /^[\w.]{2,24}$/.test(handle) ? null : 'TikTok handles are 2–24 characters: letters, numbers, underscores, periods'
+            },
+            previewUrl: v => {
+              if (!v) return null
+              const handle = v.replace(/^(https?:\/\/)?(www\.)?tiktok\.com\/@?/, '').replace(/^@/, '').replace(/\/$/, '').trim()
+              return handle ? `https://tiktok.com/@${handle}` : null
+            },
+            previewLabel: v => {
+              const handle = v.replace(/^(https?:\/\/)?(www\.)?tiktok\.com\/@?/, '').replace(/^@/, '').replace(/\/$/, '').trim()
+              return `@${handle}`
+            },
+          },
+          {
+            key: 'social_youtube',
+            label: 'YouTube',
+            placeholder: 'youtube.com/yourchannel or @handle',
+            validate: v => {
+              if (!v) return null
+              const clean = v.replace(/^(https?:\/\/)?(www\.)?youtube\.com\//, '').replace(/\/$/, '').trim()
+              return clean.length >= 1 ? null : 'Enter a valid YouTube channel URL or handle'
+            },
+            previewUrl: v => {
+              if (!v) return null
+              const clean = v.replace(/^(https?:\/\/)?(www\.)?youtube\.com\//, '').replace(/\/$/, '').trim()
+              const path = clean.startsWith('@') ? clean : (clean.startsWith('channel/') || clean.startsWith('c/') || clean.startsWith('user/') ? clean : `@${clean}`)
+              return `https://youtube.com/${path}`
+            },
+            previewLabel: v => {
+              const clean = v.replace(/^(https?:\/\/)?(www\.)?youtube\.com\//, '').replace(/\/$/, '').trim()
+              return clean.startsWith('@') ? clean : `youtube.com/${clean}`
+            },
+          },
+        ].map(({ key, label, placeholder, validate, previewUrl, previewLabel }, si) => {
+          const val = form[key] || ''
+          const validationError = val ? validate(val) : null
+          const preview = val && !validationError ? previewUrl(val) : null
+          return (
+            <div className="soc-row soc-row--with-preview" key={key}>
+              <span className="soc-lbl">{label}</span>
+              <div className="pf soc-input-wrap">
+                <input type="text" value={val}
+                  onChange={e => setField(key, e.target.value)}
+                  placeholder={placeholder}
+                  tabIndex={21 + si}
+                  className={validationError ? 'input-err' : val ? 'input-ok' : ''}
+                />
+                {validationError && (
+                  <span className="field-err soc-field-err">{validationError}</span>
+                )}
+                {preview && (
+                  <a className="soc-preview-link" href={preview} target="_blank" rel="noreferrer">
+                    <svg width="11" height="11" viewBox="0 0 12 12" fill="none" style={{ flexShrink: 0 }}>
+                      <path d="M5 2H2a1 1 0 00-1 1v7a1 1 0 001 1h7a1 1 0 001-1V7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+                      <path d="M8 1h3m0 0v3m0-3L5.5 6.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                    {previewLabel(val)}
+                  </a>
+                )}
+              </div>
+            </div>
+          )
+        })}
       </div>
 
       {/* Photos */}
@@ -739,9 +863,23 @@ function ClubEditor({ club, clubIndex, userId, isOnly, onSaved, onRemove, userEm
                 <button className="photo-remove-btn" onClick={() => setPhotoUrls(p => p.filter((_, idx) => idx !== i))}>✕</button>
               </div>
             ))}
-            {photoUrls.length < 10 && (
-              <button className="photo-add-tile" onClick={() => photoInputRef.current && photoInputRef.current.click()} disabled={uploadingPhoto}>
-                {uploadingPhoto ? '…' : '+'}
+            {uploadProgress && (
+              <div className="photo-upload-progress-tile">
+                <div className="photo-upload-spinner" />
+                <div className="photo-upload-progress-text">
+                  {uploadProgress.done} of {uploadProgress.total}
+                </div>
+                <div className="photo-upload-progress-bar-wrap">
+                  <div
+                    className="photo-upload-progress-bar"
+                    style={{ width: `${(uploadProgress.done / uploadProgress.total) * 100}%` }}
+                  />
+                </div>
+              </div>
+            )}
+            {!uploadProgress && photoUrls.length < 10 && (
+              <button className="photo-add-tile" onClick={() => photoInputRef.current && photoInputRef.current.click()}>
+                +
               </button>
             )}
           </div>
@@ -1061,7 +1199,24 @@ export default function ProfilePage() {
         {showOwner2 && (
           <div className="owner2-block">
             <div className="owner2-header">
-              <span>Owner 2</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                {owner2Collapsed && (
+                  <div className="owner-collapsed-avatar">
+                    {owner2PhotoUrl
+                      ? <img src={owner2PhotoUrl} alt="Owner 2" />
+                      : <span>👤</span>
+                    }
+                  </div>
+                )}
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 500, color: '#888', marginBottom: 1 }}>Owner 2</div>
+                  {owner2Collapsed && (personForm.owner2_first_name || personForm.owner2_last_name) && (
+                    <div style={{ fontSize: 13, fontWeight: 600, color: '#1A3C2E' }}>
+                      {[personForm.owner2_first_name, personForm.owner2_last_name].filter(Boolean).join(' ')}
+                    </div>
+                  )}
+                </div>
+              </div>
               <div style={{ display: 'flex', gap: 8 }}>
                 <button className="owner2-remove" style={{ color: '#888', borderColor: '#ddd' }}
                   onClick={() => setOwner2Collapsed(c => !c)}>
@@ -1118,7 +1273,24 @@ export default function ProfilePage() {
         {showOwner3 && (
           <div className="owner2-block">
             <div className="owner2-header">
-              <span>Owner 3</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                {owner3Collapsed && (
+                  <div className="owner-collapsed-avatar">
+                    {owner3PhotoUrl
+                      ? <img src={owner3PhotoUrl} alt="Owner 3" />
+                      : <span>👤</span>
+                    }
+                  </div>
+                )}
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 500, color: '#888', marginBottom: 1 }}>Owner 3</div>
+                  {owner3Collapsed && (personForm.owner3_first_name || personForm.owner3_last_name) && (
+                    <div style={{ fontSize: 13, fontWeight: 600, color: '#1A3C2E' }}>
+                      {[personForm.owner3_first_name, personForm.owner3_last_name].filter(Boolean).join(' ')}
+                    </div>
+                  )}
+                </div>
+              </div>
               <div style={{ display: 'flex', gap: 8 }}>
                 <button className="owner2-remove" style={{ color: '#888', borderColor: '#ddd' }}
                   onClick={() => setOwner3Collapsed(c => !c)}>
@@ -1221,6 +1393,7 @@ export default function ProfilePage() {
             <button
               key={i}
               className={`club-tab ${activeTab === i ? 'active' : ''}`}
+              tabIndex={-1}
               onClick={() => setActiveTab(i)}
             >
               <span className="club-tab-name">
@@ -1229,7 +1402,7 @@ export default function ProfilePage() {
               {club.id && <span className="club-tab-dot" />}
             </button>
           ))}
-          <button className="club-tab club-tab--add" onClick={handleAddClub}>
+          <button className="club-tab club-tab--add" tabIndex={-1} onClick={handleAddClub}>
             + Add Club
           </button>
         </div>
