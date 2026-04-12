@@ -56,7 +56,7 @@ export default function DirectoryPage() {
       const { data, error } = await supabase
         .from('locations')
         .select('*')
-        .order('business_name', { ascending: true })
+        .order('club_name', { ascending: true })
       if (!error && data) setLocations(data)
       setLoading(false)
     }
@@ -67,13 +67,13 @@ export default function DirectoryPage() {
     .filter(loc => {
       const q = search.toLowerCase()
       return !q ||
-        loc.business_name?.toLowerCase().includes(q) ||
+        loc.club_name?.toLowerCase().includes(q) ||
         loc.city?.toLowerCase().includes(q) ||
         loc.state?.toLowerCase().includes(q) ||
         [loc.first_name, loc.last_name].filter(Boolean).join(' ').toLowerCase().includes(q)
     })
     .sort((a, b) => {
-      if (sortBy === 'name')  return (a.business_name || '').localeCompare(b.business_name || '')
+      if (sortBy === 'name')  return (a.club_name || '').localeCompare(b.club_name || '')
       if (sortBy === 'city')  return (a.city || '').localeCompare(b.city || '')
       if (sortBy === 'newer') return (b.opened_year || '0').localeCompare(a.opened_year || '0')
       if (sortBy === 'older') return (a.opened_year || '9999').localeCompare(b.opened_year || '9999')
@@ -123,11 +123,11 @@ export default function DirectoryPage() {
                 <div className="dc-header">
                   {loc.logo_url
                     ? <img src={loc.logo_url} alt="logo" className="dc-logo" />
-                    : <div className="dc-initials">{(loc.business_name || 'CL').slice(0,2).toUpperCase()}</div>
+                    : <div className="dc-initials">{(loc.club_name || 'CL').slice(0,2).toUpperCase()}</div>
                   }
                   <div className="dc-header-text">
                     <div className="dc-name-row">
-                      <span className="dc-name">{loc.business_name || 'Unnamed Club'}</span>
+                      <span className="dc-name">{loc.club_name || 'Unnamed Club'}</span>
                       {isYours && <span className="badge-yours">Yours</span>}
                     </div>
                     {loc.city && (

@@ -9,27 +9,30 @@ import MapSearchAutocomplete from '../components/MapSearchAutocomplete'
 
 delete L.Icon.Default.prototype._getIconUrl
 
-// ── Emoji pin icons via DivIcon ─────────────────────────────
-// Three shades: teal (your club), green (others), gold (selected)
-function makePinIcon(type) {
+// ── Circle markers via DivIcon ────────────────────────────
+// own = warm red, other = periwinkle blue, selected = gold
+// Each has a white stroke on light map, white stroke on aerial
+function makeCircleIcon(type) {
   const configs = {
-    own:      { emoji: '📍', filter: 'hue-rotate(160deg) saturate(2) brightness(0.85)', size: 32 },
-    other:    { emoji: '📍', filter: 'hue-rotate(100deg) saturate(1.6) brightness(0.9)', size: 28 },
-    selected: { emoji: '📍', filter: 'hue-rotate(30deg) saturate(3) brightness(1.1)', size: 36 },
+    own:      { fill: '#D94F4F', stroke: '#a83535', size: 22 },
+    other:    { fill: '#6B8DD6', stroke: '#4060b0', size: 18 },
+    selected: { fill: '#F59E0B', stroke: '#c47d00', size: 26 },
   }
-  const { emoji, filter, size } = configs[type]
+  const { fill, stroke, size } = configs[type]
+  const r = size / 2
+  const svg = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg"><circle cx="${r}" cy="${r}" r="${r - 1.5}" fill="${fill}" stroke="white" stroke-width="2"/></svg>`
   return L.divIcon({
     className: '',
-    html: `<div style="font-size:${size}px;line-height:1;filter:${filter};cursor:pointer;transform:translate(-50%,-100%);display:inline-block;">${emoji}</div>`,
+    html: `<div style="width:${size}px;height:${size}px;cursor:pointer;transform:translate(-50%,-50%);">${svg}</div>`,
     iconSize: [size, size],
-    iconAnchor: [size / 2, size],
-    popupAnchor: [0, -size],
+    iconAnchor: [r, r],
+    popupAnchor: [0, -r],
   })
 }
 
-const ownIcon      = makePinIcon('own')
-const otherIcon    = makePinIcon('other')
-const selectedIcon = makePinIcon('selected')
+const ownIcon      = makeCircleIcon('own')
+const otherIcon    = makeCircleIcon('other')
+const selectedIcon = makeCircleIcon('selected')
 
 const BASE_MAPS = [
   { id: 'carto',     label: 'Clean',  url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', attribution: '&copy; OpenStreetMap &copy; CARTO' },
@@ -134,7 +137,7 @@ function ClubMarkers({ locations, selectedId, userId, onSelect }) {
       // Logo or initials
       const logoHtml = loc.logo_url
         ? `<img src="${loc.logo_url}" class="ct-logo-img" alt="logo" />`
-        : `<div class="ct-logo-initials">${(loc.business_name || 'CL').slice(0,2).toUpperCase()}</div>`
+        : `<div class="ct-logo-initials">${(loc.club_name || 'CL').slice(0,2).toUpperCase()}</div>`
 
       const ownersHtml = owners.map(n => `<div class="ct-line">👤 ${n}</div>`).join('')
       const sinceHtml  = openSince ? `<div class="ct-since">${openSince}</div>` : ''
@@ -143,7 +146,7 @@ function ClubMarkers({ locations, selectedId, userId, onSelect }) {
         <div class="ct-inner">
           <div class="ct-header">
             ${logoHtml}
-            <div class="ct-name">${loc.business_name || 'Unnamed Club'}</div>
+            <div class="ct-name">${loc.club_name || 'Unnamed Club'}</div>
           </div>
           ${ownersHtml}
           ${sinceHtml}
@@ -185,10 +188,10 @@ function MyClubCard({ myClub, onManage }) {
     <div className="my-club-card">
       {myClub.logo_url
         ? <img src={myClub.logo_url} alt="logo" className="mcc-logo" />
-        : <div className="mcc-initials">{(myClub.business_name || 'MC').slice(0,2).toUpperCase()}</div>
+        : <div className="mcc-initials">{(myClub.club_name || 'MC').slice(0,2).toUpperCase()}</div>
       }
       <div className="mcc-info">
-        <div className="mcc-name">{myClub.business_name || 'Your Club'}</div>
+        <div className="mcc-name">{myClub.club_name || 'Your Club'}</div>
         {myClub.city && <div className="mcc-loc">{myClub.city}{myClub.state ? `, ${myClub.state}` : ''}</div>}
         {myClub.opened_month && myClub.opened_year && (
           <div className="mcc-since">Since {myClub.opened_month} {myClub.opened_year}</div>
@@ -229,10 +232,10 @@ function ClubDetail({ club, userId, onManage, radiusMiles, setRadiusMiles, custo
         <div className="cp-header-left">
           {club.logo_url
             ? <img src={club.logo_url} alt="logo" className="cp-logo" />
-            : <div className="cp-initials">{(club.business_name || 'CL').slice(0,2).toUpperCase()}</div>
+            : <div className="cp-initials">{(club.club_name || 'CL').slice(0,2).toUpperCase()}</div>
           }
           <div>
-            <h2 className="cp-name">{club.business_name || 'Unnamed Club'}</h2>
+            <h2 className="cp-name">{club.club_name || 'Unnamed Club'}</h2>
             {club.city && <p className="cp-location">{club.city}{club.state ? `, ${club.state}` : ''}</p>}
             {club.opened_month && club.opened_year && (
               <p className="cp-since">Open since {club.opened_month} {club.opened_year}</p>
@@ -247,7 +250,7 @@ function ClubDetail({ club, userId, onManage, radiusMiles, setRadiusMiles, custo
           <span style={{ fontSize: 16 }}>✏️</span>
           <span>
             <strong>Manage My Club</strong>
-            <small>{club.business_name || 'Your Club'}</small>
+            <small>{club.club_name || 'Your Club'}</small>
           </span>
         </button>
       )}
@@ -544,11 +547,19 @@ export default function MapPage() {
           </div>
         </div>
 
-        {/* Legend */}
         <div className="map-legend">
-          <div className="legend-row"><span className="legend-pin legend-pin--own">📍</span><span>Your club</span></div>
-          <div className="legend-row"><span className="legend-pin legend-pin--other">📍</span><span>Other clubs</span></div>
-          <div className="legend-row"><span className="legend-pin legend-pin--selected">📍</span><span>Selected</span></div>
+          <div className="legend-row">
+            <span className="legend-circle legend-circle--own"></span>
+            <span>Your club</span>
+          </div>
+          <div className="legend-row">
+            <span className="legend-circle legend-circle--other"></span>
+            <span>Other clubs</span>
+          </div>
+          <div className="legend-row">
+            <span className="legend-circle legend-circle--selected"></span>
+            <span>Selected</span>
+          </div>
         </div>
 
         {/* Club count */}
@@ -577,9 +588,9 @@ export default function MapPage() {
               <div className="cp-my-club-collapsed-row">
                 {myClub?.logo_url
                   ? <img src={myClub.logo_url} alt="logo" className="cp-mcc-thumb" />
-                  : <div className="cp-mcc-initials">{(myClub?.business_name || 'MC').slice(0,2).toUpperCase()}</div>
+                  : <div className="cp-mcc-initials">{(myClub?.club_name || 'MC').slice(0,2).toUpperCase()}</div>
                 }
-                <span className="cp-mcc-name">{myClub?.business_name || 'Your Club'}</span>
+                <span className="cp-mcc-name">{myClub?.club_name || 'Your Club'}</span>
               </div>
               <svg
                 className={`cp-mcc-chevron ${myClubCollapsed ? '' : 'open'}`}

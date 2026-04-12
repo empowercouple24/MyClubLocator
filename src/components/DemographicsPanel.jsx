@@ -235,7 +235,7 @@ export default function DemographicsPanel({ lat, lng, locations, enabledFactors,
             <div className="demo-nearby-list">
               {nearbyClubs.slice(0, 5).map(c => (
                 <div key={c.id} className="demo-nearby-item">
-                  <span className="demo-nearby-name">{c.business_name || 'Unnamed'}</span>
+                  <span className="demo-nearby-name">{c.club_name || 'Unnamed'}</span>
                   <span className="demo-nearby-city">{c.city || ''}</span>
                 </div>
               ))}

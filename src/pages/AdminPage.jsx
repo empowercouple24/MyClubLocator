@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 
-const TABS = ['members', 'settings', 'contacts']
+const TABS = ['settings', 'contacts', 'members']
 
 const BREVO_API_KEY = import.meta.env.VITE_BREVO_API_KEY
 
@@ -136,7 +136,7 @@ function StatCard({ label, value, color }) {
 export default function AdminPage() {
   const { isAdmin, user } = useAuth()
   const navigate = useNavigate()
-  const [tab, setTab] = useState('members')
+  const [tab, setTab] = useState('settings')
 
   // Members state
   const [members, setMembers]           = useState([])
@@ -169,6 +169,7 @@ export default function AdminPage() {
   const [loadingSettings, setLoadingSettings] = useState(true)
   const [savingSettings, setSavingSettings]   = useState(false)
   const [savedSettings, setSavedSettings]     = useState(false)
+  const [previewModal, setPreviewModal]       = useState(null) // 'message' | 'disclaimer' | null
 
   // Contacts state
   const [contacts, setContacts]           = useState([])
@@ -221,7 +222,7 @@ export default function AdminPage() {
       approved_by: user.id,
     }).eq('id', member.id)
     await loadMembers()
-    setMemberMsg(`${member.business_name || 'Club'} approved.`)
+    setMemberMsg(`${member.club_name || 'Club'} approved.`)
     setTimeout(() => setMemberMsg(''), 3000)
     setActionLoading(null)
   }
@@ -230,7 +231,7 @@ export default function AdminPage() {
     setActionLoading(member.id)
     await supabase.from('locations').update({ approved: false }).eq('id', member.id)
     await loadMembers()
-    setMemberMsg(`${member.business_name || 'Club'} approval revoked.`)
+    setMemberMsg(`${member.club_name || 'Club'} approval revoked.`)
     setTimeout(() => setMemberMsg(''), 3000)
     setActionLoading(null)
   }
@@ -240,7 +241,7 @@ export default function AdminPage() {
     await supabase.from('locations').delete().eq('id', member.id)
     await loadMembers()
     setConfirmRemove(null)
-    setMemberMsg(`${member.business_name || 'Club'} removed from registry.`)
+    setMemberMsg(`${member.club_name || 'Club'} removed from registry.`)
     setTimeout(() => setMemberMsg(''), 3000)
     setActionLoading(null)
   }
@@ -254,7 +255,7 @@ export default function AdminPage() {
   }
 
   function profileComplete(m) {
-    return !!(m.business_name && m.address && m.city && m.phone &&
+    return !!(m.club_name && m.address && m.city &&
       ['monday','tuesday','wednesday','thursday','friday','saturday','sunday']
         .some(d => m[`hours_${d}_open`]))
   }
@@ -262,7 +263,7 @@ export default function AdminPage() {
   const filteredMembers = members.filter(m => {
     const q = searchMember.toLowerCase()
     const ownerName = [m.first_name, m.last_name].filter(Boolean).join(' ').toLowerCase()
-    const nameMatch = !q || (m.business_name || '').toLowerCase().includes(q) ||
+    const nameMatch = !q || (m.club_name || '').toLowerCase().includes(q) ||
       (m.city || '').toLowerCase().includes(q) || ownerName.includes(q)
     const profileMatch = filterProfile === 'all' ? true :
       filterProfile === 'complete' ? profileComplete(m) : !profileComplete(m)
@@ -346,11 +347,11 @@ export default function AdminPage() {
                     {/* Left: initials + info */}
                     <div className="amr-left">
                       <div className="amr-initials">
-                        {(m.business_name || 'CL').slice(0,2).toUpperCase()}
+                        {(m.club_name || 'CL').slice(0,2).toUpperCase()}
                       </div>
                       <div className="amr-info">
                         <div className="amr-name">
-                          {m.business_name || <span style={{ color: '#aaa' }}>No club name</span>}
+                          {m.club_name || <span style={{ color: '#aaa' }}>No club name</span>}
                           {isMe && <span className="amr-you-badge">You</span>}
                         </div>
                         {ownerName && <div className="amr-owner">{ownerName}</div>}
@@ -425,12 +426,20 @@ export default function AdminPage() {
                       onChange={e => setSettings(s => ({ ...s, welcome_title: e.target.value }))}
                       placeholder="Welcome to My Club Locator!" />
                   </div>
+
                   <div className="field" style={{ gridColumn: '1 / -1' }}>
-                    <label>Welcome message</label>
-                    <textarea rows={3} value={settings.welcome_message}
+                    <div className="admin-field-label-row">
+                      <label>Welcome message</label>
+                      <button className="admin-preview-btn" onClick={() => setPreviewModal('message')}>
+                        <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.2"/><circle cx="8" cy="6" r="1.2" fill="currentColor"/><line x1="8" y1="8.5" x2="8" y2="11.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>
+                        Preview
+                      </button>
+                    </div>
+                    <textarea rows={4} value={settings.welcome_message}
                       onChange={e => setSettings(s => ({ ...s, welcome_message: e.target.value }))}
-                      style={{ resize: 'vertical' }} />
+                      className="admin-tall-textarea" />
                   </div>
+
                   <div className="field" style={{ gridColumn: '1 / -1' }}>
                     <label>Video embed URL</label>
                     <input type="url" value={settings.welcome_video_url}
@@ -439,6 +448,7 @@ export default function AdminPage() {
                       disabled={!settings.welcome_video_enabled} />
                     <span className="field-hint">YouTube embed format: youtube.com/embed/VIDEO_ID</span>
                   </div>
+
                   <div className="field" style={{ gridColumn: '1 / -1' }}>
                     <label>Video placeholder URL <span className="field-optional">shown until you set a real video</span></label>
                     <input type="url" value={settings.welcome_video_placeholder}
@@ -446,12 +456,19 @@ export default function AdminPage() {
                       placeholder="https://www.youtube.com/embed/VIDEO_ID" />
                     <span className="field-hint">Shown to new users when no video URL is set above</span>
                   </div>
+
                   <div className="field" style={{ gridColumn: '1 / -1' }}>
-                    <label>Disclaimer text <span className="field-optional">shown to all users at bottom of modal</span></label>
-                    <textarea rows={3} value={settings.welcome_disclaimer}
+                    <div className="admin-field-label-row">
+                      <label>Disclaimer text <span className="field-optional">shown to all users at bottom of modal</span></label>
+                      <button className="admin-preview-btn" onClick={() => setPreviewModal('disclaimer')}>
+                        <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.2"/><circle cx="8" cy="6" r="1.2" fill="currentColor"/><line x1="8" y1="8.5" x2="8" y2="11.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>
+                        Preview
+                      </button>
+                    </div>
+                    <textarea rows={4} value={settings.welcome_disclaimer}
                       onChange={e => setSettings(s => ({ ...s, welcome_disclaimer: e.target.value }))}
                       placeholder="Enter your disclaimer here — e.g. terms of use, membership rules, etc."
-                      style={{ resize: 'vertical' }} />
+                      className="admin-tall-textarea" />
                     <span className="field-hint">Leave blank to show the default placeholder text until you're ready</span>
                   </div>
                 </div>
@@ -534,13 +551,49 @@ export default function AdminPage() {
         </div>
       )}
 
+      {/* ── Welcome preview modal ── */}
+      {previewModal && (
+        <div className="modal-overlay" onClick={() => setPreviewModal(null)}>
+          <div className="modal-card" style={{ maxWidth: 480 }} onClick={e => e.stopPropagation()}>
+            <div className="admin-preview-modal-label">
+              {previewModal === 'message' ? 'Welcome message preview' : 'Disclaimer preview'} — what users see
+            </div>
+            <h2 className="modal-title" style={{ fontSize: 18, marginBottom: 12 }}>
+              {settings.welcome_title || 'Welcome to My Club Locator!'}
+            </h2>
+            {settings.welcome_video_enabled && (
+              <div className="admin-preview-video-placeholder">
+                <span>Video plays here</span>
+              </div>
+            )}
+            <p className="admin-preview-message-text"
+              style={{ fontWeight: previewModal === 'message' ? 'normal' : 'normal',
+                       border: previewModal === 'message' ? '1.5px solid #1A3C2E' : 'none',
+                       background: previewModal === 'message' ? '#f0faf5' : 'transparent' }}>
+              {settings.welcome_message || 'Your welcome message will appear here.'}
+            </p>
+            {settings.welcome_disclaimer && (
+              <p className="admin-preview-disclaimer-text"
+                style={{ border: previewModal === 'disclaimer' ? '1.5px solid #1A3C2E' : 'none',
+                         background: previewModal === 'disclaimer' ? '#f0faf5' : 'transparent' }}>
+                {settings.welcome_disclaimer}
+              </p>
+            )}
+            <div className="modal-actions" style={{ marginTop: 16 }}>
+              <button className="modal-btn-primary">Add / Manage My Club</button>
+              <button className="modal-btn-secondary" onClick={() => setPreviewModal(null)}>Explore the Map</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Confirm remove modal ── */}
       {confirmRemove && (
         <div className="modal-overlay" onClick={() => setConfirmRemove(null)}>
           <div className="modal-card" style={{ maxWidth: 400 }} onClick={e => e.stopPropagation()}>
             <h2 className="modal-title" style={{ fontSize: 18 }}>Remove this club?</h2>
             <p className="modal-message">
-              This will permanently remove <strong>{confirmRemove.business_name || 'this club'}</strong> from the registry and the map. This cannot be undone.
+              This will permanently remove <strong>{confirmRemove.club_name || 'this club'}</strong> from the registry and the map. This cannot be undone.
             </p>
             <div className="modal-actions">
               <button className="modal-btn-primary" style={{ background: '#e53e3e' }}

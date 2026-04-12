@@ -30,7 +30,7 @@ const DEFAULT_FORM = {
   first_name: '', last_name: '', owner_email: '',
   owner2_first_name: '', owner2_last_name: '', owner2_email: '',
   owner3_first_name: '', owner3_last_name: '', owner3_email: '',
-  business_name: '', club_email: '', club_phone: '', website: '',
+  club_name: '', club_email: '', club_phone: '', website: '',
   address: '', city: '', state: '', zip: '',
   opened_month: '', opened_year: '',
   hours_monday_open: '', hours_monday_close: '',
@@ -228,7 +228,7 @@ export default function ProfilePage() {
     const e = {}
     if (!form.first_name.trim())   e.first_name = 'Required'
     if (!form.last_name.trim())    e.last_name  = 'Required'
-    if (!form.business_name.trim()) e.business_name = 'Required'
+    if (!form.club_name.trim()) e.club_name = 'Required'
     if (!form.club_email.trim())   e.club_email = 'Required'
     if (!form.address.trim())      e.address    = 'Required'
     if (!form.zip.trim())          e.zip        = 'Required'
@@ -451,9 +451,9 @@ export default function ProfilePage() {
         <div className="fgrid">
           <div className="pf" style={{ gridColumn: '1 / -1' }}>
             <label>Club name <span className="req-star">*</span></label>
-            <input type="text" value={form.business_name} onChange={e => setField('business_name', e.target.value)}
-              placeholder="Your Club Name" className={errors.business_name ? 'input-err' : ''} />
-            {errors.business_name && <span className="field-err">{errors.business_name}</span>}
+            <input type="text" value={form.club_name} onChange={e => setField('club_name', e.target.value)}
+              placeholder="Your Club Name" className={errors.club_name ? 'input-err' : ''} />
+            {errors.club_name && <span className="field-err">{errors.club_name}</span>}
           </div>
           <div className="pf" style={{ gridColumn: '1 / -1' }}>
             <label>Club email <span className="req-star">*</span></label>
@@ -587,11 +587,11 @@ export default function ProfilePage() {
         {/* Social media + Website (website moved here) */}
         <div className="sec-sublabel" style={{ marginTop: 24 }}>Social media &amp; website <span className="optional-tag">all optional</span></div>
         {[
+          { key: 'website',          label: 'Website',   placeholder: 'yoursite.com' },
           { key: 'social_facebook',  label: 'Facebook',  placeholder: 'facebook.com/yourpage' },
           { key: 'social_instagram', label: 'Instagram', placeholder: '@yourhandle' },
           { key: 'social_tiktok',    label: 'TikTok',    placeholder: '@yourhandle' },
           { key: 'social_youtube',   label: 'YouTube',   placeholder: 'youtube.com/yourchannel' },
-          { key: 'website',          label: 'Website',   placeholder: 'yoursite.com' },
         ].map(({ key, label, placeholder }) => (
           <div className="soc-row" key={key}>
             <span className="soc-lbl">{label}</span>
