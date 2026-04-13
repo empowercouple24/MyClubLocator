@@ -632,9 +632,14 @@ body:has(.admin-page-wrap) {
   display: block;
   font-size: 12.5px;
   font-weight: var(--theme-card-header-weight, 500);
-  color: var(--theme-card-header-text, #fff);
+  color: #1A3C2E;
   letter-spacing: 0.02em;
   margin: 0;
+}
+/* White text only when sec-label is inside a header bar */
+.survey-toggle-btn .sec-label,
+.sec-card-header .sec-label {
+  color: var(--theme-card-header-text, #fff);
 }
 
 .fgrid {

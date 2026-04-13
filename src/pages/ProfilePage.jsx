@@ -762,8 +762,16 @@ function ClubEditor({ club, clubIndex, userId, isOnly, allClubs, onSaved, onRemo
   async function handlePhotoUpload(e) {
     const files = Array.from(e.target.files || [])
     if (!files.length) return
-    const slots = Math.min(files.length, 10 - photoUrls.length)
-    if (slots <= 0) return
+    const remaining = 10 - photoUrls.length
+    if (remaining <= 0) {
+      alert('You have reached the maximum of 10 photos. Remove some to add new ones.')
+      return
+    }
+    if (files.length > remaining) {
+      const proceed = window.confirm(`You can only add ${remaining} more photo${remaining === 1 ? '' : 's'} (10 max). We'll upload the first ${remaining}. Continue?`)
+      if (!proceed) return
+    }
+    const slots = Math.min(files.length, remaining)
     setUploadProgress({ done: 0, total: slots })
     setUploadError(null)
     const newUrls = [...photoUrls]
@@ -837,7 +845,7 @@ function ClubEditor({ club, clubIndex, userId, isOnly, allClubs, onSaved, onRemo
           'survey_goal_detail', 'survey_open_response',
           'survey_completed_at',
         ]
-        PERSON_KEYS.forEach(k => { if (src[k]) fields[k] = src[k] })
+        PERSON_KEYS.forEach(k => { if (src[k] != null && src[k] !== '') fields[k] = src[k] })
         return fields
       })(),
     }
@@ -1937,6 +1945,7 @@ export default function ProfilePage() {
         </div>{/* end sec-card-body */}
         <div className="next-card-row">
           <button className="next-card-btn" type="button" onClick={() => {
+            setOwner1Collapsed(true)
             setMyClubsOpen(true)
             setTimeout(() => document.querySelector('.my-clubs-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100)
           }}>
