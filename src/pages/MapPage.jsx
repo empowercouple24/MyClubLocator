@@ -1,9 +1,10 @@
 import { useEffect, useState, useRef } from 'react'
-import { MapContainer, TileLayer, Marker, Circle, useMap } from 'react-leaflet'
+import { MapContainer, TileLayer, Marker, Circle, GeoJSON, useMap } from 'react-leaflet'
 import { divIcon, tooltip as leafletTooltip, marker as leafletMarker } from 'leaflet'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 import { useNavigate } from 'react-router-dom'
+import { geocodeSingle } from '../lib/geocode'
 import DemographicsPanel from '../components/DemographicsPanel'
 import MapSearchAutocomplete from '../components/MapSearchAutocomplete'
 import PhotoGallery from '../components/PhotoGallery'
@@ -194,6 +195,21 @@ function MapController({ center, zoom, panelPosition }) {
 function MapRefCapture({ mapRef }) {
   const map = useMap()
   useEffect(() => { mapRef.current = map }, [map])
+  return null
+}
+
+function MapExtentTracker() {
+  const map = useMap()
+  useEffect(() => {
+    function save() {
+      const c = map.getCenter()
+      sessionStorage.setItem('mapExtent', JSON.stringify({ lat: c.lat, lng: c.lng, zoom: map.getZoom() }))
+    }
+    map.on('moveend', save)
+    map.on('zoomend', save)
+    save() // save immediately on mount
+    return () => { map.off('moveend', save); map.off('zoomend', save) }
+  }, [map])
   return null
 }
 
@@ -650,6 +666,10 @@ export default function MapPage() {
   const [customMiles, setCustomMiles] = useState('')
   const [saveViewToast, setSaveViewToast] = useState(false)
   const [myClubCollapsed, setMyClubCollapsed] = useState(true)
+  const [savedViews, setSavedViews]       = useState([])
+  const [showSavedViews, setShowSavedViews] = useState(false)
+  const [newViewName, setNewViewName]     = useState('')
+  const [savingView, setSavingView]       = useState(false)
   const mapRef = useRef(null)
   const mapAreaRef = useRef(null)
   const [mousePos, setMousePos] = useState({ x: -999, y: -999 })
@@ -658,6 +678,7 @@ export default function MapPage() {
   const [demoActive, setDemoActive]   = useState(false)
   const [demoLat, setDemoLat]         = useState(null)
   const [demoLng, setDemoLng]         = useState(null)
+  const [countyGeoJson, setCountyGeoJson] = useState(null)
   const [scrollZoom, setScrollZoom]   = useState(() => {
     const saved = localStorage.getItem('mapScrollZoom')
     return saved === null ? true : saved === 'true'
@@ -742,6 +763,7 @@ export default function MapPage() {
       if (data?.preferences?.demoViewMode)   setDemoViewMode(data.preferences.demoViewMode)
     }
     loadPanelPrefs()
+    loadSavedViews()
   }, [user])
 
   // Load team location IDs for the team filter
@@ -850,6 +872,19 @@ export default function MapPage() {
   const defaultViewApplied = useRef(false)
   useEffect(() => {
     if (locations.length > 0 && !defaultViewApplied.current) {
+      // Check if returning from /find — use that extent with highest priority
+      const returnExt = sessionStorage.getItem('mapReturnExtent')
+      if (returnExt) {
+        try {
+          const { lat, lng, zoom } = JSON.parse(returnExt)
+          setMapCenter([lat, lng])
+          setMapZoom(zoom)
+          sessionStorage.removeItem('mapReturnExtent')
+          defaultViewApplied.current = true
+          return
+        } catch {}
+      }
+      // Otherwise fall back to saved default view
       const saved = localStorage.getItem(viewKey)
       if (saved) {
         try {
@@ -869,6 +904,42 @@ export default function MapPage() {
     localStorage.setItem(viewKey, JSON.stringify({ lat: center.lat, lng: center.lng, zoom }))
     setSaveViewToast(true)
     setTimeout(() => setSaveViewToast(false), 2500)
+  }
+
+  async function loadSavedViews() {
+    if (!user) return
+    const { data } = await supabase
+      .from('saved_map_views')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+    if (data) setSavedViews(data)
+  }
+
+  async function saveCurrentView() {
+    if (!user || !mapRef.current || !newViewName.trim()) return
+    setSavingView(true)
+    const center = mapRef.current.getCenter()
+    const zoom   = mapRef.current.getZoom()
+    const { data } = await supabase
+      .from('saved_map_views')
+      .insert({ user_id: user.id, name: newViewName.trim(), lat: center.lat, lng: center.lng, zoom })
+      .select()
+      .single()
+    if (data) setSavedViews(v => [data, ...v])
+    setNewViewName('')
+    setSavingView(false)
+  }
+
+  async function deleteSavedView(id) {
+    await supabase.from('saved_map_views').delete().eq('id', id)
+    setSavedViews(v => v.filter(x => x.id !== id))
+  }
+
+  function flyToSavedView(view) {
+    setMapCenter([view.lat, view.lng])
+    setMapZoom(view.zoom)
+    setShowSavedViews(false)
   }
 
   useEffect(() => {
@@ -920,10 +991,9 @@ export default function MapPage() {
     if (!citySearch.trim()) { setCityFilter(''); return }
     setGeocoding(true)
     try {
-      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(citySearch)}&limit=1`)
-      const data = await res.json()
-      if (data.length > 0) {
-        setMapCenter([parseFloat(data[0].lat), parseFloat(data[0].lon)])
+      const coords = await geocodeSingle(citySearch)
+      if (coords) {
+        setMapCenter([coords.lat, coords.lng])
         setMapZoom(11)
       }
     } catch {}
@@ -1040,10 +1110,25 @@ export default function MapPage() {
         {loading ? <div className="loading">Loading map…</div> : (
           <MapContainer center={defaultCenter} zoom={locations.length > 0 ? 11 : 5} style={{ height: '100%', width: '100%' }}>
             <MapRefCapture mapRef={mapRef} />
+            <MapExtentTracker />
             <ScrollZoomController enabled={scrollZoom} />
             <MapController center={mapCenter} zoom={mapZoom} panelPosition={panelPosition} />
             <MapClickHandler active={demoActive} onMapClick={(lat, lng) => { setDemoLat(lat); setDemoLng(lng) }} />
             <TileLayer key={activeBase.id} attribution={activeBase.attribution} url={activeBase.url} />
+            {countyGeoJson && (
+              <GeoJSON
+                key={JSON.stringify(countyGeoJson.features?.[0]?.properties)}
+                data={countyGeoJson}
+                style={{
+                  fillColor: '#ffffff',
+                  fillOpacity: 0.18,
+                  color: '#1A3C2E',
+                  weight: 1.5,
+                  opacity: 0.4,
+                  dashArray: '4 4',
+                }}
+              />
+            )}
             <ClubMarkers locations={filteredLocations} selectedId={selected?.id} userId={user?.id} onSelect={handleSelectClub} navigate={navigate} teamFilter={teamFilter} teamLocationIds={allTeamLocationIds} markerColors={markerColors} />
             {selected && radiusMiles && (
               <Circle center={[selected.lat, selected.lng]} radius={milesToMeters(radiusMiles)}
@@ -1085,10 +1170,11 @@ export default function MapPage() {
               const next = !demoActive
               setDemoActive(next)
               if (next) {
-                setMyClubCollapsed(true) // collapse My Club when entering research mode
+                setMyClubCollapsed(true)
                 setDemoLat(null); setDemoLng(null)
               } else {
                 setDemoLat(null); setDemoLng(null)
+                setCountyGeoJson(null)
               }
             }}
             title="Toggle market data">
@@ -1165,6 +1251,67 @@ export default function MapPage() {
             ))}
           </div>
           <div className="map-controls-right">
+            <div className="map-saved-views-wrap">
+              <button
+                className={`map-default-view-btn ${showSavedViews ? 'active' : ''}`}
+                onClick={() => setShowSavedViews(v => !v)}
+                title="Saved map views"
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+                  <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                Saved Views
+                {savedViews.length > 0 && <span className="saved-views-count">{savedViews.length}</span>}
+              </button>
+
+              {showSavedViews && (
+                <div className="saved-views-panel">
+                  <div className="saved-views-header">
+                    <span className="saved-views-title">Saved views</span>
+                    <button className="saved-views-close" onClick={() => setShowSavedViews(false)}>✕</button>
+                  </div>
+
+                  {/* Save current view */}
+                  <div className="saved-views-save-row">
+                    <input
+                      className="saved-views-input"
+                      type="text"
+                      placeholder="Name this view…"
+                      value={newViewName}
+                      onChange={e => setNewViewName(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && saveCurrentView()}
+                      maxLength={40}
+                    />
+                    <button
+                      className="saved-views-save-btn"
+                      onClick={saveCurrentView}
+                      disabled={!newViewName.trim() || savingView}
+                    >
+                      {savingView ? '…' : 'Save'}
+                    </button>
+                  </div>
+
+                  {/* List of saved views */}
+                  {savedViews.length === 0 ? (
+                    <div className="saved-views-empty">No saved views yet. Pan to a spot and save it.</div>
+                  ) : (
+                    <div className="saved-views-list">
+                      {savedViews.map(v => (
+                        <div key={v.id} className="saved-views-item">
+                          <button className="saved-views-fly" onClick={() => flyToSavedView(v)}>
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="10" r="3" stroke="currentColor" strokeWidth="1.5"/><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" stroke="currentColor" strokeWidth="1.5"/></svg>
+                            <span className="saved-views-name">{v.name}</span>
+                            <span className="saved-views-zoom">z{v.zoom}</span>
+                          </button>
+                          <button className="saved-views-delete" onClick={() => deleteSavedView(v.id)} title="Delete">✕</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
             <button className="map-default-view-btn" onClick={saveDefaultView} title="Save current map view as default">
               <svg width="13" height="13" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M8 1l1.8 3.6L14 5.6l-3 2.9.7 4.1L8 10.5l-3.7 2.1.7-4.1L2 5.6l4.2-.9L8 1z" fill="currentColor"/>
@@ -1426,6 +1573,17 @@ export default function MapPage() {
                 active={demoActive}
                 viewMode={demoViewMode}
                 onViewModeChange={saveDemoViewMode}
+                onGeoInfo={async (geo) => {
+                  if (!geo?.stateFips || !geo?.countyFips) { setCountyGeoJson(null); return }
+                  try {
+                    const countyOnly = geo.countyFips.slice(2)
+                    const url = `https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/tigerWMS_ACS2022/MapServer/82/query?where=STATE%3D%27${geo.stateFips}%27+AND+COUNTY%3D%27${countyOnly}%27&outFields=*&f=geojson`
+                    const res = await fetch(url)
+                    const data = await res.json()
+                    if (data?.features?.length) setCountyGeoJson(data)
+                    else setCountyGeoJson(null)
+                  } catch { setCountyGeoJson(null) }
+                }}
               />
             </div>
           )}

@@ -34,7 +34,19 @@ export default function Layout() {
         <nav className="topbar-nav">
           <button
             className="btn-outline layout-public-search-btn"
-            onClick={() => navigate('/find')}
+            onClick={() => {
+              const ext = sessionStorage.getItem('mapExtent')
+              const params = new URLSearchParams({ owner: '1' })
+              if (ext) {
+                try {
+                  const { lat, lng, zoom } = JSON.parse(ext)
+                  params.set('lat', lat.toFixed(6))
+                  params.set('lng', lng.toFixed(6))
+                  params.set('zoom', zoom)
+                } catch {}
+              }
+              navigate(`/find?${params.toString()}`)
+            }}
             title="Switch to public club finder"
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>

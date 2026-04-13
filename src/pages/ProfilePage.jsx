@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
+import { geocodeSingle, geocodeZip } from '../lib/geocode'
 import TimePicker from '../components/TimePicker'
 import AddressAutocomplete from '../components/AddressAutocomplete'
 import CropModal from '../components/CropModal'
@@ -388,18 +389,7 @@ const DEFAULT_PERSON = {
 }
 
 async function geocodeAddress(address) {
-  try {
-    const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), 5000)
-    const res = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1`,
-      { headers: { 'Accept-Language': 'en' }, signal: controller.signal }
-    )
-    clearTimeout(timeout)
-    const data = await res.json()
-    if (data?.[0]) return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) }
-  } catch {}
-  return null
+  return geocodeSingle(address)
 }
 
 // ── OwnerLevelPicker ──────────────────────────────────────────
@@ -692,14 +682,9 @@ function ClubEditor({ club, clubIndex, userId, isOnly, onSaved, onRemove, userEm
     if (zip.length < 5) return
     setZipLooking(true)
     try {
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&postalcode=${zip}&country=US&limit=1`,
-        { headers: { 'Accept-Language': 'en' } }
-      )
-      const data = await res.json()
-      if (data?.[0]) {
-        const parts = data[0].display_name.split(', ')
-        setForm(f => ({ ...f, city: parts[0] || '', state: parts[parts.length - 2] || '' }))
+      const result = await geocodeZip(zip)
+      if (result) {
+        setForm(f => ({ ...f, city: result.city || f.city, state: result.state || f.state }))
       }
     } catch {}
     setZipLooking(false)

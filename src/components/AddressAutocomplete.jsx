@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
+import { geocodeAutocomplete } from '../lib/geocode'
 
 function debounce(fn, ms) {
   let timer
@@ -9,18 +10,16 @@ function debounce(fn, ms) {
 }
 
 export default function AddressAutocomplete({ value, onChange, onSelect, error, tabIndex }) {
-  const [query, setQuery] = useState(value || '')
-  const [results, setResults] = useState([])
-  const [loading, setLoading] = useState(false)
-  const [open, setOpen] = useState(false)
+  const [query, setQuery]           = useState(value || '')
+  const [results, setResults]       = useState([])
+  const [loading, setLoading]       = useState(false)
+  const [open, setOpen]             = useState(false)
   const [highlighted, setHighlighted] = useState(-1)
   const wrapRef = useRef()
   const inputRef = useRef()
 
-  // Sync if parent changes value externally
   useEffect(() => { setQuery(value || '') }, [value])
 
-  // Close on outside click
   useEffect(() => {
     function handleClick(e) {
       if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false)
@@ -31,19 +30,12 @@ export default function AddressAutocomplete({ value, onChange, onSelect, error, 
 
   const search = useCallback(
     debounce(async (q) => {
-      if (q.length < 4) { setResults([]); setOpen(false); return }
+      if (q.length < 3) { setResults([]); setOpen(false); return }
       setLoading(true)
-      try {
-        const res = await fetch(
-          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&countrycodes=us&addressdetails=1&limit=6`,
-          { headers: { 'Accept-Language': 'en' } }
-        )
-        const data = await res.json()
-        const filtered = data.filter(r => r.address?.road || r.address?.house_number)
-        setResults(filtered)
-        setOpen(filtered.length > 0)
-        setHighlighted(-1)
-      } catch {}
+      const data = await geocodeAutocomplete(q, { types: 'address,place,postcode', limit: 6 })
+      setResults(data)
+      setOpen(data.length > 0)
+      setHighlighted(-1)
       setLoading(false)
     }, 350),
     []
@@ -52,24 +44,22 @@ export default function AddressAutocomplete({ value, onChange, onSelect, error, 
   function handleChange(e) {
     const q = e.target.value
     setQuery(q)
-    onChange(q) // keep parent address field in sync while typing
+    onChange(q)
     search(q)
   }
 
   function handleSelect(result) {
-    const addr = result.address || {}
-
-    // Build street line
-    const street = [addr.house_number, addr.road].filter(Boolean).join(' ')
-    const city   = addr.city || addr.town || addr.village || addr.county || ''
-    const state  = addr.state || ''
-    const zip    = addr.postcode || ''
-
-    setQuery(street)
+    setQuery(result.displayStreet || result.label.split(',')[0])
     setOpen(false)
     setResults([])
-
-    onSelect({ street, city, state, zip, lat: parseFloat(result.lat), lng: parseFloat(result.lon) })
+    onSelect({
+      street: result.street,
+      city:   result.city,
+      state:  result.state,
+      zip:    result.zip,
+      lat:    result.lat,
+      lng:    result.lng,
+    })
   }
 
   function handleKeyDown(e) {
@@ -86,15 +76,6 @@ export default function AddressAutocomplete({ value, onChange, onSelect, error, 
     } else if (e.key === 'Escape') {
       setOpen(false)
     }
-  }
-
-  function formatSuggestion(result) {
-    const addr = result.address || {}
-    const street = [addr.house_number, addr.road].filter(Boolean).join(' ')
-    const city   = addr.city || addr.town || addr.village || ''
-    const state  = addr.state || ''
-    const zip    = addr.postcode || ''
-    return { street, secondary: [city, state, zip].filter(Boolean).join(', ') }
   }
 
   return (
@@ -117,21 +98,18 @@ export default function AddressAutocomplete({ value, onChange, onSelect, error, 
 
       {open && results.length > 0 && (
         <ul className="addr-ac-list">
-          {results.map((r, i) => {
-            const { street, secondary } = formatSuggestion(r)
-            return (
-              <li
-                key={r.place_id}
-                className={`addr-ac-item${i === highlighted ? ' highlighted' : ''}`}
-                onMouseDown={() => handleSelect(r)}
-                onMouseEnter={() => setHighlighted(i)}
-              >
-                <span className="addr-ac-street">📍 {street || r.display_name.split(',')[0]}</span>
-                {secondary && <span className="addr-ac-secondary">{secondary}</span>}
-              </li>
-            )
-          })}
-          <li className="addr-ac-credit">Powered by OpenStreetMap</li>
+          {results.map((r, i) => (
+            <li
+              key={r.id}
+              className={`addr-ac-item${i === highlighted ? ' highlighted' : ''}`}
+              onMouseDown={() => handleSelect(r)}
+              onMouseEnter={() => setHighlighted(i)}
+            >
+              <span className="addr-ac-street">📍 {r.displayStreet}</span>
+              {r.displaySecondary && <span className="addr-ac-secondary">{r.displaySecondary}</span>}
+            </li>
+          ))}
+          <li className="addr-ac-credit">Powered by Mapbox</li>
         </ul>
       )}
     </div>

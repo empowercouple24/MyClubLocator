@@ -110,7 +110,7 @@ function PrefsPanel({ userPrefs, adminEnabled, onSave, onReset, onClose }) {
   )
 }
 
-export default function DemographicsPanel({ lat, lng, locations, enabledFactors, active, viewMode = 'table', onViewModeChange }) {
+export default function DemographicsPanel({ lat, lng, locations, enabledFactors, active, viewMode = 'table', onViewModeChange, onGeoInfo }) {
   const { user } = useAuth()
   const [loading, setLoading]         = useState(false)
   const [geoInfo, setGeoInfo]         = useState(null)
@@ -179,6 +179,7 @@ export default function DemographicsPanel({ lat, lng, locations, enabledFactors,
       return
     }
     setGeoInfo(geo)
+    onGeoInfo?.(geo)
 
     // Fetch all data in parallel — show results as they arrive
     const results = await Promise.allSettled([
@@ -346,8 +347,8 @@ export default function DemographicsPanel({ lat, lng, locations, enabledFactors,
       {/* Location header + action buttons */}
       {geoInfo && (
         <div className="demo-location-header">
-          <span className="demo-zip">{geoInfo.zip ? `ZIP ${geoInfo.zip}` : 'Area'}</span>
-          {geoInfo.countyName && <span className="demo-county">{geoInfo.countyName}</span>}
+          {geoInfo.countyName && <div className="demo-county-name">{geoInfo.countyName}</div>}
+          {geoInfo.zip && <span className="demo-zip">ZIP {geoInfo.zip}</span>}
         </div>
       )}
 

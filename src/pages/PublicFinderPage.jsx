@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { MapContainer, TileLayer, Marker, useMap, useMapEvents } from 'react-leaflet'
 import { divIcon } from 'leaflet'
 import { supabase } from '../lib/supabase'
+import { geocodeSingle } from '../lib/geocode'
 import AddressAutocomplete from '../components/AddressAutocomplete'
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN
@@ -56,6 +57,21 @@ function MapFlyTo({ lat, lng, zoom }) {
   useEffect(() => {
     if (lat && lng) map.flyTo([lat, lng], zoom || 11, { duration: 1 })
   }, [lat, lng, zoom])
+  return null
+}
+
+function FindExtentTracker() {
+  const map = useMap()
+  useEffect(() => {
+    function save() {
+      const c = map.getCenter()
+      sessionStorage.setItem('findExtent', JSON.stringify({ lat: c.lat, lng: c.lng, zoom: map.getZoom() }))
+    }
+    map.on('moveend', save)
+    map.on('zoomend', save)
+    save()
+    return () => { map.off('moveend', save); map.off('zoomend', save) }
+  }, [map])
   return null
 }
 
@@ -353,9 +369,22 @@ function ClubCard({ club, expanded, onExpand, onClose, isFav, onToggleFav, onAut
 
 export default function PublicFinderPage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+
+  // Owner coming from /app/map — skip disclaimer and pre-set map extent
+  const fromOwner = searchParams.get('owner') === '1'
+  const initLat   = parseFloat(searchParams.get('lat'))
+  const initLng   = parseFloat(searchParams.get('lng'))
+  const initZoom  = parseInt(searchParams.get('zoom')) || 11
   const [settings, setSettings]             = useState(null)
   const [loadingSettings, setLoadingSettings] = useState(true)
-  const [accepted, setAccepted]             = useState(false)
+  const [accepted, setAccepted]             = useState(fromOwner) // owners bypass disclaimer
+  // ...fly to owner's previous extent on mount if coming from /app/map
+  const [flyTo, setFlyTo] = useState(
+    fromOwner && !isNaN(initLat) && !isNaN(initLng)
+      ? { lat: initLat, lng: initLng, zoom: initZoom, _t: Date.now() }
+      : null
+  )
   const [publicAccount, setPublicAccount]   = useState(null)
   const [authModal, setAuthModal]           = useState(null)
   const [authLoading, setAuthLoading]       = useState(true)
@@ -373,7 +402,6 @@ export default function PublicFinderPage() {
   const [panelOpen, setPanelOpen]           = useState(false)
   const [favIds, setFavIds]                 = useState(new Set())
   const [savedClubs, setSavedClubs]         = useState([])
-  const [flyTo, setFlyTo]                   = useState(null)
   const [isClubOwner, setIsClubOwner]       = useState(false)
 
   useEffect(() => {
@@ -443,12 +471,7 @@ export default function PublicFinderPage() {
   }
 
   async function geocodeAddress(address) {
-    try {
-      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1`)
-      const data = await res.json()
-      if (data?.[0]) return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) }
-    } catch {}
-    return null
+    return geocodeSingle(address)
   }
 
   async function doSearch(lat, lng) {
@@ -547,9 +570,14 @@ export default function PublicFinderPage() {
         </div>
         <div className="pfp-auth-zone">
           {isClubOwner ? (
-            <button className="pfp-auth-link pfp-auth-link--accent" onClick={() => navigate('/app/map')}>
+            <button className="pfp-auth-link pfp-auth-link--accent" onClick={() => {
+              // Pass current /find extent back to /map
+              const ext = sessionStorage.getItem('findExtent')
+              if (ext) sessionStorage.setItem('mapReturnExtent', ext)
+              navigate('/app/map')
+            }}>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" style={{flexShrink:0}}><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-              Return to owner map
+              Return to Owner map
             </button>
           ) : publicAccount ? (
             <>
@@ -565,104 +593,116 @@ export default function PublicFinderPage() {
         </div>
       </div>
 
-      <div className="pfp-map-wrap">
-        <MapContainer center={[39.5, -98.35]} zoom={4} style={{ height: '100%', width: '100%' }} zoomControl={false}>
-          <TileLayer url={MAPBOX_URL} attribution={MAPBOX_ATTR} />
-          {flyTo && <MapFlyTo key={flyTo._t} lat={flyTo.lat} lng={flyTo.lng} zoom={flyTo.zoom} />}
-          {userLat && userLng && <Marker position={[userLat, userLng]} icon={userIcon} />}
-          {(results || []).map(club => {
-            if (!club.lat || !club.lng) return null
-            const isSelected = club.id === expandedId
-            const isHovered  = club.id === hoveredId
-            const icon = makeClubIcon(isSelected ? 'selected' : 'other', isSelected ? selColor : pinColor, isHovered)
-            return (
-              <Marker
-                key={club.id}
-                position={[club.lat, club.lng]}
-                icon={icon}
-                eventHandlers={{
-                  click: () => handlePinClick(club.id),
-                  mouseover: () => setHoveredId(club.id),
-                  mouseout: () => setHoveredId(null),
-                }}
-              />
-            )
-          })}
-        </MapContainer>
-
-        {/* Search box */}
-        <div className="pfp-search-float">
-          <form className="pfp-search-form" onSubmit={handleSearchSubmit}>
-            <div className="pfp-search-row">
-              <AddressAutocomplete
-                value={query}
-                onChange={setQuery}
-                onSelect={({ street, city, state, zip, lat, lng }) => {
-                  const full = [street, city, state, zip].filter(Boolean).join(', ')
-                  setQuery(full); setGeoError('')
-                  setUserLat(lat); setUserLng(lng)
-                  doSearch(lat, lng)
-                }}
-              />
-              <button className="pfp-search-btn" type="submit" disabled={searching}>
-                {searching ? <div className="pfp-search-spinner" /> : <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2"/><path d="M21 21l-4.35-4.35" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>}
-              </button>
-            </div>
-          </form>
-          <button className="pfp-geo-btn" onClick={handleGeolocate} disabled={geoLocating}>
-            {geoLocating ? <div className="pfp-search-spinner" style={{width:12,height:12}} /> : <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4" fill="currentColor"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/><circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="1.5" strokeDasharray="3 2"/></svg>}
-            {geoLocating ? 'Locating…' : 'Use my location'}
-          </button>
-          {geoError && <div className="pfp-geo-error">{geoError}</div>}
+      <div className="pfp-body">
+        {/* Map — full size, behind everything */}
+        <div className="pfp-map-wrap">
+          <MapContainer
+            center={fromOwner && !isNaN(initLat) ? [initLat, initLng] : [39.5, -98.35]}
+            zoom={fromOwner && !isNaN(initZoom) ? initZoom : 4}
+            style={{ height: '100%', width: '100%' }}
+            zoomControl={false}
+          >
+            <TileLayer url={MAPBOX_URL} attribution={MAPBOX_ATTR} />
+            <FindExtentTracker />
+            {flyTo && <MapFlyTo key={flyTo._t} lat={flyTo.lat} lng={flyTo.lng} zoom={flyTo.zoom} />}
+            {userLat && userLng && <Marker position={[userLat, userLng]} icon={userIcon} />}
+            {(results || []).map(club => {
+              if (!club.lat || !club.lng) return null
+              const isSelected = club.id === expandedId
+              const isHovered  = club.id === hoveredId
+              const icon = makeClubIcon(isSelected ? 'selected' : 'other', isSelected ? selColor : pinColor, isHovered)
+              return (
+                <Marker
+                  key={club.id}
+                  position={[club.lat, club.lng]}
+                  icon={icon}
+                  eventHandlers={{
+                    click: () => handlePinClick(club.id),
+                    mouseover: () => setHoveredId(club.id),
+                    mouseout: () => setHoveredId(null),
+                  }}
+                />
+              )
+            })}
+          </MapContainer>
         </div>
 
-        {/* Results panel */}
-        {results !== null && (
-          <div className={`pfp-panel ${panelOpen ? 'pfp-panel--open' : 'pfp-panel--collapsed'}`}>
-            <div className="pfp-panel-header" onClick={() => setPanelOpen(o => !o)}>
-              <span className="pfp-panel-count">
-                {resultsFallback
-                  ? <span className="pfp-fallback-text">No clubs within {Math.abs(settings?.search_radius_miles ?? 20)} mi — showing nearest</span>
-                  : <>{results.length} club{results.length !== 1 ? 's' : ''} found nearby</>
-                }
-              </span>
-              <svg className="pfp-panel-chevron" width="13" height="13" viewBox="0 0 16 16" fill="none">
-                <path d={panelOpen ? 'M4 10l4-4 4 4' : 'M4 6l4 4 4-4'} stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </div>
-            {panelOpen && (
-              <div className="pfp-panel-list">
-                {results.map(club => (
-                  <div key={club.id} id={`pfp-card-${club.id}`} onMouseEnter={() => setHoveredId(club.id)} onMouseLeave={() => setHoveredId(null)}>
-                    <ClubCard
-                      club={club}
-                      expanded={expandedId === club.id}
-                      onExpand={() => handleCardExpand(club.id)}
-                      onClose={() => setExpandedId(null)}
-                      isFav={favIds.has(club.id)}
-                      onToggleFav={publicAccount ? () => toggleFavorite(club.id) : undefined}
-                      onAuthRequired={!publicAccount && settings?.public_accounts_enabled !== false ? () => setAuthModal('signin') : undefined}
-                      publicAccountId={publicAccount?.id}
-                      markerColor={club.id === expandedId ? selColor : pinColor}
-                    />
-                  </div>
-                ))}
-                <div className="pfp-panel-footer">
-                  <span>Club owner?</span>
-                  <button onClick={() => navigate('/login')} className="pfp-footer-link">Log in to manage your club →</button>
-                </div>
+        {/* Overlay layer — sits above the map, pointer-events only where needed */}
+        <div className="pfp-overlay">
+          {/* Search box */}
+          <div className="pfp-search-float">
+            <form className="pfp-search-form" onSubmit={handleSearchSubmit}>
+              <div className="pfp-search-row">
+                <AddressAutocomplete
+                  value={query}
+                  onChange={setQuery}
+                  onSelect={({ street, city, state, zip, lat, lng }) => {
+                    const full = [street, city, state, zip].filter(Boolean).join(', ')
+                    setQuery(full); setGeoError('')
+                    setUserLat(lat); setUserLng(lng)
+                    doSearch(lat, lng)
+                  }}
+                />
+                <button className="pfp-search-btn" type="submit" disabled={searching}>
+                  {searching ? <div className="pfp-search-spinner" /> : <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2"/><path d="M21 21l-4.35-4.35" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>}
+                </button>
               </div>
-            )}
+            </form>
+            <button className="pfp-geo-btn" onClick={handleGeolocate} disabled={geoLocating}>
+              {geoLocating ? <div className="pfp-search-spinner" style={{width:12,height:12}} /> : <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4" fill="currentColor"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/><circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="1.5" strokeDasharray="3 2"/></svg>}
+              {geoLocating ? 'Locating…' : 'Use my location'}
+            </button>
+            {geoError && <div className="pfp-geo-error">{geoError}</div>}
           </div>
-        )}
 
-        {/* Pre-search hint */}
-        {results === null && !searching && (
-          <div className="pfp-map-hint">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="1.8"/><path d="M21 21l-4.35-4.35" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>
-            {settings?.public_finder_welcome || 'Find a nutrition club near you'}
-          </div>
-        )}
+          {/* Results panel */}
+          {results !== null && (
+            <div className={`pfp-panel ${panelOpen ? 'pfp-panel--open' : 'pfp-panel--collapsed'}`}>
+              <div className="pfp-panel-header" onClick={() => setPanelOpen(o => !o)}>
+                <span className="pfp-panel-count">
+                  {resultsFallback
+                    ? <span className="pfp-fallback-text">No clubs within {Math.abs(settings?.search_radius_miles ?? 20)} mi — showing nearest</span>
+                    : <>{results.length} club{results.length !== 1 ? 's' : ''} found nearby</>
+                  }
+                </span>
+                <svg className="pfp-panel-chevron" width="13" height="13" viewBox="0 0 16 16" fill="none">
+                  <path d={panelOpen ? 'M4 10l4-4 4 4' : 'M4 6l4 4 4-4'} stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
+              {panelOpen && (
+                <div className="pfp-panel-list">
+                  {results.map(club => (
+                    <div key={club.id} id={`pfp-card-${club.id}`} onMouseEnter={() => setHoveredId(club.id)} onMouseLeave={() => setHoveredId(null)}>
+                      <ClubCard
+                        club={club}
+                        expanded={expandedId === club.id}
+                        onExpand={() => handleCardExpand(club.id)}
+                        onClose={() => setExpandedId(null)}
+                        isFav={favIds.has(club.id)}
+                        onToggleFav={publicAccount ? () => toggleFavorite(club.id) : undefined}
+                        onAuthRequired={!publicAccount && settings?.public_accounts_enabled !== false ? () => setAuthModal('signin') : undefined}
+                        publicAccountId={publicAccount?.id}
+                        markerColor={club.id === expandedId ? selColor : pinColor}
+                      />
+                    </div>
+                  ))}
+                  <div className="pfp-panel-footer">
+                    <span>Club owner?</span>
+                    <button onClick={() => navigate('/login')} className="pfp-footer-link">Log in to manage your club →</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Pre-search hint */}
+          {results === null && !searching && (
+            <div className="pfp-map-hint">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="1.8"/><path d="M21 21l-4.35-4.35" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>
+              {settings?.public_finder_welcome || 'Find a nutrition club near you'}
+            </div>
+          )}
+        </div>
       </div>
 
       {authModal && (
