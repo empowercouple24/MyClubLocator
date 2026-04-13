@@ -453,6 +453,16 @@ export default function PublicFinderPage() {
     load()
   }, [])
 
+  // Auto-geolocate on entry when no URL params provided
+  const autoGeoFired = useRef(false)
+  useEffect(() => {
+    if (autoGeoFired.current) return
+    if (fromOwner) return  // owner already has coords from URL
+    if (!accepted) return  // wait until disclaimer is accepted
+    autoGeoFired.current = true
+    handleGeolocate()
+  }, [accepted])
+
   async function loadPublicAccount(authUserId) {
     const { data } = await supabase.from('public_accounts').select('id,display_name,email').eq('auth_user_id', authUserId).single()
     if (data) { setPublicAccount(data); await loadFavorites(data.id) }
