@@ -1,8 +1,9 @@
-import { lazy, Suspense, useEffect } from 'react'
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { lazy, Suspense, useEffect, useCallback, useRef } from 'react'
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom'
 import { useAuth } from './lib/AuthContext'
 import { supabase } from './lib/supabase'
 import Layout from './components/Layout'
+import UpdateBanner from './components/UpdateBanner'
 import LandingPage from './pages/LandingPage'
 import LoginPage from './pages/LoginPage'
 import SignupPage from './pages/SignupPage'
@@ -17,10 +18,40 @@ import PublicFinderPage from './pages/PublicFinderPage'
 
 const MapPage = lazy(() => import('./pages/MapPage'))
 
+const INACTIVITY_MS = 30 * 60 * 1000 // 30 minutes
+
 function RequireAuth({ children }) {
   const { session } = useAuth()
   if (!session) return <Navigate to="/" replace />
   return children
+}
+
+function InactivityRedirect() {
+  const navigate = useNavigate()
+  const { session } = useAuth()
+  const timer = useRef(null)
+
+  const reset = useCallback(() => {
+    clearTimeout(timer.current)
+    timer.current = setTimeout(() => {
+      // Only redirect if not a logged-in club owner / admin
+      if (!session) {
+        navigate('/', { replace: true })
+      }
+    }, INACTIVITY_MS)
+  }, [navigate, session])
+
+  useEffect(() => {
+    const events = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll', 'click']
+    events.forEach(e => window.addEventListener(e, reset, { passive: true }))
+    reset()
+    return () => {
+      clearTimeout(timer.current)
+      events.forEach(e => window.removeEventListener(e, reset))
+    }
+  }, [reset])
+
+  return null
 }
 
 export default function App() {
@@ -42,7 +73,10 @@ export default function App() {
   }, [])
 
   return (
-    <Routes>
+    <>
+      <UpdateBanner />
+      <InactivityRedirect />
+      <Routes>
       <Route path="/" element={<LandingPage />} />
       <Route path="/privacy" element={<PrivacyPage />} />
       <Route path="/login" element={<LoginPage />} />
@@ -70,5 +104,6 @@ export default function App() {
         <Route path="admin" element={<AdminPage />} />
       </Route>
     </Routes>
+    </>
   )
 }

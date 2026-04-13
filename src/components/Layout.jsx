@@ -3,7 +3,6 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 import WelcomeModal from './WelcomeModal'
-import UpdateBanner from './UpdateBanner'
 
 const ACCESS_KEYS = ['member_signups_enabled','member_login_enabled','public_search_enabled','public_accounts_enabled','public_login_enabled']
 
@@ -28,12 +27,22 @@ export default function Layout() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
-      <UpdateBanner />
       <WelcomeModal />
 
       <header className="topbar">
         <NavLink to="/app/map" className="brand" style={{ textDecoration: 'none' }}>My Club<span> Locator</span></NavLink>
         <nav className="topbar-nav">
+          <button
+            className="btn-outline layout-public-search-btn"
+            onClick={() => navigate('/find')}
+            title="Switch to public club finder"
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
+              <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="1.8"/>
+              <path d="M21 21l-4.35-4.35" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+            </svg>
+            Public search
+          </button>
           <span className="topbar-user">{user?.email}</span>
           <button className="btn-outline" style={{ padding: '6px 14px', fontSize: '13px' }} onClick={handleLogout}>
             Log out

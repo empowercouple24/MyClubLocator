@@ -1,45 +1,62 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { MapContainer, TileLayer, Marker, useMap, useMapEvents } from 'react-leaflet'
+import { divIcon } from 'leaflet'
 import { supabase } from '../lib/supabase'
 import AddressAutocomplete from '../components/AddressAutocomplete'
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN
+const MAPBOX_URL   = `https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/256/{z}/{x}/{y}@2x?access_token=${MAPBOX_TOKEN}`
+const MAPBOX_ATTR  = '&copy; <a href="https://www.mapbox.com/about/maps/">Mapbox</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
 
-function PinIcon({ size = 16, color = '#1A3C2E' }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill={color}/>
-    </svg>
-  )
+function makeClubIcon(type, fill, hovered) {
+  const sizes = { normal: 18, hovered: 24, selected: 28 }
+  const size = type === 'selected' ? sizes.selected : hovered ? sizes.hovered : sizes.normal
+  const r = size / 2
+  if (type === 'selected') {
+    return divIcon({
+      className: '',
+      html: `<div style="position:relative;width:${size}px;height:${size}px;cursor:pointer;transform:translate(-50%,-50%);">
+        <div class="marker-pulse-ring marker-pulse-ring--1" style="--pulse-color:${fill};"></div>
+        <div class="marker-pulse-ring marker-pulse-ring--2" style="--pulse-color:${fill};"></div>
+        <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" style="position:relative;z-index:2;">
+          <circle cx="${r}" cy="${r}" r="${r-1.5}" fill="${fill}" stroke="white" stroke-width="2.5"/>
+        </svg>
+      </div>`,
+      iconSize: [size, size], iconAnchor: [r, r],
+    })
+  }
+  return divIcon({
+    className: '',
+    html: `<div style="width:${size}px;height:${size}px;cursor:pointer;transform:translate(-50%,-50%);transition:all 0.15s;">
+      <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+        <circle cx="${r}" cy="${r}" r="${r-1.5}" fill="${fill}" stroke="white" stroke-width="2"/>
+      </svg>
+    </div>`,
+    iconSize: [size, size], iconAnchor: [r, r],
+  })
 }
 
-function HeartIcon({ filled }) {
-  return filled ? (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="#E24B4A" stroke="#E24B4A" strokeWidth="1.5">
-      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
-    </svg>
-  ) : (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
-    </svg>
-  )
+function makeUserIcon() {
+  return divIcon({
+    className: '',
+    html: `<div style="position:relative;width:20px;height:20px;transform:translate(-50%,-50%);">
+      <div style="position:absolute;inset:-6px;border-radius:50%;border:2px solid #185FA5;opacity:0.35;animation:pfUserPulse 2s ease-in-out infinite;"></div>
+      <svg width="20" height="20" viewBox="0 0 20 20">
+        <circle cx="10" cy="10" r="7" fill="#185FA5" stroke="white" stroke-width="2.5"/>
+        <circle cx="10" cy="10" r="3" fill="white"/>
+      </svg>
+    </div>`,
+    iconSize: [20, 20], iconAnchor: [10, 10],
+  })
 }
 
-function ClockIcon() {
-  return (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
-      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.5"/>
-      <path d="M12 7v5l3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-    </svg>
-  )
-}
-
-function getDistanceMiles(lat1, lng1, lat2, lng2) {
-  const R = 3958.8
-  const dLat = (lat2 - lat1) * Math.PI / 180
-  const dLng = (lng2 - lng1) * Math.PI / 180
-  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLng/2)**2
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
+function MapFlyTo({ lat, lng, zoom }) {
+  const map = useMap()
+  useEffect(() => {
+    if (lat && lng) map.flyTo([lat, lng], zoom || 11, { duration: 1 })
+  }, [lat, lng, zoom])
+  return null
 }
 
 function getTodayHours(loc) {
@@ -70,142 +87,6 @@ function isOpenNow(loc) {
   return nowMins >= oh * 60 + om && nowMins < ch * 60 + cm
 }
 
-function MapboxTile({ lat, lng, clubName, zoom = 13 }) {
-  if (!MAPBOX_TOKEN || !lat || !lng) return null
-  const url = `https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/pin-s+F59E0B(${lng},${lat})/${lng},${lat},${zoom},0/400x240@2x?access_token=${MAPBOX_TOKEN}`
-  return <img src={url} alt={`Map showing ${clubName}`} className="pf-map-tile-img" loading="lazy" />
-}
-
-function DisclaimerScreen({ text, onAccept }) {
-  return (
-    <div className="pf-disclaimer-screen">
-      <div className="pf-disclaimer-card">
-        <div className="pf-disclaimer-icon">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
-            <circle cx="12" cy="12" r="10" stroke="#854F0B" strokeWidth="1.5"/>
-            <path d="M12 7v6" stroke="#854F0B" strokeWidth="1.5" strokeLinecap="round"/>
-            <circle cx="12" cy="16.5" r="0.75" fill="#854F0B"/>
-          </svg>
-        </div>
-        <h2 className="pf-disclaimer-title">Before you search</h2>
-        <p className="pf-disclaimer-text">{text}</p>
-        <button className="pf-accept-btn" onClick={onAccept}>I understand — continue to search</button>
-      </div>
-    </div>
-  )
-}
-
-// ── Auth Modal ─────────────────────────────────────────────
-function AuthModal({ mode: initialMode, settings, onSuccess, onClose }) {
-  const [mode, setMode]               = useState(initialMode || 'signin')
-  const [email, setEmail]             = useState('')
-  const [password, setPassword]       = useState('')
-  const [displayName, setDisplayName] = useState('')
-  const [loading, setLoading]         = useState(false)
-  const [error, setError]             = useState('')
-
-  async function handleSubmit(e) {
-    e.preventDefault()
-    setError('')
-    setLoading(true)
-    if (mode === 'signup') {
-      if (settings?.public_accounts_enabled === false) {
-        setError('New public accounts are not available right now.')
-        setLoading(false)
-        return
-      }
-      const { data, error: authErr } = await supabase.auth.signUp({ email, password })
-      if (authErr) { setError(authErr.message); setLoading(false); return }
-      if (data?.user) {
-        await supabase.from('public_accounts').insert({
-          auth_user_id: data.user.id,
-          email,
-          display_name: displayName.trim() || null,
-        })
-      }
-      onSuccess()
-    } else {
-      if (settings?.public_login_enabled === false) {
-        setError('Public account login is temporarily unavailable.')
-        setLoading(false)
-        return
-      }
-      const { error: authErr } = await supabase.auth.signInWithPassword({ email, password })
-      if (authErr) { setError(authErr.message); setLoading(false); return }
-      onSuccess()
-    }
-  }
-
-  return (
-    <div className="pf-modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="pf-modal-card">
-        <button className="pf-modal-close" onClick={onClose}>
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-            <path d="M2 2l12 12M14 2L2 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-          </svg>
-        </button>
-        <div className="pf-modal-tabs">
-          <button className={`pf-modal-tab ${mode === 'signin' ? 'active' : ''}`} onClick={() => { setMode('signin'); setError('') }}>Sign in</button>
-          {settings?.public_accounts_enabled !== false && (
-            <button className={`pf-modal-tab ${mode === 'signup' ? 'active' : ''}`} onClick={() => { setMode('signup'); setError('') }}>Create account</button>
-          )}
-        </div>
-        <p className="pf-modal-desc">
-          {mode === 'signup' ? 'Save your favorite clubs and leave notes.' : 'Welcome back — sign in to see your saved clubs.'}
-        </p>
-        {error && <div className="pf-modal-error">{error}</div>}
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {mode === 'signup' && (
-            <input className="pf-modal-input" type="text" placeholder="Your name (optional)" value={displayName} onChange={e => setDisplayName(e.target.value)} />
-          )}
-          <input className="pf-modal-input" type="email" placeholder="Email address" value={email} onChange={e => setEmail(e.target.value)} required />
-          <input className="pf-modal-input" type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} required minLength={6} />
-          <button className="pf-accept-btn" type="submit" disabled={loading} style={{ marginTop: 4 }}>
-            {loading ? 'Please wait…' : mode === 'signup' ? 'Create my account' : 'Sign in'}
-          </button>
-        </form>
-      </div>
-    </div>
-  )
-}
-
-// ── Saved Clubs Panel ──────────────────────────────────────
-function SavedPanel({ savedClubs, expandedId, onExpand, onClose, onToggleFav, favIds }) {
-  const [open, setOpen] = useState(false)
-  if (!savedClubs.length) return null
-  return (
-    <div className="pf-saved-panel">
-      <button className="pf-saved-header" onClick={() => setOpen(o => !o)}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <HeartIcon filled />
-          <span className="pf-saved-title">My saved clubs</span>
-          <span className="pf-saved-count">{savedClubs.length}</span>
-        </div>
-        <svg className={`pf-chevron ${open ? 'open' : ''}`} width="14" height="14" viewBox="0 0 16 16" fill="none">
-          <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-        </svg>
-      </button>
-      {open && (
-        <div className="pf-saved-list">
-          {savedClubs.map(club => (
-            <ClubCard
-              key={club.id}
-              club={club}
-              distanceMiles={null}
-              expanded={expandedId === club.id}
-              onExpand={() => onExpand(club.id)}
-              onClose={onClose}
-              isFav={favIds.has(club.id)}
-              onToggleFav={() => onToggleFav(club.id)}
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ── Hours condensing (shared with MapPage logic) ───────────
 function buildCondensedHours(club) {
   const days   = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday']
   const labels = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
@@ -234,244 +115,234 @@ function buildCondensedHours(club) {
   return ranges.map(r => ({
     day: r.length === 1 ? r[0].label : `${r[0].label}–${r[r.length-1].label}`,
     hours: `${fmt(r[0].o)} – ${fmt(r[0].c)}`,
-    idxStart: r[0].idx,
-    idxEnd: r[r.length-1].idx,
+    idxStart: r[0].idx, idxEnd: r[r.length-1].idx,
   }))
 }
 
-function getTodayIdx() {
-  return (new Date().getDay() + 6) % 7 // Mon=0 … Sun=6
+function getTodayIdx() { return (new Date().getDay() + 6) % 7 }
+
+function HeartIcon({ filled }) {
+  return filled
+    ? <svg width="15" height="15" viewBox="0 0 24 24" fill="#E24B4A" stroke="#E24B4A" strokeWidth="1.5"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+    : <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
 }
 
-// ── Club Logo ───────────────────────────────────────────────
 function ClubLogo({ url, name }) {
   if (url) return <img src={url} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+  return <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="rgba(255,255,255,0.85)"/></svg>
+}
+
+function DisclaimerScreen({ text, onAccept }) {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-      <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="rgba(255,255,255,0.85)"/>
-    </svg>
+    <div className="pf-disclaimer-screen">
+      <div className="pf-disclaimer-card">
+        <div className="pf-disclaimer-icon">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="10" stroke="#854F0B" strokeWidth="1.5"/>
+            <path d="M12 7v6" stroke="#854F0B" strokeWidth="1.5" strokeLinecap="round"/>
+            <circle cx="12" cy="16.5" r="0.75" fill="#854F0B"/>
+          </svg>
+        </div>
+        <h2 className="pf-disclaimer-title">Before you search</h2>
+        <p className="pf-disclaimer-text">{text}</p>
+        <button className="pf-accept-btn" onClick={onAccept}>I understand — continue to search</button>
+      </div>
+    </div>
   )
 }
 
-// ── Club Card ──────────────────────────────────────────────
-function ClubCard({ club, distanceMiles, onExpand, expanded, onClose, isFav, onToggleFav, onAuthRequired, publicAccountId }) {
-  const todayHours = getTodayHours(club)
+function AuthModal({ mode: initialMode, settings, onSuccess, onClose }) {
+  const [mode, setMode]       = useState(initialMode || 'signin')
+  const [email, setEmail]     = useState('')
+  const [password, setPassword] = useState('')
+  const [displayName, setDisplayName] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError]     = useState('')
+
+  async function handleSubmit(e) {
+    e.preventDefault(); setError(''); setLoading(true)
+    if (mode === 'signup') {
+      if (settings?.public_accounts_enabled === false) { setError('New public accounts are not available right now.'); setLoading(false); return }
+      const { data, error: authErr } = await supabase.auth.signUp({ email, password })
+      if (authErr) { setError(authErr.message); setLoading(false); return }
+      if (data?.user) await supabase.from('public_accounts').insert({ auth_user_id: data.user.id, email, display_name: displayName.trim() || null })
+      onSuccess()
+    } else {
+      if (settings?.public_login_enabled === false) { setError('Public account login is temporarily unavailable.'); setLoading(false); return }
+      const { error: authErr } = await supabase.auth.signInWithPassword({ email, password })
+      if (authErr) { setError(authErr.message); setLoading(false); return }
+      onSuccess()
+    }
+  }
+
+  return (
+    <div className="pf-modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="pf-modal-card">
+        <button className="pf-modal-close" onClick={onClose}>
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M2 2l12 12M14 2L2 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+        </button>
+        <div className="pf-modal-tabs">
+          <button className={`pf-modal-tab ${mode === 'signin' ? 'active' : ''}`} onClick={() => { setMode('signin'); setError('') }}>Sign in</button>
+          {settings?.public_accounts_enabled !== false && (
+            <button className={`pf-modal-tab ${mode === 'signup' ? 'active' : ''}`} onClick={() => { setMode('signup'); setError('') }}>Create account</button>
+          )}
+        </div>
+        <p className="pf-modal-desc">{mode === 'signup' ? 'Save your favorite clubs and leave notes.' : 'Welcome back — sign in to see your saved clubs.'}</p>
+        {error && <div className="pf-modal-error">{error}</div>}
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {mode === 'signup' && <input className="pf-modal-input" type="text" placeholder="Your name (optional)" value={displayName} onChange={e => setDisplayName(e.target.value)} />}
+          <input className="pf-modal-input" type="email" placeholder="Email address" value={email} onChange={e => setEmail(e.target.value)} required />
+          <input className="pf-modal-input" type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} required minLength={6} />
+          <button className="pf-accept-btn" type="submit" disabled={loading} style={{ marginTop: 4 }}>
+            {loading ? 'Please wait…' : mode === 'signup' ? 'Create my account' : 'Sign in'}
+          </button>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+function ClubCard({ club, expanded, onExpand, onClose, isFav, onToggleFav, onAuthRequired, publicAccountId, markerColor }) {
   const open       = isOpenNow(club)
+  const todayHours = getTodayHours(club)
   const todayIdx   = getTodayIdx()
   const condensed  = buildCondensedHours(club)
+  const photos     = club.photo_urls || []
+  const isLoggedIn = !!publicAccountId
   const owners = [
     club.first_name && `${club.first_name}${club.last_name ? ' ' + club.last_name : ''}`,
     club.owner2_first_name && `${club.owner2_first_name}${club.owner2_last_name ? ' ' + club.owner2_last_name : ''}`,
     club.owner3_first_name && `${club.owner3_first_name}${club.owner3_last_name ? ' ' + club.owner3_last_name : ''}`,
   ].filter(Boolean)
-
-  const photos = club.photo_urls || []
-  const isLoggedIn = !!publicAccountId
+  const fullAddress = [club.address, club.city, club.state, club.zip].filter(Boolean).join(', ')
+  const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(fullAddress)}`
 
   const [noteText, setNoteText]         = useState('')
   const [noteSubmitting, setNoteSubmitting] = useState(false)
   const [noteSent, setNoteSent]         = useState(false)
   const [noteOpen, setNoteOpen]         = useState(false)
 
-  const fullAddress = [club.address, club.city, club.state, club.zip].filter(Boolean).join(', ')
-  const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(fullAddress)}`
-
   async function submitNote() {
     if (!noteText.trim() || !publicAccountId) return
     setNoteSubmitting(true)
     await supabase.from('club_notes').insert({ public_account_id: publicAccountId, location_id: club.id, note: noteText.trim() })
-    await supabase.from('notifications').insert({
-      type: 'club_note', title: 'New note on a club',
-      body: `A public user left a note on ${club.club_name || 'a club'}: "${noteText.trim().slice(0, 80)}${noteText.length > 80 ? '…' : ''}"`,
-      user_id: null,
-    })
+    await supabase.from('notifications').insert({ type: 'club_note', title: 'New note on a club', body: `A public user left a note on ${club.club_name || 'a club'}: "${noteText.trim().slice(0, 80)}${noteText.length > 80 ? '…' : ''}"`, user_id: null })
     setNoteSubmitting(false); setNoteSent(true); setNoteText('')
     setTimeout(() => { setNoteSent(false); setNoteOpen(false) }, 2500)
   }
 
   return (
-    <div className={`pf-club-card ${expanded ? 'expanded' : ''}`}>
-      {/* ── Collapsed header ── */}
-      <div className="pf-club-card-header" onClick={expanded ? onClose : onExpand}>
-        <div className="pf-card-logo">
+    <div className={`pfp-card ${expanded ? 'pfp-card--expanded' : ''}`}>
+      <div className="pfp-card-row" onClick={expanded ? onClose : onExpand}>
+        <div className="pfp-card-logo" style={{ background: markerColor || '#1A3C2E' }}>
           <ClubLogo url={club.logo_url} name={club.club_name} />
         </div>
-        <div className="pf-club-card-left">
-          <div className="pf-club-name">{club.club_name || 'Unnamed Club'}</div>
-          <div className="pf-club-meta">
-            <span className="pf-club-addr">{[club.city, club.state].filter(Boolean).join(', ')}</span>
-            {distanceMiles != null && <span className="pf-club-dist">{distanceMiles.toFixed(1)} mi</span>}
+        <div className="pfp-card-info">
+          <div className="pfp-card-name">{club.club_name || 'Unnamed Club'}</div>
+          <div className="pfp-card-meta">
+            <span className="pfp-card-city">{[club.city, club.state].filter(Boolean).join(', ')}</span>
+            {club.distanceMiles != null && <span className="pfp-dist-badge">{club.distanceMiles.toFixed(1)} mi</span>}
+            {todayHours && <span className={open ? 'pfp-open-badge' : 'pfp-closed-badge'}>{open ? 'Open' : 'Closed'}</span>}
           </div>
-          {todayHours && (
-            <div className="pf-club-hours">
-              <ClockIcon />
-              <span className={open ? 'pf-open' : 'pf-closed-text'}>{open ? 'Open now' : 'Closed'}</span>
-              <span className="pf-hours-text">{todayHours}</span>
-            </div>
-          )}
+          {todayHours && <div className="pfp-card-hours">{todayHours}</div>}
         </div>
-        <div className="pf-club-card-right">
-          {onToggleFav !== undefined && (
-            <button className={`pf-heart-btn ${isFav ? 'fav' : ''}`} onClick={e => { e.stopPropagation(); onToggleFav ? onToggleFav() : onAuthRequired?.() }} title={isFav ? 'Remove from saved' : 'Save this club'}>
+        <div className="pfp-card-actions" onClick={e => e.stopPropagation()}>
+          {(onToggleFav || onAuthRequired) && (
+            <button className={`pfp-heart-btn ${isFav ? 'fav' : ''}`} onClick={() => onToggleFav ? onToggleFav() : onAuthRequired?.()}>
               <HeartIcon filled={isFav} />
             </button>
           )}
-          {onAuthRequired && !onToggleFav && (
-            <button className="pf-heart-btn" onClick={e => { e.stopPropagation(); onAuthRequired() }} title="Save this club">
-              <HeartIcon filled={false} />
-            </button>
-          )}
-          <svg className={`pf-chevron ${expanded ? 'open' : ''}`} width="14" height="14" viewBox="0 0 16 16" fill="none">
+          <svg className={`pfp-chevron ${expanded ? 'open' : ''}`} width="12" height="12" viewBox="0 0 16 16" fill="none">
             <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
         </div>
       </div>
 
-      {/* ── Expanded detail ── */}
       {expanded && (
-        <div className="pf-club-detail pf-detail-grid">
-
-          {/* Left column */}
-          <div className="pf-detail-left">
-            {/* Address */}
-            {club.address && (
-              <div className="pf-detail-row">
-                <PinIcon size={13} color="#888" />
-                <span>{fullAddress}</span>
-              </div>
-            )}
-
-            {/* Hours condensed */}
-            {condensed.length > 0 && (
-              <div className="pf-detail-row pf-detail-row--top">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style={{flexShrink:0,marginTop:2}}><circle cx="12" cy="12" r="9" stroke="#888" strokeWidth="1.5"/><path d="M12 7v5l3 3" stroke="#888" strokeWidth="1.5" strokeLinecap="round"/></svg>
-                <div className="pf-hours-condensed">
-                  {condensed.map((r, i) => {
-                    const isToday = todayIdx >= r.idxStart && todayIdx <= r.idxEnd
-                    return (
-                      <div key={i} className={`pf-hours-crow${isToday ? ' pf-hours-crow--today' : ''}`}>
-                        <span className="pf-hours-cday">{r.day}</span>
-                        <span className="pf-hours-ctime">{r.hours}</span>
-                        {isToday && <span className="pf-today-dot">●</span>}
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Website */}
-            {club.club_website && (
-              <div className="pf-detail-row">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style={{flexShrink:0}}><circle cx="12" cy="12" r="9" stroke="#888" strokeWidth="1.5"/><path d="M2 12h20M12 2c-2.5 3-4 6-4 10s1.5 7 4 10M12 2c2.5 3 4 6 4 10s-1.5 7-4 10" stroke="#888" strokeWidth="1.5"/></svg>
-                <a href={club.club_website.startsWith('http') ? club.club_website : `https://${club.club_website}`} target="_blank" rel="noopener noreferrer" className="pf-link">{club.club_website.replace(/^https?:\/\//, '')}</a>
-              </div>
-            )}
-
-            {/* Phone — logged in only */}
-            {isLoggedIn && club.club_phone && (
-              <div className="pf-detail-row">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style={{flexShrink:0}}><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.93 11.5a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.84 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 8.91a16 16 0 0 0 5.61 5.61l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" stroke="#888" strokeWidth="1.5" strokeLinecap="round"/></svg>
-                <span>{club.club_phone}</span>
-              </div>
-            )}
-
-            {/* Owners — logged in only */}
-            {isLoggedIn && owners.length > 0 && (
-              <div className="pf-detail-row">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style={{flexShrink:0}}><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke="#888" strokeWidth="1.5" strokeLinecap="round"/><circle cx="12" cy="7" r="4" stroke="#888" strokeWidth="1.5"/></svg>
-                <span>{owners.join(', ')}</span>
-              </div>
-            )}
-
-            {/* Leave a note */}
-            {isLoggedIn && (
-              <div className="pf-note-section">
-                {!noteOpen && !noteSent && (
-                  <button className="pf-note-toggle" onClick={() => setNoteOpen(true)}>
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                    Leave a note
-                  </button>
-                )}
-                {noteOpen && !noteSent && (
-                  <div className="pf-note-form">
-                    <textarea className="pf-note-input" rows={3} placeholder="Share your experience…" value={noteText} onChange={e => setNoteText(e.target.value)} autoFocus />
-                    <div className="pf-note-actions">
-                      <button className="pf-note-cancel" onClick={() => { setNoteOpen(false); setNoteText('') }}>Cancel</button>
-                      <button className="pf-note-submit" onClick={submitNote} disabled={noteSubmitting || !noteText.trim()}>{noteSubmitting ? 'Sending…' : 'Submit'}</button>
-                    </div>
-                  </div>
-                )}
-                {noteSent && (
-                  <div className="pf-note-sent">
-                    <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.5" stroke="#0F6E56" strokeWidth="1.2"/><path d="M5 8l2 2 4-4" stroke="#0F6E56" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                    Note submitted — thank you!
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Right column */}
-          <div className="pf-detail-right">
-            {/* Map tile */}
-            <div className="pf-map-tile">
-              <MapboxTile lat={club.lat} lng={club.lng} clubName={club.club_name} zoom={13} />
+        <div className="pfp-detail">
+          {club.address && (
+            <div className="pfp-detail-row">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" style={{flexShrink:0,marginTop:2}}><circle cx="12" cy="10" r="3" stroke="#888" strokeWidth="1.5"/><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" stroke="#888" strokeWidth="1.5"/></svg>
+              <span>{fullAddress}</span>
             </div>
-
-            {/* Photo strip */}
-            {isLoggedIn && photos.length > 0 ? (
-              <div className="pf-photo-strip">
-                {photos.slice(0, 4).map((url, i) => (
-                  <div key={i} className="pf-photo-strip-cell">
-                    <img src={url} alt={`Club photo ${i+1}`} />
-                  </div>
-                ))}
+          )}
+          {condensed.length > 0 && (
+            <div className="pfp-detail-row pfp-detail-row--top">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" style={{flexShrink:0,marginTop:2}}><circle cx="12" cy="12" r="9" stroke="#888" strokeWidth="1.5"/><path d="M12 7v5l3 3" stroke="#888" strokeWidth="1.5" strokeLinecap="round"/></svg>
+              <div className="pfp-hours-grid">
+                {condensed.map((r, i) => {
+                  const isToday = todayIdx >= r.idxStart && todayIdx <= r.idxEnd
+                  return (
+                    <div key={i} className={`pfp-hours-row${isToday ? ' pfp-hours-today' : ''}`}>
+                      <span className="pfp-hours-day">{r.day}</span>
+                      <span>{r.hours}</span>
+                      {isToday && <span className="pfp-today-dot">●</span>}
+                    </div>
+                  )
+                })}
               </div>
-            ) : !isLoggedIn && photos.length > 0 ? (
-              <div className="pf-photo-strip pf-photo-strip--locked">
-                {photos.slice(0, 4).map((url, i) => (
-                  <div key={i} className="pf-photo-strip-cell pf-photo-strip-cell--blurred">
-                    <img src={url} alt="" />
-                  </div>
-                ))}
-              </div>
-            ) : null}
-          </div>
-
-          {/* Teaser row — logged out only */}
+            </div>
+          )}
+          {club.club_website && (
+            <div className="pfp-detail-row">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" style={{flexShrink:0}}><circle cx="12" cy="12" r="9" stroke="#888" strokeWidth="1.5"/><path d="M2 12h20M12 2c-2.5 3-4 6-4 10s1.5 7 4 10M12 2c2.5 3 4 6 4 10s-1.5 7-4 10" stroke="#888" strokeWidth="1.5"/></svg>
+              <a href={club.club_website.startsWith('http') ? club.club_website : `https://${club.club_website}`} target="_blank" rel="noopener noreferrer" className="pfp-link">{club.club_website.replace(/^https?:\/\//, '')}</a>
+            </div>
+          )}
+          {isLoggedIn && club.club_phone && (
+            <div className="pfp-detail-row">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" style={{flexShrink:0}}><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.93 11.5a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.84 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 8.91a16 16 0 0 0 5.61 5.61l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" stroke="#888" strokeWidth="1.5"/></svg>
+              <span>{club.club_phone}</span>
+            </div>
+          )}
+          {isLoggedIn && owners.length > 0 && (
+            <div className="pfp-detail-row">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" style={{flexShrink:0}}><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke="#888" strokeWidth="1.5"/><circle cx="12" cy="7" r="4" stroke="#888" strokeWidth="1.5"/></svg>
+              <span>{owners.join(', ')}</span>
+            </div>
+          )}
+          {isLoggedIn && photos.length > 0 && (
+            <div className="pfp-photo-strip">
+              {photos.slice(0, 4).map((url, i) => (
+                <div key={i} className="pfp-photo-cell"><img src={url} alt="" /></div>
+              ))}
+            </div>
+          )}
           {!isLoggedIn && (owners.length > 0 || club.club_phone || photos.length > 0) && (
-            <div className="pf-teaser-row">
-              <div className="pf-teaser-blurred">
-                {club.club_phone && (
-                  <span className="pf-teaser-item">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.93 11.5a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.84 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 8.91a16 16 0 0 0 5.61 5.61l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" stroke="currentColor" strokeWidth="1.5"/></svg>
-                    {club.club_phone}
-                  </span>
-                )}
-                {owners.length > 0 && (
-                  <span className="pf-teaser-item">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke="currentColor" strokeWidth="1.5"/><circle cx="12" cy="7" r="4" stroke="currentColor" strokeWidth="1.5"/></svg>
-                    {owners[0]}{owners.length > 1 ? ` +${owners.length - 1}` : ''}
-                  </span>
-                )}
-                {photos.length > 0 && (
-                  <span className="pf-teaser-item">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" strokeWidth="1.5"/><circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.5"/></svg>
-                    {photos.length} photo{photos.length !== 1 ? 's' : ''}
-                  </span>
-                )}
+            <div className="pfp-teaser-row">
+              <div className="pfp-teaser-blurred">
+                {club.club_phone && <span className="pfp-teaser-item">{club.club_phone}</span>}
+                {owners.length > 0 && <span className="pfp-teaser-item">{owners[0]}</span>}
+                {photos.length > 0 && <span className="pfp-teaser-item">{photos.length} photo{photos.length !== 1 ? 's' : ''}</span>}
               </div>
-              <button className="pf-teaser-signin" onClick={() => onAuthRequired?.()}>
-                <svg width="11" height="11" viewBox="0 0 16 16" fill="none"><rect x="3" y="7.5" width="10" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.3"/><path d="M5 7.5V5a3 3 0 016 0v2.5" stroke="currentColor" strokeWidth="1.3"/></svg>
+              <button className="pfp-teaser-btn" onClick={() => onAuthRequired?.()}>
+                <svg width="10" height="10" viewBox="0 0 16 16" fill="none"><rect x="3" y="7.5" width="10" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.3"/><path d="M5 7.5V5a3 3 0 016 0v2.5" stroke="currentColor" strokeWidth="1.3"/></svg>
                 Sign in to view
               </button>
             </div>
           )}
-
-          {/* Directions */}
-          <a className="pf-directions-btn" href={mapsUrl} target="_blank" rel="noopener noreferrer">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M3 12l18-9-9 18-2-8-7-1z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/></svg>
+          {isLoggedIn && (
+            <div className="pfp-note-section">
+              {!noteOpen && !noteSent && (
+                <button className="pfp-note-toggle" onClick={() => setNoteOpen(true)}>
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  Leave a note
+                </button>
+              )}
+              {noteOpen && !noteSent && (
+                <div className="pfp-note-form">
+                  <textarea className="pf-note-input" rows={2} placeholder="Share your experience…" value={noteText} onChange={e => setNoteText(e.target.value)} autoFocus />
+                  <div className="pf-note-actions">
+                    <button className="pf-note-cancel" onClick={() => { setNoteOpen(false); setNoteText('') }}>Cancel</button>
+                    <button className="pf-note-submit" onClick={submitNote} disabled={noteSubmitting || !noteText.trim()}>{noteSubmitting ? 'Sending…' : 'Submit'}</button>
+                  </div>
+                </div>
+              )}
+              {noteSent && <div className="pf-note-sent">Note submitted — thank you!</div>}
+            </div>
+          )}
+          <a className="pfp-directions-btn" href={mapsUrl} target="_blank" rel="noopener noreferrer">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M3 12l18-9-9 18-2-8-7-1z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/></svg>
             Get directions in Google Maps
           </a>
         </div>
@@ -480,41 +351,50 @@ function ClubCard({ club, distanceMiles, onExpand, expanded, onClose, isFav, onT
   )
 }
 
-// ── Main Page ──────────────────────────────────────────────
 export default function PublicFinderPage() {
   const navigate = useNavigate()
-  const [settings, setSettings]         = useState(null)
+  const [settings, setSettings]             = useState(null)
   const [loadingSettings, setLoadingSettings] = useState(true)
-  const [accepted, setAccepted]         = useState(false)
-  const [query, setQuery]               = useState('')
-  const [searching, setSearching]       = useState(false)
-  const [userLat, setUserLat]           = useState(null)
-  const [userLng, setUserLng]           = useState(null)
-  const [geoLocating, setGeoLocating]   = useState(false)
-  const [geoError, setGeoError]         = useState('')
-  const [results, setResults]           = useState(null)
+  const [accepted, setAccepted]             = useState(false)
+  const [publicAccount, setPublicAccount]   = useState(null)
+  const [authModal, setAuthModal]           = useState(null)
+  const [authLoading, setAuthLoading]       = useState(true)
+  const [markerColors, setMarkerColors]     = useState({})
+  const [query, setQuery]                   = useState('')
+  const [searching, setSearching]           = useState(false)
+  const [geoLocating, setGeoLocating]       = useState(false)
+  const [geoError, setGeoError]             = useState('')
+  const [userLat, setUserLat]               = useState(null)
+  const [userLng, setUserLng]               = useState(null)
+  const [results, setResults]               = useState(null)
   const [resultsFallback, setResultsFallback] = useState(false)
-  const [expandedId, setExpandedId]     = useState(null)
-
-  // Auth state
-  const [publicAccount, setPublicAccount] = useState(null) // { id, display_name, email }
-  const [authModal, setAuthModal]         = useState(null) // null | 'signin' | 'signup'
-  const [authLoading, setAuthLoading]     = useState(true)
-
-  // Favorites
-  const [favIds, setFavIds]         = useState(new Set())
-  const [savedClubs, setSavedClubs] = useState([])
-
-  const inputRef = useRef(null)
+  const [expandedId, setExpandedId]         = useState(null)
+  const [hoveredId, setHoveredId]           = useState(null)
+  const [panelOpen, setPanelOpen]           = useState(false)
+  const [favIds, setFavIds]                 = useState(new Set())
+  const [savedClubs, setSavedClubs]         = useState([])
+  const [flyTo, setFlyTo]                   = useState(null)
+  const [isClubOwner, setIsClubOwner]       = useState(false)
 
   useEffect(() => {
     async function load() {
       const [{ data: s }, session] = await Promise.all([
-        supabase.from('app_settings').select('public_search_enabled,public_accounts_enabled,public_login_enabled,public_finder_welcome,public_finder_disclaimer_enabled,public_finder_disclaimer,search_radius_miles').eq('id', 1).single(),
+        supabase.from('app_settings').select('public_search_enabled,public_accounts_enabled,public_login_enabled,public_finder_welcome,public_finder_disclaimer_enabled,public_finder_disclaimer,search_radius_miles,marker_color_own,marker_color_other,marker_color_selected').eq('id', 1).single(),
         supabase.auth.getSession(),
       ])
       setSettings(s)
-      if (session.data.session) await loadPublicAccount(session.data.session.user.id)
+      if (s) setMarkerColors({ own: s.marker_color_own, other: s.marker_color_other, selected: s.marker_color_selected })
+      if (session.data.session) {
+        const userId = session.data.session.user.id
+        // Check if this is a public account or a club owner
+        const { data: pubAcct } = await supabase.from('public_accounts').select('id').eq('auth_user_id', userId).single()
+        if (pubAcct) {
+          await loadPublicAccount(userId)
+        } else {
+          // Has a session but no public_accounts row → club owner or admin
+          setIsClubOwner(true)
+        }
+      }
       setAuthLoading(false)
       setLoadingSettings(false)
     }
@@ -523,16 +403,13 @@ export default function PublicFinderPage() {
 
   async function loadPublicAccount(authUserId) {
     const { data } = await supabase.from('public_accounts').select('id,display_name,email').eq('auth_user_id', authUserId).single()
-    if (data) {
-      setPublicAccount(data)
-      await loadFavorites(data.id)
-    }
+    if (data) { setPublicAccount(data); await loadFavorites(data.id) }
   }
 
   async function loadFavorites(accountId) {
     const { data } = await supabase
       .from('public_favorites')
-      .select('location_id, locations(id,club_name,address,city,state,zip,lat,lng,club_phone,club_email,first_name,last_name,owner2_first_name,owner2_last_name,photo_urls,hours_monday_open,hours_monday_close,hours_tuesday_open,hours_tuesday_close,hours_wednesday_open,hours_wednesday_close,hours_thursday_open,hours_thursday_close,hours_friday_open,hours_friday_close,hours_saturday_open,hours_saturday_close,hours_sunday_open,hours_sunday_close)')
+      .select('location_id, locations(id,club_name,address,city,state,zip,lat,lng,logo_url,club_website,club_phone,club_email,first_name,last_name,owner2_first_name,owner2_last_name,photo_urls,hours_monday_open,hours_monday_close,hours_tuesday_open,hours_tuesday_close,hours_wednesday_open,hours_wednesday_close,hours_thursday_open,hours_thursday_close,hours_friday_open,hours_friday_close,hours_saturday_open,hours_saturday_close,hours_sunday_open,hours_sunday_close)')
       .eq('public_account_id', accountId)
     if (data) {
       setFavIds(new Set(data.map(f => f.location_id)))
@@ -562,48 +439,40 @@ export default function PublicFinderPage() {
 
   async function handleSignOut() {
     await supabase.auth.signOut()
-    setPublicAccount(null)
-    setFavIds(new Set())
-    setSavedClubs([])
+    setPublicAccount(null); setFavIds(new Set()); setSavedClubs([])
   }
 
   async function geocodeAddress(address) {
     try {
       const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1`)
       const data = await res.json()
-      if (data && data[0]) return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) }
+      if (data?.[0]) return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) }
     } catch {}
     return null
   }
 
   async function doSearch(lat, lng) {
-    setSearching(true)
-    setExpandedId(null)
+    setSearching(true); setExpandedId(null)
     const radius = Math.abs(settings?.search_radius_miles ?? 20)
     const mapDist = rows => (rows || []).map(r => ({ ...r, distanceMiles: r.distance_miles }))
-    const { data: nearby, error } = await supabase.rpc('nearby_clubs', {
-      search_lat: lat, search_lng: lng, radius_miles: radius,
-    })
+    const { data: nearby, error } = await supabase.rpc('nearby_clubs', { search_lat: lat, search_lng: lng, radius_miles: radius })
     if (error) { console.error('nearby_clubs error:', error); setSearching(false); return }
     if (nearby && nearby.length > 0) {
-      setResults(mapDist(nearby).slice(0, 25))
-      setResultsFallback(false)
+      setResults(mapDist(nearby).slice(0, 25)); setResultsFallback(false)
     } else {
-      const { data: fallback } = await supabase.rpc('nearby_clubs', {
-        search_lat: lat, search_lng: lng, radius_miles: 99999,
-      })
-      setResults(mapDist(fallback).slice(0, 5))
-      setResultsFallback(true)
+      const { data: fallback } = await supabase.rpc('nearby_clubs', { search_lat: lat, search_lng: lng, radius_miles: 99999 })
+      setResults(mapDist(fallback).slice(0, 5)); setResultsFallback(true)
     }
-    setSearching(false)
+    setPanelOpen(true); setSearching(false)
+    setFlyTo({ lat, lng, zoom: 11, _t: Date.now() })
   }
 
-  async function handleSearch(e) {
+  async function handleSearchSubmit(e) {
     e.preventDefault()
     if (!query.trim()) return
-    const coords = await geocodeAddress(query.trim())
-    if (!coords) { setGeoError('Address not found. Try a city or zip code.'); return }
     setGeoError('')
+    const coords = await geocodeAddress(query.trim())
+    if (!coords) { setGeoError('Address not found. Try a city, place name, or zip code.'); return }
     setUserLat(coords.lat); setUserLng(coords.lng)
     doSearch(coords.lat, coords.lng)
   }
@@ -614,12 +483,24 @@ export default function PublicFinderPage() {
     navigator.geolocation.getCurrentPosition(
       pos => {
         const { latitude, longitude } = pos.coords
-        setUserLat(latitude); setUserLng(longitude)
-        setGeoLocating(false)
+        setUserLat(latitude); setUserLng(longitude); setGeoLocating(false)
         doSearch(latitude, longitude)
       },
       () => { setGeoError('Could not get your location. Try entering an address.'); setGeoLocating(false) }
     )
+  }
+
+  function handleCardExpand(id) {
+    setExpandedId(id)
+    const club = results?.find(r => r.id === id)
+    if (club?.lat && club?.lng) setFlyTo({ lat: club.lat, lng: club.lng, zoom: 14, _t: Date.now() })
+  }
+
+  function handlePinClick(id) {
+    setExpandedId(id); setPanelOpen(true)
+    const club = results?.find(r => r.id === id)
+    if (club?.lat && club?.lng) setFlyTo({ lat: club.lat, lng: club.lng, zoom: 14, _t: Date.now() })
+    setTimeout(() => document.getElementById(`pfp-card-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 150)
   }
 
   if (loadingSettings || authLoading) return <div className="loading">Loading…</div>
@@ -628,7 +509,7 @@ export default function PublicFinderPage() {
     return (
       <div className="pf-page">
         <div className="pf-closed">
-          <div className="pf-closed-icon"><PinIcon size={32} color="#1A3C2E" /></div>
+          <div className="pf-closed-icon"><svg width="32" height="32" viewBox="0 0 24 24" fill="none"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="#1A3C2E"/></svg></div>
           <h1 className="pf-closed-title">Club Finder</h1>
           <p className="pf-closed-msg">The club finder is not available right now. Please check back soon.</p>
           <button className="pf-back-btn-plain" onClick={() => navigate('/')}>← Back to home</button>
@@ -642,136 +523,150 @@ export default function PublicFinderPage() {
       <div className="pf-page">
         <div className="pf-topbar">
           <button className="pf-back-btn" onClick={() => navigate('/')}>← Back</button>
-          <div className="pf-brand"><PinIcon size={14} color="#fff" /><span>My Club Locator</span></div>
+          <div className="pf-brand"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="#fff"/></svg><span>My Club Locator</span></div>
         </div>
         <DisclaimerScreen text={settings.public_finder_disclaimer} onAccept={() => setAccepted(true)} />
       </div>
     )
   }
 
+  const pinColor  = markerColors.other    || '#6B8DD6'
+  const selColor  = markerColors.selected || '#F59E0B'
+  const userIcon  = makeUserIcon()
+
   return (
-    <div className="pf-page">
-      {/* Top bar */}
-      <div className="pf-topbar">
-        <button className="pf-back-btn" onClick={() => navigate('/')}>← Back</button>
-        <div className="pf-brand"><PinIcon size={14} color="#fff" /><span>My Club Locator</span></div>
-        <div className="pf-auth-zone">
-          {publicAccount ? (
+    <div className="pfp-page">
+      <div className="pfp-topbar">
+        <button className="pfp-back-btn" onClick={() => navigate('/')}>
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M10 3L5 8l5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          Back
+        </button>
+        <div className="pfp-brand">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="#fff"/></svg>
+          My Club Locator
+        </div>
+        <div className="pfp-auth-zone">
+          {isClubOwner ? (
+            <button className="pfp-auth-link pfp-auth-link--accent" onClick={() => navigate('/app/map')}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" style={{flexShrink:0}}><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              Return to owner map
+            </button>
+          ) : publicAccount ? (
             <>
-              <span className="pf-auth-name">Hi, {publicAccount.display_name || publicAccount.email?.split('@')[0]}</span>
-              <button className="pf-auth-link" onClick={handleSignOut}>Sign out</button>
+              <span className="pfp-auth-name">Hi, {publicAccount.display_name || publicAccount.email?.split('@')[0]}</span>
+              <button className="pfp-auth-link" onClick={handleSignOut}>Sign out</button>
             </>
           ) : settings?.public_accounts_enabled !== false ? (
             <>
-              <button className="pf-auth-link" onClick={() => setAuthModal('signin')}>Sign in</button>
-              <button className="pf-auth-link pf-auth-link--accent" onClick={() => setAuthModal('signup')}>Create account</button>
+              <button className="pfp-auth-link" onClick={() => setAuthModal('signin')}>Sign in</button>
+              <button className="pfp-auth-link pfp-auth-link--accent" onClick={() => setAuthModal('signup')}>Create account</button>
             </>
           ) : null}
         </div>
       </div>
 
-      {/* Search header */}
-      <div className="pf-search-header">
-        <h1 className="pf-search-title">{settings?.public_finder_welcome || 'Find a nutrition club near you'}</h1>
-        <form className="pf-search-form" onSubmit={handleSearch}>
-          <div className="pf-search-row">
-            <AddressAutocomplete
-              value={query}
-              onChange={setQuery}
-              onSelect={({ street, city, state, zip, lat, lng }) => {
-                const full = [street, city, state, zip].filter(Boolean).join(', ')
-                setQuery(full)
-                setGeoError('')
-                setUserLat(lat); setUserLng(lng)
-                doSearch(lat, lng)
-              }}
-            />
-            <button className="pf-search-btn" type="submit" disabled={searching}>
-              {searching ? '…' : <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2"/><path d="M21 21l-4.35-4.35" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>}
-            </button>
-          </div>
-          <button type="button" className="pf-locate-btn" onClick={handleGeolocate} disabled={geoLocating}>
-            {geoLocating ? <span className="pf-locate-spinner" /> : <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4" fill="currentColor"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/><circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="1.5" strokeDasharray="3 2"/></svg>}
+      <div className="pfp-map-wrap">
+        <MapContainer center={[39.5, -98.35]} zoom={4} style={{ height: '100%', width: '100%' }} zoomControl={false}>
+          <TileLayer url={MAPBOX_URL} attribution={MAPBOX_ATTR} />
+          {flyTo && <MapFlyTo key={flyTo._t} lat={flyTo.lat} lng={flyTo.lng} zoom={flyTo.zoom} />}
+          {userLat && userLng && <Marker position={[userLat, userLng]} icon={userIcon} />}
+          {(results || []).map(club => {
+            if (!club.lat || !club.lng) return null
+            const isSelected = club.id === expandedId
+            const isHovered  = club.id === hoveredId
+            const icon = makeClubIcon(isSelected ? 'selected' : 'other', isSelected ? selColor : pinColor, isHovered)
+            return (
+              <Marker
+                key={club.id}
+                position={[club.lat, club.lng]}
+                icon={icon}
+                eventHandlers={{
+                  click: () => handlePinClick(club.id),
+                  mouseover: () => setHoveredId(club.id),
+                  mouseout: () => setHoveredId(null),
+                }}
+              />
+            )
+          })}
+        </MapContainer>
+
+        {/* Search box */}
+        <div className="pfp-search-float">
+          <form className="pfp-search-form" onSubmit={handleSearchSubmit}>
+            <div className="pfp-search-row">
+              <AddressAutocomplete
+                value={query}
+                onChange={setQuery}
+                onSelect={({ street, city, state, zip, lat, lng }) => {
+                  const full = [street, city, state, zip].filter(Boolean).join(', ')
+                  setQuery(full); setGeoError('')
+                  setUserLat(lat); setUserLng(lng)
+                  doSearch(lat, lng)
+                }}
+              />
+              <button className="pfp-search-btn" type="submit" disabled={searching}>
+                {searching ? <div className="pfp-search-spinner" /> : <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2"/><path d="M21 21l-4.35-4.35" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>}
+              </button>
+            </div>
+          </form>
+          <button className="pfp-geo-btn" onClick={handleGeolocate} disabled={geoLocating}>
+            {geoLocating ? <div className="pfp-search-spinner" style={{width:12,height:12}} /> : <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4" fill="currentColor"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/><circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="1.5" strokeDasharray="3 2"/></svg>}
             {geoLocating ? 'Locating…' : 'Use my location'}
           </button>
-        </form>
-        {geoError && <div className="pf-geo-error">{geoError}</div>}
-      </div>
-
-      {/* Saved panel */}
-      {publicAccount && savedClubs.length > 0 && (
-        <div style={{ padding: '12px 16px 0', maxWidth: 680, margin: '0 auto', width: '100%' }}>
-          <SavedPanel
-            savedClubs={savedClubs}
-            expandedId={expandedId}
-            onExpand={id => setExpandedId(id)}
-            onClose={() => setExpandedId(null)}
-            onToggleFav={toggleFavorite}
-            favIds={favIds}
-          />
+          {geoError && <div className="pfp-geo-error">{geoError}</div>}
         </div>
-      )}
 
-      {/* Results */}
-      <div className="pf-results">
-        {results === null && !searching && (
-          <div className="pf-empty-state">
-            <PinIcon size={36} color="#ccc" />
-            <p>Enter your location above to find clubs near you</p>
-          </div>
-        )}
-        {searching && (
-          <div className="pf-loading-state">
-            <div className="pf-spinner" />
-            <p>Searching for clubs…</p>
-          </div>
-        )}
-        {results !== null && !searching && results.length === 0 && (
-          <div className="pf-empty-state">
-            <PinIcon size={36} color="#ccc" />
-            <p>No clubs found near that location.<br/>Try a nearby city or zip code.</p>
-          </div>
-        )}
-        {results !== null && !searching && results.length > 0 && (
-          <>
-            <div className="pf-results-header">
-              {resultsFallback
-                ? <><span className="pf-results-fallback">No clubs found within {Math.abs(settings?.search_radius_miles ?? 20)} miles. Showing nearest results.</span></>
-                : <>{results.length} club{results.length !== 1 ? 's' : ''} found nearby</>
-              }
+        {/* Results panel */}
+        {results !== null && (
+          <div className={`pfp-panel ${panelOpen ? 'pfp-panel--open' : 'pfp-panel--collapsed'}`}>
+            <div className="pfp-panel-header" onClick={() => setPanelOpen(o => !o)}>
+              <span className="pfp-panel-count">
+                {resultsFallback
+                  ? <span className="pfp-fallback-text">No clubs within {Math.abs(settings?.search_radius_miles ?? 20)} mi — showing nearest</span>
+                  : <>{results.length} club{results.length !== 1 ? 's' : ''} found nearby</>
+                }
+              </span>
+              <svg className="pfp-panel-chevron" width="13" height="13" viewBox="0 0 16 16" fill="none">
+                <path d={panelOpen ? 'M4 10l4-4 4 4' : 'M4 6l4 4 4-4'} stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
             </div>
-            {results.map(club => (
-              <ClubCard
-                key={club.id}
-                club={club}
-                distanceMiles={club.distanceMiles}
-                expanded={expandedId === club.id}
-                onExpand={() => setExpandedId(club.id)}
-                onClose={() => setExpandedId(null)}
-                isFav={favIds.has(club.id)}
-                onToggleFav={publicAccount ? () => toggleFavorite(club.id) : undefined}
-                onAuthRequired={!publicAccount && settings?.public_accounts_enabled !== false ? () => setAuthModal('signin') : undefined}
-                publicAccountId={publicAccount?.id}
-              />
-            ))}
-          </>
+            {panelOpen && (
+              <div className="pfp-panel-list">
+                {results.map(club => (
+                  <div key={club.id} id={`pfp-card-${club.id}`} onMouseEnter={() => setHoveredId(club.id)} onMouseLeave={() => setHoveredId(null)}>
+                    <ClubCard
+                      club={club}
+                      expanded={expandedId === club.id}
+                      onExpand={() => handleCardExpand(club.id)}
+                      onClose={() => setExpandedId(null)}
+                      isFav={favIds.has(club.id)}
+                      onToggleFav={publicAccount ? () => toggleFavorite(club.id) : undefined}
+                      onAuthRequired={!publicAccount && settings?.public_accounts_enabled !== false ? () => setAuthModal('signin') : undefined}
+                      publicAccountId={publicAccount?.id}
+                      markerColor={club.id === expandedId ? selColor : pinColor}
+                    />
+                  </div>
+                ))}
+                <div className="pfp-panel-footer">
+                  <span>Club owner?</span>
+                  <button onClick={() => navigate('/login')} className="pfp-footer-link">Log in to manage your club →</button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Pre-search hint */}
+        {results === null && !searching && (
+          <div className="pfp-map-hint">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="1.8"/><path d="M21 21l-4.35-4.35" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>
+            {settings?.public_finder_welcome || 'Find a nutrition club near you'}
+          </div>
         )}
       </div>
 
-      {/* Footer */}
-      <div className="pf-footer">
-        <span>Are you a club owner?</span>
-        <button className="pf-footer-link" onClick={() => navigate('/login')}>Log in to manage your club →</button>
-      </div>
-
-      {/* Auth modal */}
       {authModal && (
-        <AuthModal
-          mode={authModal}
-          settings={settings}
-          onSuccess={handleAuthSuccess}
-          onClose={() => setAuthModal(null)}
-        />
+        <AuthModal mode={authModal} settings={settings} onSuccess={handleAuthSuccess} onClose={() => setAuthModal(null)} />
       )}
     </div>
   )

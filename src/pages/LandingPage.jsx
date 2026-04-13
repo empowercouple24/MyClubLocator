@@ -149,7 +149,8 @@ export default function LandingPage() {
         {/* Headline */}
         <h1 className="landing-headline">Welcome to My Club Locator</h1>
         <p className="landing-sub">
-          The private locator for independently owned nutrition clubs.
+          The private locator for independently owned<br/>
+          <span className="landing-sub-highlight">nutrition clubs</span>
         </p>
 
         {/* Hero card */}
