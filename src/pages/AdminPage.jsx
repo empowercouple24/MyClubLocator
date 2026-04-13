@@ -342,9 +342,13 @@ export default function AdminPage() {
   const [allTeams, setAllTeams]         = useState([])
   const [teamsLoaded, setTeamsLoaded]   = useState(false)
 
-  // Unread counts
+  // Unread counts — per type
   const unreadContacts = contacts.filter(c => !c.is_read).length
-  const unreadNotifs   = notifications.filter(n => !n.is_read).length
+  const unreadByType = {}
+  notifications.filter(n => !n.is_read).forEach(n => {
+    unreadByType[n.type] = (unreadByType[n.type] || 0) + 1
+  })
+  const unreadNotifs   = Object.values(unreadByType).reduce((a, b) => a + b, 0)
   const totalUnread    = unreadContacts + unreadNotifs
 
   // Real-time subscriptions
@@ -362,9 +366,16 @@ export default function AdminPage() {
         setNotifications(prev => [payload.new, ...prev])
       })
       .subscribe()
+    // Subscribe to locations — auto-refresh members table on new/updated clubs
+    const locSub = supabase.channel('admin-locations')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'locations' }, () => {
+        loadMembers()
+      })
+      .subscribe()
     return () => {
       supabase.removeChannel(contactSub)
       supabase.removeChannel(notifSub)
+      supabase.removeChannel(locSub)
     }
   }, [isAdmin])
 
@@ -707,13 +718,43 @@ export default function AdminPage() {
                     )}
                   </span>
                 ) : (
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
                     Messages
-                    {totalUnread > 0 && (
-                      <span style={{
+                    {unreadContacts > 0 && (
+                      <span title="Unread contact form submissions" style={{
+                        background: '#7C3AED', color: '#fff', borderRadius: '10px',
+                        fontSize: 10, fontWeight: 600, padding: '1px 6px', lineHeight: '16px'
+                      }}>{unreadContacts}</span>
+                    )}
+                    {unreadByType.new_signup > 0 && (
+                      <span title="New member signups" style={{
+                        background: '#2563EB', color: '#fff', borderRadius: '10px',
+                        fontSize: 10, fontWeight: 600, padding: '1px 6px', lineHeight: '16px'
+                      }}>{unreadByType.new_signup}</span>
+                    )}
+                    {unreadByType.new_profile > 0 && (
+                      <span title="New club profiles submitted" style={{
+                        background: '#059669', color: '#fff', borderRadius: '10px',
+                        fontSize: 10, fontWeight: 600, padding: '1px 6px', lineHeight: '16px'
+                      }}>{unreadByType.new_profile}</span>
+                    )}
+                    {unreadByType.pending_approval > 0 && (
+                      <span title="Members awaiting approval" style={{
+                        background: '#F59E0B', color: '#fff', borderRadius: '10px',
+                        fontSize: 10, fontWeight: 600, padding: '1px 6px', lineHeight: '16px'
+                      }}>{unreadByType.pending_approval}</span>
+                    )}
+                    {unreadByType.club_note > 0 && (
+                      <span title="Notes left by public visitors" style={{
                         background: '#e53e3e', color: '#fff', borderRadius: '10px',
                         fontSize: 10, fontWeight: 600, padding: '1px 6px', lineHeight: '16px'
-                      }}>{totalUnread}</span>
+                      }}>{unreadByType.club_note}</span>
+                    )}
+                    {unreadByType.team_invite > 0 && (
+                      <span title="Team invitation activity" style={{
+                        background: '#0891B2', color: '#fff', borderRadius: '10px',
+                        fontSize: 10, fontWeight: 600, padding: '1px 6px', lineHeight: '16px'
+                      }}>{unreadByType.team_invite}</span>
                     )}
                   </span>
                 )

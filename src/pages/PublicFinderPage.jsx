@@ -49,6 +49,7 @@ function makeUserIcon() {
         <circle cx="10" cy="10" r="7" fill="#185FA5" stroke="white" stroke-width="2.5"/>
         <circle cx="10" cy="10" r="3" fill="white"/>
       </svg>
+      <div class="you-are-here-label">YOU ARE HERE</div>
     </div>`,
     iconSize: [20, 20], iconAnchor: [10, 10],
   })
@@ -58,7 +59,7 @@ function MapFlyTo({ lat, lng, zoom, bounds }) {
   const map = useMap()
   useEffect(() => {
     if (bounds) {
-      map.fitBounds(bounds, { padding: [40, 40], maxZoom: 14, animate: true })
+      map.fitBounds(bounds, { padding: [60, 60], maxZoom: 14, animate: true })
     } else if (lat && lng) {
       map.flyTo([lat, lng], zoom || 13, { duration: 1 })
     }
@@ -363,6 +364,10 @@ function ClubCard({ club, expanded, onExpand, onClose, isFav, onToggleFav, onAut
               {noteSent && <div className="pf-note-sent">Note submitted — thank you!</div>}
             </div>
           )}
+          <a className="pfp-directions-btn" href={mapsUrl} target="_blank" rel="noopener noreferrer">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M3 12l18-9-9 18-2-8-7-1z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/></svg>
+            Get directions in Google Maps
+          </a>
           {onShowRoute && (
             <button
               className={`pfp-route-btn ${routeActive ? 'pfp-route-btn--active' : ''}`}
@@ -372,16 +377,19 @@ function ClubCard({ club, expanded, onExpand, onClose, isFav, onToggleFav, onAut
               {routeLoading ? (
                 <><div className="pfp-route-spinner" /> Calculating route…</>
               ) : routeActive ? (
-                <><svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg> Hide route</>
+                <><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg> Hide route</>
               ) : (
-                <><svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M3 12l18-9-9 18-2-8-7-1z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" fill="currentColor"/></svg> Show driving route</>
+                <><svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                  <path d="M3 18h1c1 0 2-.5 2.5-1.5L8 14l2 2 3-4 2.5 3 1.5-1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  <rect x="4" y="7" width="8" height="5" rx="2" stroke="currentColor" strokeWidth="1.5"/>
+                  <circle cx="6" cy="12" r="1.5" fill="currentColor"/>
+                  <circle cx="10" cy="12" r="1.5" fill="currentColor"/>
+                  <rect x="5" y="8.5" width="3" height="2" rx="0.5" fill="currentColor" opacity="0.3"/>
+                  <rect x="9" y="8.5" width="2" height="2" rx="0.5" fill="currentColor" opacity="0.3"/>
+                </svg> Show driving route</>
               )}
             </button>
           )}
-          <a className="pfp-directions-btn" href={mapsUrl} target="_blank" rel="noopener noreferrer">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M3 12l18-9-9 18-2-8-7-1z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/></svg>
-            Get directions in Google Maps
-          </a>
         </div>
       )}
     </div>
@@ -514,14 +522,24 @@ export default function PublicFinderPage() {
     const mapDist = rows => (rows || []).map(r => ({ ...r, distanceMiles: r.distance_miles }))
     const { data: nearby, error } = await supabase.rpc('nearby_clubs', { search_lat: lat, search_lng: lng, radius_miles: radius })
     if (error) { console.error('nearby_clubs error:', error); setSearching(false); return }
+    let displayResults
     if (nearby && nearby.length > 0) {
-      setResults(mapDist(nearby).slice(0, 25)); setResultsFallback(false)
+      displayResults = mapDist(nearby).slice(0, 25)
+      setResults(displayResults); setResultsFallback(false)
     } else {
       const { data: fallback } = await supabase.rpc('nearby_clubs', { search_lat: lat, search_lng: lng, radius_miles: 99999 })
-      setResults(mapDist(fallback).slice(0, 5)); setResultsFallback(true)
+      displayResults = mapDist(fallback).slice(0, 5)
+      setResults(displayResults); setResultsFallback(true)
     }
     setPanelOpen(true); setSearching(false)
-    setFlyTo({ lat, lng, zoom: 13, _t: Date.now() })
+    // Fit map to show user location + all result pins
+    const pts = [[lat, lng]]
+    displayResults.forEach(c => { if (c.lat && c.lng) pts.push([c.lat, c.lng]) })
+    if (pts.length > 1) {
+      setFlyTo({ bounds: pts, _t: Date.now() })
+    } else {
+      setFlyTo({ lat, lng, zoom: 13, _t: Date.now() })
+    }
   }
 
   async function handleSearchSubmit(e) {
@@ -549,17 +567,29 @@ export default function PublicFinderPage() {
 
   function handleCardExpand(id) {
     setExpandedId(id)
-    // Clear route if switching clubs
     if (id !== routeClubId) { setRouteCoords(null); setRouteClubId(null) }
     const club = results?.find(r => r.id === id)
-    if (club?.lat && club?.lng) setFlyTo({ lat: club.lat, lng: club.lng, zoom: 14, _t: Date.now() })
+    if (!club?.lat || !club?.lng) return
+    // If we have user location, fit both points in view; otherwise just fly to club
+    if (userLat && userLng) {
+      const bounds = [[userLat, userLng], [club.lat, club.lng]]
+      setFlyTo({ bounds, _t: Date.now() })
+    } else {
+      setFlyTo({ lat: club.lat, lng: club.lng, zoom: 14, _t: Date.now() })
+    }
   }
 
   function handlePinClick(id) {
     setExpandedId(id); setPanelOpen(true)
     if (id !== routeClubId) { setRouteCoords(null); setRouteClubId(null) }
     const club = results?.find(r => r.id === id)
-    if (club?.lat && club?.lng) setFlyTo({ lat: club.lat, lng: club.lng, zoom: 14, _t: Date.now() })
+    if (!club?.lat || !club?.lng) return
+    if (userLat && userLng) {
+      const bounds = [[userLat, userLng], [club.lat, club.lng]]
+      setFlyTo({ bounds, _t: Date.now() })
+    } else {
+      setFlyTo({ lat: club.lat, lng: club.lng, zoom: 14, _t: Date.now() })
+    }
     setTimeout(() => document.getElementById(`pfp-card-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 150)
   }
 
@@ -686,7 +716,10 @@ export default function PublicFinderPage() {
                   icon={icon}
                   eventHandlers={{
                     click: () => handlePinClick(club.id),
-                    mouseover: () => setHoveredId(club.id),
+                    mouseover: () => {
+                      setHoveredId(club.id)
+                      document.getElementById(`pfp-card-${club.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+                    },
                     mouseout: () => setHoveredId(null),
                   }}
                 />
@@ -740,7 +773,10 @@ export default function PublicFinderPage() {
               {panelOpen && (
                 <div className="pfp-panel-list">
                   {results.map(club => (
-                    <div key={club.id} id={`pfp-card-${club.id}`} onMouseEnter={() => setHoveredId(club.id)} onMouseLeave={() => setHoveredId(null)}>
+                    <div key={club.id} id={`pfp-card-${club.id}`}
+                      className={hoveredId === club.id && expandedId !== club.id ? 'pfp-card-highlight' : ''}
+                      onMouseEnter={() => setHoveredId(club.id)}
+                      onMouseLeave={() => setHoveredId(null)}>
                       <ClubCard
                         club={club}
                         expanded={expandedId === club.id}

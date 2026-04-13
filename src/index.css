@@ -2202,7 +2202,7 @@ body:has(.admin-page-wrap) {
   transition: all 0.15s;
 }
 .btn-save-map:hover:not(:disabled) { background: #f0faf5; }
-.btn-save-map:disabled { opacity: 0.5; }
+.btn-save-map:disabled { opacity: 0.4; background: #eee; color: #aaa; border-color: #ccc; cursor: not-allowed; }
 
 /* ── Map hover tooltip ── */
 /* ── Club hover tooltip — rich white card ── */
@@ -2420,6 +2420,7 @@ body:has(.admin-page-wrap) {
   align-items: center;
   justify-content: center;
   background: #edf7f1;
+  position: relative;
 }
 .owner-photo-preview img {
   width: 100%;
@@ -4951,20 +4952,34 @@ body:has(.admin-page-wrap) {
 }
 
 /* ── Market data research mode ───────────────────────────── */
-.demo-research-mode {
+.demo-research-mode .leaflet-container {
   cursor: crosshair !important;
 }
-.demo-research-mode * {
+.demo-research-mode .leaflet-container * {
   cursor: crosshair !important;
 }
-/* Toolbar buttons should always show pointer even in research mode */
-.demo-research-mode .map-toolbar button,
-.demo-research-mode .map-toolbar a,
-.demo-research-mode .map-demo-btn,
-.demo-research-mode .map-scroll-zoom-btn,
-.demo-research-mode .map-zoom-btn,
-.demo-research-mode .map-clear-btn {
+/* All non-map elements keep normal pointer cursor in research mode */
+.demo-research-mode .map-toolbar,
+.demo-research-mode .map-toolbar *,
+.demo-research-mode .map-prefs-float,
+.demo-research-mode .map-prefs-float *,
+.demo-research-mode .map-zoom-float,
+.demo-research-mode .map-zoom-float *,
+.demo-research-mode .map-legend,
+.demo-research-mode .map-legend *,
+.demo-research-mode .club-panel,
+.demo-research-mode .club-panel *,
+.demo-research-mode .map-save-toast,
+.demo-research-mode button,
+.demo-research-mode a,
+.demo-research-mode input,
+.demo-research-mode select,
+.demo-research-mode textarea {
   cursor: pointer !important;
+}
+.demo-research-mode input,
+.demo-research-mode textarea {
+  cursor: text !important;
 }
 
 /* Pulsing target cursor overlay */
@@ -7011,6 +7026,39 @@ input.input-ok {
   transition: width 0.2s ease;
 }
 
+/* Owner/logo photo upload progress overlay */
+.photo-upload-progress-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(255,255,255,0.75);
+  border-radius: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  padding: 12px;
+}
+.photo-upload-progress-overlay .photo-upload-progress-bar {
+  width: 100%;
+  height: 4px;
+  background: #c8ecd8;
+  border-radius: 2px;
+  overflow: hidden;
+}
+.photo-upload-progress-fill {
+  height: 100%;
+  background: #2E7D5B;
+  border-radius: 2px;
+}
+.photo-upload-progress-fill--indeterminate {
+  width: 40%;
+  animation: indeterminateSlide 1.2s ease-in-out infinite;
+}
+@keyframes indeterminateSlide {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(350%); }
+}
+
 /* ── My Location button ───────────────────────────────────── */
 .map-geolocate-btn {
   display: inline-flex;
@@ -8800,6 +8848,45 @@ input.input-ok {
   50% { transform: scale(1.5); opacity: 0.15; }
 }
 
+/* YOU ARE HERE floating label */
+.you-are-here-label {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  color: #185FA5;
+  background: #fff;
+  padding: 3px 10px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+  pointer-events: none;
+  animation: youAreHereBounce 2s ease-in-out infinite;
+}
+.you-are-here-label::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: #fff;
+}
+@keyframes youAreHereBounce {
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  50% { transform: translateX(-50%) translateY(-3px); }
+}
+
+/* Card highlight when corresponding pin is hovered */
+.pfp-card-highlight .pfp-card {
+  background: #EDF5F0;
+  box-shadow: inset 3px 0 0 #1A3C2E;
+  transition: background 0.15s, box-shadow 0.15s;
+}
+
 /* Mobile */
 @media (max-width: 600px) {
   .pfp-search-float { width: calc(100vw - 24px); }
@@ -8971,12 +9058,12 @@ input.input-ok {
 
 /* ── Route button ─────────────────────────────────────────── */
 .pfp-route-btn {
-  display: flex; align-items: center; gap: 6px;
+  display: flex; align-items: center; gap: 7px;
   font-size: 12px; font-weight: 500;
   color: #185FA5; background: #E6F1FB;
   border: 0.5px solid #B5D4F4; border-radius: 8px;
-  padding: 7px 12px; cursor: pointer; width: 100%;
-  margin-top: 8px; transition: background 0.15s;
+  padding: 8px 12px; cursor: pointer; width: 100%;
+  margin-top: 6px; transition: background 0.15s;
 }
 .pfp-route-btn:hover:not(:disabled) { background: #d0e8f7; }
 .pfp-route-btn:disabled { opacity: 0.6; cursor: default; }

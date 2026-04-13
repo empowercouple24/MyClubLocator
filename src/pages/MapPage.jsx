@@ -1664,9 +1664,10 @@ export default function MapPage() {
                   if (!geo?.stateFips || !geo?.countyFips) { setCountyGeoJson(null); return }
                   try {
                     const countyOnly = geo.countyFips.slice(2)
-                    const url = `https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/tigerWMS_ACS2022/MapServer/82/query?where=STATE%3D%27${geo.stateFips}%27+AND+COUNTY%3D%27${countyOnly}%27&outFields=*&f=geojson`
-                    console.log('[MarketData] Fetching county boundary:', url)
+                    const url = `/api/county-boundary?state=${geo.stateFips}&county=${countyOnly}`
+                    console.log('[MarketData] Fetching county boundary via proxy:', geo.stateFips, countyOnly)
                     const res = await fetch(url)
+                    if (!res.ok) { console.warn('[MarketData] County boundary HTTP', res.status); setCountyGeoJson(null); return }
                     const data = await res.json()
                     console.log('[MarketData] County boundary response:', data?.features?.length, 'features')
                     if (data?.features?.length) setCountyGeoJson(data)

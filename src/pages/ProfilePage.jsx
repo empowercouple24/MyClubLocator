@@ -587,6 +587,13 @@ function OwnerPhotoUpload({ label, photoUrl, onUpload, uploading }) {
   return (
     <div className="owner-photo-upload">
       <div className="owner-photo-preview">
+        {uploading && (
+          <div className="photo-upload-progress-overlay">
+            <div className="photo-upload-progress-bar">
+              <div className="photo-upload-progress-fill photo-upload-progress-fill--indeterminate" />
+            </div>
+          </div>
+        )}
         {photoUrl
           ? <img src={photoUrl} alt={label + ' photo'} />
           : <div className="owner-photo-placeholder">👤</div>
@@ -643,7 +650,7 @@ function RemoveClubPrompt({ clubName, onConfirm, onCancel }) {
 }
 
 // ── ClubEditor: renders one club's fields ─────────────────────
-function ClubEditor({ club, clubIndex, userId, isOnly, onSaved, onRemove, userEmail }) {
+function ClubEditor({ club, clubIndex, userId, isOnly, onSaved, onRemove, userEmail, personData }) {
   const [form, setForm]       = useState({ ...DEFAULT_CLUB, ...club })
   const [savedForm, setSavedForm] = useState({ ...DEFAULT_CLUB, ...club })
   const [errors, setErrors]   = useState({})
@@ -670,6 +677,14 @@ function ClubEditor({ club, clubIndex, userId, isOnly, onSaved, onRemove, userEm
 
   const isDirty = JSON.stringify({ ...form, logo_url: logoUrl, photo_urls: photoUrls })
     !== JSON.stringify({ ...savedForm, logo_url: savedForm.logo_url, photo_urls: savedForm.photo_urls })
+
+  // Required fields filled check — enables/disables save buttons
+  const requiredFilled = !!(
+    form.club_name.trim() && form.club_email.trim() && form.address.trim() &&
+    form.zip.trim() && form.city.trim() && form.state.trim() &&
+    form.opened_month && form.opened_year &&
+    DAYS.some(d => form['hours_' + d + '_open'] && form['hours_' + d + '_close'])
+  )
 
   function setField(key, value) {
     setForm(f => ({ ...f, [key]: value }))
@@ -768,6 +783,16 @@ function ClubEditor({ club, clubIndex, userId, isOnly, onSaved, onRemove, userEm
       state_zip: (form.state + ' ' + form.zip).trim(),
       logo_url: logoUrl,
       photo_urls: photoUrls,
+      ...(isNew && personData ? {
+        first_name: personData.first_name,
+        last_name: personData.last_name,
+        owner_email: personData.owner_email,
+        herbalife_level: personData.herbalife_level,
+        owner2_first_name: personData.owner2_first_name,
+        owner2_last_name: personData.owner2_last_name,
+        owner3_first_name: personData.owner3_first_name,
+        owner3_last_name: personData.owner3_last_name,
+      } : {}),
     }
     delete record.id
 
@@ -797,15 +822,18 @@ function ClubEditor({ club, clubIndex, userId, isOnly, onSaved, onRemove, userEm
         body: `${form.club_name || 'A new club'} just set up their profile${form.city ? ` in ${form.city}${form.state ? `, ${form.state}` : ''}` : ''}.`,
         user_id: userId,
       })
-      onSaved && onSaved(savedRow)
     }
+    onSaved && onSaved(savedRow)
 
-    // Geocode in background — don't block the save
+    // Geocode in background — update the row so it appears on the map
     const fullAddress = [form.address, form.city, form.state, form.zip].filter(Boolean).join(', ')
     if (fullAddress) {
       geocodeAddress(fullAddress).then(coords => {
         if (coords) {
+          console.log('[ClubEditor] Geocoded:', fullAddress, '→', coords)
           supabase.from('locations').update({ lat: coords.lat, lng: coords.lng }).eq('id', savedRow.id)
+        } else {
+          console.warn('[ClubEditor] Geocode failed for:', fullAddress)
         }
       })
     }
@@ -1135,6 +1163,13 @@ function ClubEditor({ club, clubIndex, userId, isOnly, onSaved, onRemove, userEm
               ? <div className="logo-preview"><img src={logoUrl} alt="Club logo" /><button className="photo-remove-btn" onClick={() => setLogoUrl(null)}>✕</button></div>
               : <div className="upload-placeholder logo-placeholder"><span>No logo yet</span></div>
             }
+            {uploadingLogo && (
+              <div style={{ width: '100%', maxWidth: 120 }}>
+                <div className="photo-upload-progress-bar-wrap">
+                  <div className="photo-upload-progress-fill photo-upload-progress-fill--indeterminate" />
+                </div>
+              </div>
+            )}
             <div>
               <button className="upload-btn" onClick={() => logoInputRef.current && logoInputRef.current.click()} disabled={uploadingLogo}>
                 {uploadingLogo ? 'Uploading…' : logoUrl ? '↑ Replace Logo' : '↑ Upload Logo'}
@@ -1194,6 +1229,9 @@ function ClubEditor({ club, clubIndex, userId, isOnly, onSaved, onRemove, userEm
                     <div className="photo-upload-progress-text" style={{ fontSize: 10, marginTop: 4 }}>
                       {uploadProgress.done}/{uploadProgress.total}
                     </div>
+                    <div className="photo-upload-progress-bar-wrap" style={{ marginTop: 4 }}>
+                      <div className="photo-upload-progress-bar" style={{ width: `${Math.round((uploadProgress.done / uploadProgress.total) * 100)}%` }} />
+                    </div>
                   </div>
                 )
               }
@@ -1245,10 +1283,10 @@ function ClubEditor({ club, clubIndex, userId, isOnly, onSaved, onRemove, userEm
           </div>
         )}
         <div className="save-bar-btns">
-          <button className="btn-save" onClick={() => handleSave('save')} disabled={saving && saveAction === 'save'}>
+          <button className="btn-save" onClick={() => handleSave('save')} disabled={saving || (!isDirty && !!form.id) || !requiredFilled}>
             {saving && saveAction === 'save' ? 'Saving…' : 'Save Club'}
           </button>
-          <button className="btn-save-map" onClick={() => handleSave('map')} disabled={saving && saveAction === 'map'}>
+          <button className="btn-save-map" onClick={() => handleSave('map')} disabled={saving || (!isDirty && !!form.id) || !requiredFilled}>
             {saving && saveAction === 'map' ? 'Saving…' : 'Save & Go to Map'}
           </button>
         </div>
@@ -1308,7 +1346,8 @@ export default function ProfilePage() {
   const [myClubsOpen, setMyClubsOpen] = useState(false)
 
   const isPersonDirty = savedPersonForm !== null
-    ? JSON.stringify(personForm) !== JSON.stringify(savedPersonForm)
+    ? JSON.stringify({ ...personForm, _p1: ownerPhotoUrl, _p2: owner2PhotoUrl, _p3: owner3PhotoUrl })
+      !== JSON.stringify({ ...savedPersonForm, _p1: savedPersonForm._p1, _p2: savedPersonForm._p2, _p3: savedPersonForm._p3 })
     : false
 
   useEffect(() => {
@@ -1326,13 +1365,14 @@ export default function ProfilePage() {
         const pf = { ...DEFAULT_PERSON }
         Object.keys(DEFAULT_PERSON).forEach(k => { if (row0[k] != null) pf[k] = row0[k] })
         setPersonForm(pf)
-        setSavedPersonForm(pf)
 
         if (row0.owner2_first_name) setShowOwner2(true)
         if (row0.owner3_first_name) setShowOwner3(true)
         if (row0.owner_photo_url)  setOwnerPhotoUrl(row0.owner_photo_url)
         if (row0.owner2_photo_url) setOwner2PhotoUrl(row0.owner2_photo_url)
         if (row0.owner3_photo_url) setOwner3PhotoUrl(row0.owner3_photo_url)
+
+        setSavedPersonForm({ ...pf, _p1: row0.owner_photo_url || null, _p2: row0.owner2_photo_url || null, _p3: row0.owner3_photo_url || null })
 
         // Build clubs array — one entry per row
         setClubs(data.map(row => {
@@ -1440,7 +1480,7 @@ export default function ProfilePage() {
     if (error) {
       setPersonErrors({ _general: error.message })
     } else {
-      setSavedPersonForm({ ...personForm })
+      setSavedPersonForm({ ...personForm, _p1: ownerPhotoUrl, _p2: owner2PhotoUrl, _p3: owner3PhotoUrl })
       // Clear pending_survey now that it's been applied
       supabase.from('user_terms_acceptance')
         .update({ pending_survey: null })
@@ -1464,9 +1504,9 @@ export default function ProfilePage() {
   }
 
   function handleClubSaved(savedRow) {
-    // Update the clubs array with the saved row's id
+    // Update the clubs array with the full saved row
     setClubs(prev => prev.map((c, i) =>
-      i === activeTab ? { ...c, id: savedRow.id } : c
+      i === activeTab ? { ...c, ...savedRow } : c
     ))
   }
 
@@ -1738,7 +1778,7 @@ export default function ProfilePage() {
                 Unsaved changes
               </div>
             )}
-            <button className="btn-save" onClick={savePersonFields} disabled={saving || !isPersonDirty}>
+            <button className="btn-save" onClick={savePersonFields} disabled={saving || !isPersonDirty || !personForm.first_name.trim() || !personForm.last_name.trim() || !personForm.herbalife_level}>
               {saving ? 'Saving…' : 'Save Owner Info'}
             </button>
           </div>
@@ -1794,6 +1834,7 @@ export default function ProfilePage() {
             onSaved={handleClubSaved}
             onRemove={() => handleClubRemoved(activeTab)}
             userEmail={!clubs[activeTab].id && activeTab === 0 ? user.email : null}
+            personData={personForm}
           />
         )}
         </>)}
