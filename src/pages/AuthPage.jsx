@@ -150,13 +150,15 @@ export default function AuthPage() {
     async function handleConfirmed() {
       const { data: { session } } = await supabase.auth.getSession()
       if (session?.user) {
-        // User is auto-signed in from the confirmation link
+        // Ensure user_terms_acceptance row exists (created here after email is confirmed, not during signup)
+        const { data: existing } = await supabase.from('user_terms_acceptance').select('id').eq('user_id', session.user.id).single()
+        if (!existing) {
+          await supabase.from('user_terms_acceptance').insert({ user_id: session.user.id })
+        }
         setEmailJustConfirmed(true)
-        // After showing welcome, route to onboarding
         setTimeout(() => navigate('/onboarding'), 3000)
       }
     }
-    // Small delay to let Supabase process the auth tokens from URL hash
     setTimeout(handleConfirmed, 500)
   }, [isEmailConfirmed])
 
@@ -212,11 +214,16 @@ export default function AuthPage() {
       setLoading(false); return
     }
 
-    const { data: uta } = await supabase.from('user_terms_acceptance').select('onboarding_done').eq('user_id', user.id).single()
+    let { data: uta } = await supabase.from('user_terms_acceptance').select('onboarding_done').eq('user_id', user.id).single()
+    // Safety net: if row doesn't exist yet (e.g. confirmed on different device), create it
+    if (!uta) {
+      await supabase.from('user_terms_acceptance').insert({ user_id: user.id })
+      uta = { onboarding_done: false }
+    }
     const { data: locs } = await supabase.from('locations').select('first_name, club_name, approved').eq('user_id', user.id).order('created_at')
     const loc = locs?.[0] || null
 
-    if (!uta?.onboarding_done) { navigate('/onboarding'); return }
+    if (!uta.onboarding_done) { navigate('/onboarding'); return }
 
     const applyTokens = (template, name, club) =>
       (template || '').replace(/\{name\}/g, name || '').replace(/\{club\}/g, club || locs?.[0]?.club_name || '')
@@ -258,7 +265,6 @@ export default function AuthPage() {
     if (error) { setError(error.message); setLoading(false) }
     else {
       if (data?.user?.id) {
-        await supabase.from('user_terms_acceptance').insert({ user_id: data.user.id })
         await supabase.from('notifications').insert({ type: 'new_signup', title: 'New member signed up', body: `${email} just created an account.`, user_id: data.user.id })
       }
       setLoading(false)

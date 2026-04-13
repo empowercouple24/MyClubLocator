@@ -75,13 +75,17 @@ export default function OnboardingPage() {
       await supabase.from('locations').update(record).eq('user_id', user.id)
     } else {
       // Store temporarily in user_terms_acceptance pending_survey column
-      await supabase.from('user_terms_acceptance').update({
+      await supabase.from('user_terms_acceptance').upsert({
+        user_id: user.id,
         pending_survey: JSON.stringify(record)
-      }).eq('user_id', user.id)
+      }, { onConflict: 'user_id' })
     }
 
     // Mark onboarding done
-    await supabase.from('user_terms_acceptance').update({ onboarding_done: true }).eq('user_id', user.id)
+    await supabase.from('user_terms_acceptance').upsert({
+      user_id: user.id,
+      onboarding_done: true
+    }, { onConflict: 'user_id' })
     setSaving(false)
   }
 

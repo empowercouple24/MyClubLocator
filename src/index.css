@@ -555,7 +555,7 @@ body:has(.admin-page-wrap) {
   background: #fff !important;
 }
 .admin-page-wrap .survey-toggle-btn {
-  background: #1A3C2E !important;
+  background: var(--theme-card-header-bg, #1A3C2E) !important;
 }
 .admin-page-wrap .admin-section-title {
   color: #fff !important;
