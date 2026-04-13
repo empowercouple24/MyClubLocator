@@ -286,6 +286,7 @@ export default function AdminPage() {
     theme_card_header_bold: true,
     theme_card_body:        '#ffffff',
     global_marker_shape:    'dot',
+    global_marker_size:     'small',
     demo_population: true,
     demo_income: true,
     demo_age_fit: true,
@@ -639,6 +640,7 @@ export default function AdminPage() {
       theme_card_header_bold:            settings.theme_card_header_bold,
       theme_card_body:                   settings.theme_card_body,
       global_marker_shape:               settings.global_marker_shape,
+      global_marker_size:                settings.global_marker_size,
       demo_population:            settings.demo_population,
       demo_income:                settings.demo_income,
       demo_age_fit:               settings.demo_age_fit,
@@ -1686,6 +1688,39 @@ export default function AdminPage() {
                       </div>
                     </div>
 
+                    {/* Global marker size picker */}
+                    <div style={{ marginBottom: 18 }}>
+                      <div className="mc-picker-label" style={{ marginBottom: 4 }}>Default marker size</div>
+                      <div className="admin-section-desc" style={{ marginBottom: 10 }}>Controls how large markers appear on the map for all users.</div>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        {[
+                          { val: 'small',  label: 'Small',  dotSize: 10 },
+                          { val: 'medium', label: 'Medium', dotSize: 14 },
+                          { val: 'large',  label: 'Large',  dotSize: 19 },
+                        ].map(({ val, label, dotSize }) => {
+                          const active = (settings.global_marker_size || 'small') === val
+                          return (
+                            <button key={val} type="button"
+                              onClick={() => setSettings(s => ({ ...s, global_marker_size: val }))}
+                              style={{
+                                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
+                                padding: '10px 14px', borderRadius: 8, cursor: 'pointer',
+                                background: active ? '#f0f7f3' : '#fafafa',
+                                border: active ? '2px solid #1A3C2E' : '1.5px solid #ddd',
+                                color: active ? '#1A3C2E' : '#888',
+                                transition: 'all 0.12s', minWidth: 68,
+                              }}
+                            >
+                              <svg width="24" height="24" viewBox="0 0 24 24">
+                                <circle cx="12" cy="12" r={dotSize / 2} fill="currentColor" opacity="0.7"/>
+                              </svg>
+                              <span style={{ fontSize: 11, fontWeight: active ? 600 : 400 }}>{label}</span>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+
                     {/* Live preview */}
                     <div className="mc-preview-wrap">
                       <div className="mc-preview-label-row">
@@ -1698,12 +1733,14 @@ export default function AdminPage() {
                       <div className="mc-preview-map">
                         <div className="mc-map-bg" style={{ backgroundImage: `url(${previewBasemap === 'streets' ? mapPreviewStreets : mapPreviewSatellite})`, backgroundSize: 'cover', backgroundPosition: 'center' }} />
                         {/* Markers — shape-aware SVG */}
-                        {[
-                          { label: 'My club',    color: settings.marker_color_own,      x: '28%', y: '35%', size: 22, pulse: true },
-                          { label: 'Other club',  color: settings.marker_color_other,    x: '58%', y: '55%', size: 18, pulse: false },
-                          { label: 'Other club',  color: settings.marker_color_other,    x: '78%', y: '32%', size: 18, pulse: false },
-                          { label: 'Team club',   color: settings.marker_color_team,     x: '45%', y: '70%', size: 20, pulse: true },
-                          { label: 'Selected',    color: settings.marker_color_selected, x: '68%', y: '25%', size: 26, pulse: false, ring: true },
+                        {(() => {
+                          const sizeScale = settings.global_marker_size === 'large' ? 1.5 : settings.global_marker_size === 'medium' ? 1.25 : 1
+                          return [
+                          { label: 'My club',    color: settings.marker_color_own,      x: '28%', y: '35%', size: Math.round(22 * sizeScale), pulse: true },
+                          { label: 'Other club',  color: settings.marker_color_other,    x: '58%', y: '55%', size: Math.round(18 * sizeScale), pulse: false },
+                          { label: 'Other club',  color: settings.marker_color_other,    x: '78%', y: '32%', size: Math.round(18 * sizeScale), pulse: false },
+                          { label: 'Team club',   color: settings.marker_color_team,     x: '45%', y: '70%', size: Math.round(20 * sizeScale), pulse: true },
+                          { label: 'Selected',    color: settings.marker_color_selected, x: '68%', y: '25%', size: Math.round(26 * sizeScale), pulse: false, ring: true },
                         ].map(({ label, color, x, y, size, pulse, ring }, i) => {
                           const shape = settings.global_marker_shape || 'dot'
                           const r = size / 2
@@ -1730,7 +1767,8 @@ export default function AdminPage() {
                               <div className="mc-marker-tooltip">{label}</div>
                             </div>
                           )
-                        })}
+                        })
+                        })()}
                       </div>
                     </div>
 

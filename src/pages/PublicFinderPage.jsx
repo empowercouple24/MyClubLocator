@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { MapContainer, TileLayer, Marker, Polyline, useMap, useMapEvents } from 'react-leaflet'
+import { MapContainer, TileLayer, Marker, Polyline, Tooltip, useMap, useMapEvents } from 'react-leaflet'
 import { divIcon } from 'leaflet'
 import { supabase } from '../lib/supabase'
 import { geocodeSingle } from '../lib/geocode'
@@ -10,8 +10,8 @@ const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN
 const MAPBOX_URL   = `https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/256/{z}/{x}/{y}@2x?access_token=${MAPBOX_TOKEN}`
 const MAPBOX_ATTR  = '&copy; <a href="https://www.mapbox.com/about/maps/">Mapbox</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
 
-function makeClubIcon(type, fill, hovered) {
-  const sizes = { normal: 18, hovered: 24, selected: 28 }
+function makeClubIcon(type, fill, hovered, sizeScale = 1) {
+  const sizes = { normal: Math.round(18 * sizeScale), hovered: Math.round(24 * sizeScale), selected: Math.round(28 * sizeScale) }
   const size = type === 'selected' ? sizes.selected : hovered ? sizes.hovered : sizes.normal
   const r = size / 2
   if (type === 'selected') {
@@ -40,18 +40,23 @@ function makeClubIcon(type, fill, hovered) {
   })
 }
 
-function makeUserIcon() {
+function makeUserIcon(sizeScale = 1) {
+  const s = Math.round(20 * sizeScale)
+  const r = s / 2
+  const ir = Math.round(7 * sizeScale)
+  const cr = Math.round(3 * sizeScale)
+  const pr = Math.round(6 * sizeScale)
   return divIcon({
     className: '',
-    html: `<div style="position:relative;width:20px;height:20px;transform:translate(-50%,-50%);">
-      <div style="position:absolute;inset:-6px;border-radius:50%;border:2px solid #185FA5;opacity:0.35;animation:pfUserPulse 2s ease-in-out infinite;"></div>
-      <svg width="20" height="20" viewBox="0 0 20 20">
-        <circle cx="10" cy="10" r="7" fill="#185FA5" stroke="white" stroke-width="2.5"/>
-        <circle cx="10" cy="10" r="3" fill="white"/>
+    html: `<div style="position:relative;width:${s}px;height:${s}px;transform:translate(-50%,-50%);">
+      <div style="position:absolute;inset:-${pr}px;border-radius:50%;border:2px solid #185FA5;opacity:0.35;animation:pfUserPulse 2s ease-in-out infinite;"></div>
+      <svg width="${s}" height="${s}" viewBox="0 0 ${s} ${s}">
+        <circle cx="${r}" cy="${r}" r="${ir}" fill="#185FA5" stroke="white" stroke-width="2.5"/>
+        <circle cx="${r}" cy="${r}" r="${cr}" fill="white"/>
       </svg>
       <div class="you-are-here-label">YOU ARE HERE</div>
     </div>`,
-    iconSize: [20, 20], iconAnchor: [10, 10],
+    iconSize: [s, s], iconAnchor: [r, r],
   })
 }
 
@@ -418,6 +423,7 @@ export default function PublicFinderPage() {
   const [authModal, setAuthModal]           = useState(null)
   const [authLoading, setAuthLoading]       = useState(true)
   const [markerColors, setMarkerColors]     = useState({})
+  const [finderSizeScale, setFinderSizeScale] = useState(1)
   const [query, setQuery]                   = useState('')
   const [searching, setSearching]           = useState(false)
   const [geoLocating, setGeoLocating]       = useState(false)
@@ -439,11 +445,12 @@ export default function PublicFinderPage() {
   useEffect(() => {
     async function load() {
       const [{ data: s }, session] = await Promise.all([
-        supabase.from('app_settings').select('public_search_enabled,public_accounts_enabled,public_login_enabled,public_finder_welcome,public_finder_disclaimer_enabled,public_finder_disclaimer,search_radius_miles,marker_color_own,marker_color_other,marker_color_selected').eq('id', 1).single(),
+        supabase.from('app_settings').select('public_search_enabled,public_accounts_enabled,public_login_enabled,public_finder_welcome,public_finder_disclaimer_enabled,public_finder_disclaimer,search_radius_miles,marker_color_own,marker_color_other,marker_color_selected,global_marker_size').eq('id', 1).single(),
         supabase.auth.getSession(),
       ])
       setSettings(s)
       if (s) setMarkerColors({ own: s.marker_color_own, other: s.marker_color_other, selected: s.marker_color_selected })
+      if (s?.global_marker_size) setFinderSizeScale(s.global_marker_size === 'large' ? 1.5 : s.global_marker_size === 'medium' ? 1.25 : 1)
       if (session.data.session) {
         const userId = session.data.session.user.id
         // Check if this is a public account or a club owner
@@ -645,7 +652,7 @@ export default function PublicFinderPage() {
 
   const pinColor  = markerColors.other    || '#6B8DD6'
   const selColor  = markerColors.selected || '#F59E0B'
-  const userIcon  = makeUserIcon()
+  const userIcon  = makeUserIcon(finderSizeScale)
 
   return (
     <div className="pfp-page">
@@ -708,7 +715,7 @@ export default function PublicFinderPage() {
               if (!club.lat || !club.lng) return null
               const isSelected = club.id === expandedId
               const isHovered  = club.id === hoveredId
-              const icon = makeClubIcon(isSelected ? 'selected' : 'other', isSelected ? selColor : pinColor, isHovered)
+              const icon = makeClubIcon(isSelected ? 'selected' : 'other', isSelected ? selColor : pinColor, isHovered, finderSizeScale)
               return (
                 <Marker
                   key={club.id}
@@ -722,7 +729,11 @@ export default function PublicFinderPage() {
                     },
                     mouseout: () => setHoveredId(null),
                   }}
-                />
+                >
+                  <Tooltip direction="top" offset={[0, -14]} className="pfp-pin-tooltip">
+                    {club.club_name || 'Club'}
+                  </Tooltip>
+                </Marker>
               )
             })}
           </MapContainer>

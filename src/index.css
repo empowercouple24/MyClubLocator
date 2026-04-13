@@ -9321,3 +9321,20 @@ input.input-ok {
 .map-zoom-float-btn:last-child  { border-radius: 0 0 10px 10px; }
 .map-zoom-float-btn:hover { background: #f0f7f3; }
 .map-zoom-float-btn:active { background: #e0ede6; }
+
+/* Club name tooltip on /find map pins */
+.pfp-pin-tooltip {
+  background: #fff !important;
+  border: 1px solid #dde8e2 !important;
+  border-radius: 8px !important;
+  padding: 4px 10px !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  color: #1A3C2E !important;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.14) !important;
+  white-space: nowrap !important;
+  pointer-events: none !important;
+}
+.pfp-pin-tooltip::before {
+  border-top-color: #fff !important;
+}

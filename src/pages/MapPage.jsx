@@ -71,7 +71,7 @@ function makeMarkerHtml(type, shape, fill, size) {
   return ''
 }
 
-function makeCircleIcon(type, colors = {}, shapes = {}) {
+function makeCircleIcon(type, colors = {}, shapes = {}, sizeScale = 1) {
   const defaults = {
     own:      { fill: '#D94F4F', size: 22 },
     other:    { fill: '#6B8DD6', size: 18 },
@@ -79,7 +79,7 @@ function makeCircleIcon(type, colors = {}, shapes = {}) {
     team:     { fill: '#7C3AED', size: 20 },
   }
   const fill  = colors[type] || defaults[type].fill
-  const size  = defaults[type].size
+  const size  = Math.round(defaults[type].size * sizeScale)
   const shape = shapes[type] || 'dot'
   const r     = size / 2
 
@@ -94,16 +94,16 @@ function makeCircleIcon(type, colors = {}, shapes = {}) {
   return divIcon({ className: '', html, iconSize, iconAnchor, popupAnchor: [0, isPinShape ? -pinH : -r] })
 }
 
-// Icons cached per color+shape signature
+// Icons cached per color+shape+scale signature
 let _iconCache = {}
-function getIcons(colors = {}, shapes = {}) {
-  const sig = JSON.stringify({ colors, shapes })
+function getIcons(colors = {}, shapes = {}, sizeScale = 1) {
+  const sig = JSON.stringify({ colors, shapes, sizeScale })
   if (!_iconCache[sig]) {
     _iconCache[sig] = {
-      ownIcon:      makeCircleIcon('own',      colors, shapes),
-      otherIcon:    makeCircleIcon('other',    colors, shapes),
-      selectedIcon: makeCircleIcon('selected', colors, shapes),
-      teamIcon:     makeCircleIcon('team',     colors, shapes),
+      ownIcon:      makeCircleIcon('own',      colors, shapes, sizeScale),
+      otherIcon:    makeCircleIcon('other',    colors, shapes, sizeScale),
+      selectedIcon: makeCircleIcon('selected', colors, shapes, sizeScale),
+      teamIcon:     makeCircleIcon('team',     colors, shapes, sizeScale),
     }
   }
   return _iconCache[sig]
@@ -246,14 +246,14 @@ function ScrollZoomController({ enabled }) {
   return null
 }
 
-function ClubMarkers({ locations, selectedId, userId, onSelect, navigate, teamFilter, teamLocationIds, markerColors, markerShapes }) {
+function ClubMarkers({ locations, selectedId, userId, onSelect, navigate, teamFilter, teamLocationIds, markerColors, markerShapes, markerSizeScale }) {
   const map = useMap()
   const markersRef = useRef({})
 
   useEffect(() => {
     Object.values(markersRef.current).forEach(m => m.remove())
     markersRef.current = {}
-    const { ownIcon, otherIcon, selectedIcon, teamIcon } = getIcons(markerColors || {}, markerShapes || {})
+    const { ownIcon, otherIcon, selectedIcon, teamIcon } = getIcons(markerColors || {}, markerShapes || {}, markerSizeScale || 1)
 
     locations.forEach(loc => {
       const isOwn      = loc.user_id === userId
@@ -431,7 +431,7 @@ function ClubMarkers({ locations, selectedId, userId, onSelect, navigate, teamFi
     }
 
     return () => { Object.values(markersRef.current).forEach(m => m.remove()); markersRef.current = {} }
-  }, [locations, selectedId, userId, teamFilter, teamLocationIds, markerColors, markerShapes])
+  }, [locations, selectedId, userId, teamFilter, teamLocationIds, markerColors, markerShapes, markerSizeScale])
 
   return null
 }
@@ -759,6 +759,9 @@ export default function MapPage() {
           team:     data.marker_color_team     || '#7C3AED',
         })
       }
+      if (data.global_marker_size) {
+        setMarkerSizeScale(data.global_marker_size === 'large' ? 1.5 : data.global_marker_size === 'medium' ? 1.25 : 1)
+      }
     }
     loadSettings()
   }, [])
@@ -785,6 +788,7 @@ export default function MapPage() {
   const [markerShapes, setMarkerShapes]       = useState({
     own: 'dot', other: 'dot', selected: 'dot', team: 'dot'
   })
+  const [markerSizeScale, setMarkerSizeScale] = useState(1) // 1=small, 1.25=medium, 1.5=large
 
   function updatePanelPosition(pos) {
     setPanelPosition(pos)
@@ -1187,22 +1191,36 @@ export default function MapPage() {
                 }}
               />
             )}
-            <ClubMarkers locations={filteredLocations} selectedId={selected?.id} userId={user?.id} onSelect={handleSelectClub} navigate={navigate} teamFilter={teamFilter} teamLocationIds={allTeamLocationIds} markerColors={markerColors} markerShapes={markerShapes} />
+            <ClubMarkers locations={filteredLocations} selectedId={selected?.id} userId={user?.id} onSelect={handleSelectClub} navigate={navigate} teamFilter={teamFilter} teamLocationIds={allTeamLocationIds} markerColors={markerColors} markerShapes={markerShapes} markerSizeScale={markerSizeScale} />
             {selected && radiusMiles && (
               <Circle center={[selected.lat, selected.lng]} radius={milesToMeters(radiusMiles)}
                 pathOptions={{ color: '#1A3C2E', fillColor: '#4CAF82', fillOpacity: 0.08, weight: 2 }} />
             )}
-            {geoMarker && (
+            {geoMarker && (() => {
+              const s = Math.round(20 * markerSizeScale)
+              const r = s / 2
+              const ir = Math.round(7 * markerSizeScale)
+              const cr = Math.round(3 * markerSizeScale)
+              const pr = Math.round(6 * markerSizeScale)
+              return (
               <Marker
                 position={[geoMarker.lat, geoMarker.lng]}
                 icon={divIcon({
                   className: '',
-                  html: '<div class="geo-dot"><div class="geo-dot-inner"></div><div class="geo-dot-ring"></div></div>',
-                  iconSize: [24, 24],
-                  iconAnchor: [12, 12],
+                  html: `<div style="position:relative;width:${s}px;height:${s}px;transform:translate(-50%,-50%);">
+                    <div style="position:absolute;inset:-${pr}px;border-radius:50%;border:2px solid #185FA5;opacity:0.35;animation:pfUserPulse 2s ease-in-out infinite;"></div>
+                    <svg width="${s}" height="${s}" viewBox="0 0 ${s} ${s}">
+                      <circle cx="${r}" cy="${r}" r="${ir}" fill="#185FA5" stroke="white" stroke-width="2.5"/>
+                      <circle cx="${r}" cy="${r}" r="${cr}" fill="white"/>
+                    </svg>
+                    <div class="you-are-here-label">YOU ARE HERE</div>
+                  </div>`,
+                  iconSize: [s, s],
+                  iconAnchor: [r, r],
                 })}
               />
-            )}
+              )
+            })()}
           </MapContainer>
         )}
 
