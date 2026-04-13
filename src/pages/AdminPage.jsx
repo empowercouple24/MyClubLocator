@@ -258,6 +258,11 @@ export default function AdminPage() {
     welcome_message: "You're now part of the network. Watch the video below to get started, then add your club to the map.",
     welcome_disclaimer_enabled: true,
     welcome_disclaimer: '',
+    welcome_new_title: 'Welcome to My Club Locator!',
+    welcome_new_message: 'Your email is confirmed and your account is active. Watch the quick intro below, then we\'ll walk you through setting up your club.',
+    welcome_new_video_enabled: false,
+    welcome_new_video_url: '',
+    welcome_new_button_text: 'Let\'s get started →',
     require_approval: false,
     member_signups_enabled: true,
     member_login_enabled: true,
@@ -657,6 +662,11 @@ export default function AdminPage() {
       welcome_message:            settings.welcome_message,
       welcome_disclaimer_enabled: settings.welcome_disclaimer_enabled,
       welcome_disclaimer:         settings.welcome_disclaimer,
+      welcome_new_title:          settings.welcome_new_title,
+      welcome_new_message:        settings.welcome_new_message,
+      welcome_new_video_enabled:  settings.welcome_new_video_enabled,
+      welcome_new_video_url:      settings.welcome_new_video_url,
+      welcome_new_button_text:    settings.welcome_new_button_text,
       require_approval:           settings.require_approval,
       member_signups_enabled:     settings.member_signups_enabled,
       member_login_enabled:       settings.member_login_enabled,
@@ -1308,6 +1318,53 @@ export default function AdminPage() {
                           </div>
                         </div>
                       </div>
+                    </div>
+
+                {/* New User Confirmation Welcome Screen */}
+                <div style={{ borderTop: "0.5px solid #e8ede9", padding: "12px 20px 4px" }}>
+                  <div style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: ".04em", color: "#aaa" }}>New User Welcome Screen</div>
+                </div>
+                    <p className="admin-section-desc" style={{ marginBottom: 14 }}>Controls the screen shown to new users after they confirm their email, before onboarding begins.</p>
+
+                    <div className="admin-toggle-row" style={{ marginBottom: 12 }}>
+                      <div>
+                        <div className="admin-toggle-label">Show welcome video</div>
+                        <div className="admin-toggle-hint">When off, screen shows without a video</div>
+                      </div>
+                      <ToggleSwitch on={settings.welcome_new_video_enabled}
+                        onChange={v => setSettings(s => ({ ...s, welcome_new_video_enabled: v }))} />
+                    </div>
+
+                    <div className="field" style={{ marginBottom: 14 }}>
+                      <label>Welcome title</label>
+                      <input type="text" value={settings.welcome_new_title}
+                        onChange={e => setSettings(s => ({ ...s, welcome_new_title: e.target.value }))}
+                        placeholder="Welcome to My Club Locator!" />
+                    </div>
+
+                    <div className="field" style={{ marginBottom: 14 }}>
+                      <label>Welcome message</label>
+                      <textarea rows={3} value={settings.welcome_new_message}
+                        onChange={e => setSettings(s => ({ ...s, welcome_new_message: e.target.value }))}
+                        placeholder="Your email is confirmed and your account is active."
+                        style={{ width: '100%', padding: '10px 12px', border: '1px solid #c8d4cc', borderRadius: 8, fontSize: 14, resize: 'vertical' }} />
+                    </div>
+
+                    {settings.welcome_new_video_enabled && (
+                      <div className="field" style={{ marginBottom: 14 }}>
+                        <label>Video embed URL</label>
+                        <input type="url" value={settings.welcome_new_video_url}
+                          onChange={e => setSettings(s => ({ ...s, welcome_new_video_url: e.target.value }))}
+                          placeholder="https://www.youtube.com/embed/VIDEO_ID" />
+                        <span className="field-hint">YouTube embed format: youtube.com/embed/VIDEO_ID</span>
+                      </div>
+                    )}
+
+                    <div className="field" style={{ marginBottom: 20 }}>
+                      <label>Button text</label>
+                      <input type="text" value={settings.welcome_new_button_text}
+                        onChange={e => setSettings(s => ({ ...s, welcome_new_button_text: e.target.value }))}
+                        placeholder="Let's get started →" />
                     </div>
 
                 <div style={{ borderTop: "0.5px solid #e8ede9", padding: "12px 20px 4px" }}>

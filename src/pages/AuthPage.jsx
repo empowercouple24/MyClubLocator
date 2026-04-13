@@ -144,19 +144,25 @@ export default function AuthPage() {
   // Email confirmed welcome state
   const [emailJustConfirmed, setEmailJustConfirmed] = useState(false)
 
+  // New user welcome screen settings
+  const [welcomeNewSettings, setWelcomeNewSettings] = useState(null)
+
   // Detect email confirmation redirect — Supabase auto-signs in via URL tokens
   useEffect(() => {
     if (!isEmailConfirmed) return
     async function handleConfirmed() {
       const { data: { session } } = await supabase.auth.getSession()
       if (session?.user) {
-        // Ensure user_terms_acceptance row exists (created here after email is confirmed, not during signup)
         const { data: existing } = await supabase.from('user_terms_acceptance').select('id').eq('user_id', session.user.id).single()
         if (!existing) {
           await supabase.from('user_terms_acceptance').insert({ user_id: session.user.id })
         }
+        // Load welcome screen settings
+        const { data: ws } = await supabase.from('app_settings')
+          .select('welcome_new_title, welcome_new_message, welcome_new_video_enabled, welcome_new_video_url, welcome_new_button_text')
+          .eq('id', 1).single()
+        if (ws) setWelcomeNewSettings(ws)
         setEmailJustConfirmed(true)
-        setTimeout(() => navigate('/onboarding'), 3000)
       }
     }
     setTimeout(handleConfirmed, 500)
@@ -317,6 +323,12 @@ export default function AuthPage() {
 
   // ── Email just confirmed — welcome + auto-redirect to onboarding ──
   if (emailJustConfirmed) {
+    const ws = welcomeNewSettings || {}
+    const title = ws.welcome_new_title || 'Welcome to My Club Locator!'
+    const message = ws.welcome_new_message || 'Your email is confirmed and your account is active.'
+    const btnText = ws.welcome_new_button_text || "Let's get started →"
+    const showVideo = ws.welcome_new_video_enabled && ws.welcome_new_video_url
+
     return (
       <div className="auth-page-v2">
         <div className="auth-hero">
@@ -340,19 +352,26 @@ export default function AuthPage() {
                 <path d="M8 12l3 3 5-5" stroke="#4CAF82" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </div>
-            <h2 style={{ fontSize: 22, fontWeight: 700, color: '#1A3C2E', marginBottom: 8 }}>Welcome to My Club Locator!</h2>
-            <p style={{ fontSize: 14, color: '#666', lineHeight: 1.6, marginBottom: 8 }}>
-              Your email is confirmed and your account is active.
+            <h2 style={{ fontSize: 22, fontWeight: 700, color: '#1A3C2E', marginBottom: 8 }}>{title}</h2>
+            <p style={{ fontSize: 14, color: '#666', lineHeight: 1.6, marginBottom: showVideo ? 16 : 20 }}>
+              {message}
             </p>
-            <p style={{ fontSize: 13, color: '#999', lineHeight: 1.5 }}>
-              Taking you to onboarding to get your club on the map…
-            </p>
-            <div style={{ marginTop: 20 }}>
-              <div style={{ width: 32, height: 32, border: '3px solid #E8F5EE', borderTopColor: '#4CAF82', borderRadius: '50%', animation: 'authSpin 0.8s linear infinite', margin: '0 auto' }} />
-            </div>
+            {showVideo && (
+              <div style={{ marginBottom: 20, borderRadius: 12, overflow: 'hidden', border: '1px solid #e8ede8' }}>
+                <iframe
+                  src={ws.welcome_new_video_url}
+                  title="Welcome video"
+                  style={{ width: '100%', aspectRatio: '16/9', border: 'none', display: 'block' }}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              </div>
+            )}
+            <button className="auth-btn auth-btn--forest" onClick={() => navigate('/onboarding')}>
+              {btnText}
+            </button>
           </div>
         </div>
-        <style>{`@keyframes authSpin { to { transform: rotate(360deg); } }`}</style>
       </div>
     )
   }
