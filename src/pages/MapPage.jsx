@@ -19,72 +19,98 @@ function darken(hex) {
   return `#${d(r)}${d(g)}${d(b)}`
 }
 
-function makeCircleIcon(type, colors = {}) {
+function makeMarkerHtml(type, shape, fill, size) {
+  const r = size / 2
+
+  // ── Pulse wrappers ─────────────────────────────────────
+  const selectedPulse = `
+    <div class="marker-pulse-ring marker-pulse-ring--1" style="--pulse-color:${fill};"></div>
+    <div class="marker-pulse-ring marker-pulse-ring--2" style="--pulse-color:${fill};"></div>`
+  const ownPulse = `<div class="marker-own-pulse" style="--pulse-color:${fill};"></div>`
+  const hasPulse = type === 'own' || type === 'team'
+  const hasSelectedPulse = type === 'selected'
+
+  // ── DOT ───────────────────────────────────────────────
+  if (shape === 'dot') {
+    const svg = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg" style="position:relative;z-index:2;">
+      <circle cx="${r}" cy="${r}" r="${r - 1.5}" fill="${fill}" stroke="white" stroke-width="${type === 'selected' ? 2.5 : 2}"/>
+    </svg>`
+    return `<div style="position:relative;width:${size}px;height:${size}px;cursor:pointer;transform:translate(-50%,-50%);">
+      ${hasSelectedPulse ? selectedPulse : hasPulse ? ownPulse : ''}${svg}
+    </div>`
+  }
+
+  // ── PIN ───────────────────────────────────────────────
+  if (shape === 'pin') {
+    const w = size, h = Math.round(size * 1.45)
+    const cx = w / 2, headR = w / 2 - 1.5
+    const neckY = h - Math.round(h * 0.15)
+    const innerR = Math.round(headR * 0.38)
+    const svg = `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg" style="position:relative;z-index:2;">
+      <path d="M${cx} ${h - 1} C${cx} ${h - 1} ${cx - headR * 0.4} ${neckY} ${cx - headR * 0.7} ${headR * 1.4}
+        A${headR} ${headR} 0 1 1 ${cx + headR * 0.7} ${headR * 1.4}
+        C${cx + headR * 0.4} ${neckY} ${cx} ${h - 1} ${cx} ${h - 1}Z"
+        fill="${fill}" stroke="white" stroke-width="${type === 'selected' ? 2 : 1.5}" stroke-linejoin="round"/>
+      <circle cx="${cx}" cy="${headR + 1.5}" r="${innerR}" fill="white" opacity="0.88"/>
+    </svg>`
+    // pulse rings centered on pin head
+    const pulseWrap = hasSelectedPulse
+      ? `<div class="marker-pulse-ring marker-pulse-ring--1" style="--pulse-color:${fill};top:0;left:0;position:absolute;"></div>
+         <div class="marker-pulse-ring marker-pulse-ring--2" style="--pulse-color:${fill};top:0;left:0;position:absolute;"></div>`
+      : hasPulse ? `<div class="marker-own-pulse" style="--pulse-color:${fill};top:0;left:0;position:absolute;"></div>` : ''
+    return `<div style="position:relative;width:${w}px;height:${h}px;cursor:pointer;transform:translate(-50%,-${h - r}px);">
+      ${pulseWrap}${svg}
+    </div>`
+  }
+
+  // ── DIAMOND ───────────────────────────────────────────
+  if (shape === 'diamond') {
+    const svg = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg" style="position:relative;z-index:2;">
+      <rect x="${r * 0.22}" y="${r * 0.22}" width="${size - r * 0.44}" height="${size - r * 0.44}"
+        rx="2" fill="${fill}" stroke="white" stroke-width="${type === 'selected' ? 2.5 : 2}"
+        transform="rotate(45 ${r} ${r})"/>
+    </svg>`
+    return `<div style="position:relative;width:${size}px;height:${size}px;cursor:pointer;transform:translate(-50%,-50%);">
+      ${hasSelectedPulse ? selectedPulse : hasPulse ? ownPulse : ''}${svg}
+    </div>`
+  }
+
+  return ''
+}
+
+function makeCircleIcon(type, colors = {}, shapes = {}) {
   const defaults = {
     own:      { fill: '#D94F4F', size: 22 },
     other:    { fill: '#6B8DD6', size: 18 },
     selected: { fill: '#F59E0B', size: 26 },
     team:     { fill: '#7C3AED', size: 20 },
   }
-  const fill = colors[type] || defaults[type].fill
-  const size = defaults[type].size
-  const r    = size / 2
+  const fill  = colors[type] || defaults[type].fill
+  const size  = defaults[type].size
+  const shape = shapes[type] || 'dot'
+  const r     = size / 2
 
-  if (type === 'selected') {
-    const html = `
-      <div style="position:relative;width:${size}px;height:${size}px;cursor:pointer;transform:translate(-50%,-50%);">
-        <div class="marker-pulse-ring marker-pulse-ring--1" style="--pulse-color:${fill};"></div>
-        <div class="marker-pulse-ring marker-pulse-ring--2" style="--pulse-color:${fill};"></div>
-        <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg" style="position:relative;z-index:2;">
-          <circle cx="${r}" cy="${r}" r="${r - 1.5}" fill="${fill}" stroke="white" stroke-width="2.5"/>
-        </svg>
-      </div>`
-    return divIcon({ className: '', html, iconSize: [size, size], iconAnchor: [r, r], popupAnchor: [0, -r] })
-  }
+  const html = makeMarkerHtml(type, shape, fill, size)
+  if (!html) return divIcon({ className: '', html: '', iconSize: [0, 0] })
 
-  if (type === 'own') {
-    const html = `
-      <div style="position:relative;width:${size}px;height:${size}px;cursor:pointer;transform:translate(-50%,-50%);">
-        <div class="marker-own-pulse" style="--pulse-color:${fill};"></div>
-        <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg" style="position:relative;z-index:2;">
-          <circle cx="${r}" cy="${r}" r="${r - 1.5}" fill="${fill}" stroke="white" stroke-width="2"/>
-        </svg>
-      </div>`
-    return divIcon({ className: '', html, iconSize: [size, size], iconAnchor: [r, r], popupAnchor: [0, -r] })
-  }
+  const isPinShape = shape === 'pin'
+  const pinH = Math.round(size * 1.45)
+  const iconSize   = isPinShape ? [size, pinH]      : [size, size]
+  const iconAnchor = isPinShape ? [r, pinH - r]     : [r, r]
 
-  if (type === 'team') {
-    const html = `
-      <div style="position:relative;width:${size}px;height:${size}px;cursor:pointer;transform:translate(-50%,-50%);">
-        <div class="marker-own-pulse" style="--pulse-color:${fill};"></div>
-        <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg" style="position:relative;z-index:2;">
-          <circle cx="${r}" cy="${r}" r="${r - 1.5}" fill="${fill}" stroke="white" stroke-width="2"/>
-        </svg>
-      </div>`
-    return divIcon({ className: '', html, iconSize: [size, size], iconAnchor: [r, r], popupAnchor: [0, -r] })
-  }
-
-  // other
-  const svg = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg"><circle cx="${r}" cy="${r}" r="${r - 1.5}" fill="${fill}" stroke="white" stroke-width="2"/></svg>`
-  return divIcon({
-    className: '',
-    html: `<div style="width:${size}px;height:${size}px;cursor:pointer;transform:translate(-50%,-50%);">${svg}</div>`,
-    iconSize: [size, size],
-    iconAnchor: [r, r],
-    popupAnchor: [0, -r],
-  })
+  return divIcon({ className: '', html, iconSize, iconAnchor, popupAnchor: [0, isPinShape ? -pinH : -r] })
 }
 
-// Icons cached per color signature — bust cache when colors change
+// Icons cached per color+shape signature
 let _iconCache = {}
-function getIcons(colors = {}) {
-  const sig = JSON.stringify(colors)
+function getIcons(colors = {}, shapes = {}) {
+  const sig = JSON.stringify({ colors, shapes })
   if (!_iconCache[sig]) {
     _iconCache[sig] = {
-      ownIcon:      makeCircleIcon('own',      colors),
-      otherIcon:    makeCircleIcon('other',    colors),
-      selectedIcon: makeCircleIcon('selected', colors),
-      teamIcon:     makeCircleIcon('team',     colors),
+      ownIcon:      makeCircleIcon('own',      colors, shapes),
+      otherIcon:    makeCircleIcon('other',    colors, shapes),
+      selectedIcon: makeCircleIcon('selected', colors, shapes),
+      teamIcon:     makeCircleIcon('team',     colors, shapes),
     }
   }
   return _iconCache[sig]
@@ -222,14 +248,14 @@ function ScrollZoomController({ enabled }) {
   return null
 }
 
-function ClubMarkers({ locations, selectedId, userId, onSelect, navigate, teamFilter, teamLocationIds, markerColors }) {
+function ClubMarkers({ locations, selectedId, userId, onSelect, navigate, teamFilter, teamLocationIds, markerColors, markerShapes }) {
   const map = useMap()
   const markersRef = useRef({})
 
   useEffect(() => {
     Object.values(markersRef.current).forEach(m => m.remove())
     markersRef.current = {}
-    const { ownIcon, otherIcon, selectedIcon, teamIcon } = getIcons(markerColors || {})
+    const { ownIcon, otherIcon, selectedIcon, teamIcon } = getIcons(markerColors || {}, markerShapes || {})
 
     locations.forEach(loc => {
       const isOwn      = loc.user_id === userId
@@ -392,7 +418,7 @@ function ClubMarkers({ locations, selectedId, userId, onSelect, navigate, teamFi
     })
 
     return () => { Object.values(markersRef.current).forEach(m => m.remove()); markersRef.current = {} }
-  }, [locations, selectedId, userId, teamFilter, teamLocationIds, markerColors])
+  }, [locations, selectedId, userId, teamFilter, teamLocationIds, markerColors, markerShapes])
 
   return null
 }
@@ -742,6 +768,9 @@ export default function MapPage() {
   const [markerColors, setMarkerColors]       = useState({
     own: '#D94F4F', other: '#6B8DD6', selected: '#F59E0B', team: '#7C3AED'
   })
+  const [markerShapes, setMarkerShapes]       = useState({
+    own: 'dot', other: 'dot', selected: 'dot', team: 'dot'
+  })
 
   function updatePanelPosition(pos) {
     setPanelPosition(pos)
@@ -761,6 +790,7 @@ export default function MapPage() {
       if (data?.preferences?.panelCollapsed !== undefined) setPanelCollapsed(data.preferences.panelCollapsed)
       if (data?.preferences?.clickBehavior)  setClickBehavior(data.preferences.clickBehavior)
       if (data?.preferences?.demoViewMode)   setDemoViewMode(data.preferences.demoViewMode)
+      if (data?.preferences?.markerShapes)   setMarkerShapes(s => ({ ...s, ...data.preferences.markerShapes }))
     }
     loadPanelPrefs()
     loadSavedViews()
@@ -852,6 +882,21 @@ export default function MapPage() {
       .eq('user_id', user.id)
       .single()
     const merged = { ...(existing?.preferences || {}), demoViewMode: mode }
+    await supabase.from('user_demo_preferences')
+      .upsert({ user_id: user.id, preferences: merged }, { onConflict: 'user_id' })
+  }
+
+  async function saveMarkerShape(type, shape) {
+    const next = { ...markerShapes, [type]: shape }
+    setMarkerShapes(next)
+    _iconCache = {} // bust icon cache
+    if (!user) return
+    const { data: existing } = await supabase
+      .from('user_demo_preferences')
+      .select('preferences')
+      .eq('user_id', user.id)
+      .single()
+    const merged = { ...(existing?.preferences || {}), markerShapes: next }
     await supabase.from('user_demo_preferences')
       .upsert({ user_id: user.id, preferences: merged }, { onConflict: 'user_id' })
   }
@@ -1129,7 +1174,7 @@ export default function MapPage() {
                 }}
               />
             )}
-            <ClubMarkers locations={filteredLocations} selectedId={selected?.id} userId={user?.id} onSelect={handleSelectClub} navigate={navigate} teamFilter={teamFilter} teamLocationIds={allTeamLocationIds} markerColors={markerColors} />
+            <ClubMarkers locations={filteredLocations} selectedId={selected?.id} userId={user?.id} onSelect={handleSelectClub} navigate={navigate} teamFilter={teamFilter} teamLocationIds={allTeamLocationIds} markerColors={markerColors} markerShapes={markerShapes} />
             {selected && radiusMiles && (
               <Circle center={[selected.lat, selected.lng]} radius={milesToMeters(radiusMiles)}
                 pathOptions={{ color: '#1A3C2E', fillColor: '#4CAF82', fillOpacity: 0.08, weight: 2 }} />
@@ -1248,6 +1293,41 @@ export default function MapPage() {
                 onClick={() => saveClickBehavior(val)}
                 title={title}
               >{label}</button>
+            ))}
+          </div>
+
+          {/* Marker shape picker */}
+          <div className="marker-shape-wrap">
+            <span className="map-click-behavior-label">Markers:</span>
+            {[
+              { key: 'own',      label: 'Mine' },
+              { key: 'other',    label: 'Others' },
+              { key: 'selected', label: 'Selected' },
+              { key: 'team',     label: 'Team' },
+            ].map(({ key, label }) => (
+              <div key={key} className="marker-shape-type">
+                <span className="marker-shape-type-label">{label}</span>
+                <div className="marker-shape-btns">
+                  {[
+                    { val: 'dot', title: 'Dot' },
+                    { val: 'pin', title: 'Pin' },
+                    { val: 'diamond', title: 'Diamond' },
+                  ].map(({ val, title }) => (
+                    <button
+                      key={val}
+                      className={`marker-shape-btn ${markerShapes[key] === val ? 'active' : ''}`}
+                      onClick={() => saveMarkerShape(key, val)}
+                      title={`${label}: ${title}`}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 14 14">
+                        {val === 'dot' && <circle cx="7" cy="7" r="5.5" fill="currentColor"/>}
+                        {val === 'pin' && <path d="M7 1C4.79 1 3 2.79 3 5c0 3.25 4 8 4 8s4-4.75 4-8c0-2.21-1.79-4-4-4zm0 5.5c-.83 0-1.5-.67-1.5-1.5S6.17 3.5 7 3.5 8.5 4.17 8.5 5 7.83 6.5 7 6.5z" fill="currentColor"/>}
+                        {val === 'diamond' && <rect x="1.5" y="1.5" width="11" height="11" rx="1.5" fill="currentColor" transform="rotate(45 7 7)"/>}
+                      </svg>
+                    </button>
+                  ))}
+                </div>
+              </div>
             ))}
           </div>
           <div className="map-controls-right">

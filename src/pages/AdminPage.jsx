@@ -1302,42 +1302,44 @@ export default function AdminPage() {
 
               {/* App Theme */}
               {(() => {
-                const PAGE_BG_OPTIONS = [
-                  { value: '#F5F3EE', label: 'Soft cream' },
-                  { value: '#EDE9E0', label: 'Warm linen' },
-                  { value: '#E8E3D8', label: 'Sandy beige' },
-                  { value: '#DDD8CC', label: 'Warm stone' },
-                  { value: '#D8D3C8', label: 'Deep sand' },
-                  { value: '#F4F7F5', label: 'Cool mint' },
-                  { value: '#EDECEA', label: 'Stone grey' },
-                  { value: '#F0F0F0', label: 'Light grey' },
-                ]
-                const HEADER_BG_OPTIONS = [
-                  { value: '#1A3C2E', label: 'Forest green' },
-                  { value: '#0C447C', label: 'Navy blue' },
-                  { value: '#2C2C2A', label: 'Charcoal' },
-                  { value: '#4338CA', label: 'Indigo' },
-                  { value: '#7C3AED', label: 'Purple' },
-                  { value: '#854F0B', label: 'Amber dark' },
-                  { value: '#185FA5', label: 'Steel blue' },
-                  { value: '#0F6E56', label: 'Teal green' },
-                ]
+                function hexToHsl(hex) {
+                  if (!hex || hex.length < 7) return [0, 0, 50]
+                  const r = parseInt(hex.slice(1,3),16)/255, g = parseInt(hex.slice(3,5),16)/255, b = parseInt(hex.slice(5,7),16)/255
+                  const max = Math.max(r,g,b), min = Math.min(r,g,b)
+                  let h, s, l = (max+min)/2
+                  if (max === min) { h = s = 0 } else {
+                    const d = max - min; s = l > 0.5 ? d/(2-max-min) : d/(max+min)
+                    switch(max) {
+                      case r: h = ((g-b)/d + (g<b?6:0))/6; break
+                      case g: h = ((b-r)/d + 2)/6; break
+                      default: h = ((r-g)/d + 4)/6
+                    }
+                  }
+                  return [Math.round(h*360), Math.round(s*100), Math.round(l*100)]
+                }
+                function hslToHex(h,s,l) {
+                  s/=100; l/=100
+                  const a = s*Math.min(l,1-l)
+                  const f = n => { const k=(n+h/30)%12; const c=l-a*Math.max(-1,Math.min(k-3,9-k,1)); return Math.round(255*c).toString(16).padStart(2,'0') }
+                  return `#${f(0)}${f(8)}${f(4)}`
+                }
+                function genShades(hex, count = 8) {
+                  const [h, s] = hexToHsl(hex)
+                  const lightnesses = count === 8 ? [94,82,68,54,40,28,18,10] : [92,78,62,48,35,22,12]
+                  return lightnesses.map(l => hslToHex(h, Math.min(s + 8, 100), l))
+                }
                 const HEADER_TEXT_OPTIONS = [
                   { value: '#ffffff', label: 'White' },
                   { value: '#F0EEE8', label: 'Off-white' },
                   { value: '#C8D4CC', label: 'Soft sage' },
                   { value: '#1A1A1A', label: 'Near black' },
                 ]
-                const CARD_BODY_OPTIONS = [
-                  { value: '#ffffff', label: 'Pure white' },
-                  { value: '#FAFAF7', label: 'Warm white' },
-                  { value: '#F7F5F0', label: 'Cream' },
-                  { value: '#F3F1EC', label: 'Light sand' },
-                ]
-                const curPageBg    = PAGE_BG_OPTIONS.find(o => o.value === settings.theme_page_bg) || PAGE_BG_OPTIONS[2]
-                const curHeaderBg  = HEADER_BG_OPTIONS.find(o => o.value === settings.theme_card_header_bg) || HEADER_BG_OPTIONS[0]
                 const curHeaderTxt = HEADER_TEXT_OPTIONS.find(o => o.value === settings.theme_card_header_text) || HEADER_TEXT_OPTIONS[0]
-                const curCardBody  = CARD_BODY_OPTIONS.find(o => o.value === settings.theme_card_body) || CARD_BODY_OPTIONS[0]
+                const themeFields = [
+                  { key: 'theme_page_bg',        label: 'Page background',        desc: 'Behind all cards across the app' },
+                  { key: 'theme_card_header_bg',  label: 'Card header background', desc: 'The colored band at the top of each card' },
+                  { key: 'theme_card_body',        label: 'Card body background',   desc: 'The main content area inside each card' },
+                ]
                 return (
                   <div className="admin-section" style={{ padding: 0, overflow: 'hidden' }}>
                     <button type="button" className="survey-toggle-btn" style={{ padding: '14px 20px' }} onClick={() => setAppThemeOpen(o => !o)}>
@@ -1375,45 +1377,39 @@ export default function AdminPage() {
                           </div>
                         </div>
 
-                        {/* 2×2 picker grid */}
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18 }}>
-
-                          {/* Page background */}
-                          <div>
-                            <div className="mc-picker-label" style={{ marginBottom: 4 }}>Page background</div>
-                            <div className="admin-section-desc" style={{ marginBottom: 10 }}>Behind all cards across the app</div>
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
-                              {PAGE_BG_OPTIONS.map(opt => (
-                                <button key={opt.value} title={opt.label}
-                                  onClick={() => setSettings(s => ({ ...s, theme_page_bg: opt.value }))}
-                                  style={{ width: 34, height: 34, borderRadius: 7, background: opt.value, border: settings.theme_page_bg === opt.value ? '2.5px solid #1A3C2E' : '1.5px solid rgba(0,0,0,0.15)', cursor: 'pointer', transform: settings.theme_page_bg === opt.value ? 'scale(1.15)' : 'scale(1)', transition: 'transform 0.1s', position: 'relative', flexShrink: 0 }}>
-                                  {settings.theme_page_bg === opt.value && <svg style={{ position: 'absolute', inset: 0, margin: 'auto' }} width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M3 8l4 4 6-6" stroke="#1A3C2E" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-                                </button>
-                              ))}
+                        {/* RGB pickers with dynamic shades */}
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18, marginBottom: 16 }}>
+                          {themeFields.map(({ key, label, desc }) => (
+                            <div key={key}>
+                              <div className="mc-picker-label" style={{ marginBottom: 4 }}>{label}</div>
+                              <div className="admin-section-desc" style={{ marginBottom: 10 }}>{desc}</div>
+                              <div className="mc-custom-row" style={{ marginBottom: 10 }}>
+                                <input type="color" className="mc-color-input"
+                                  value={settings[key] || '#888888'}
+                                  onChange={e => setSettings(s => ({ ...s, [key]: e.target.value }))} />
+                                <span className="mc-hex-value">{settings[key]}</span>
+                                <div className="mc-current-dot" style={{ background: settings[key] }} />
+                              </div>
+                              <div className="mc-presets">
+                                {genShades(settings[key] || '#888888').map(c => (
+                                  <button key={c} className={`mc-preset-swatch ${settings[key] === c ? 'active' : ''}`}
+                                    style={{ background: c }} onClick={() => setSettings(s => ({ ...s, [key]: c }))} title={c} />
+                                ))}
+                              </div>
                             </div>
-                            <div style={{ marginTop: 5, fontSize: 11, color: '#888' }}>{curPageBg.label}</div>
-                          </div>
+                          ))}
 
-                          {/* Card header background */}
-                          <div>
-                            <div className="mc-picker-label" style={{ marginBottom: 4 }}>Card header background</div>
-                            <div className="admin-section-desc" style={{ marginBottom: 10 }}>The colored band at the top of each card</div>
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
-                              {HEADER_BG_OPTIONS.map(opt => (
-                                <button key={opt.value} title={opt.label}
-                                  onClick={() => setSettings(s => ({ ...s, theme_card_header_bg: opt.value }))}
-                                  style={{ width: 34, height: 34, borderRadius: 7, background: opt.value, border: settings.theme_card_header_bg === opt.value ? '2.5px solid #fff' : '1.5px solid rgba(0,0,0,0.15)', cursor: 'pointer', transform: settings.theme_card_header_bg === opt.value ? 'scale(1.15)' : 'scale(1)', transition: 'transform 0.1s', position: 'relative', flexShrink: 0 }}>
-                                  {settings.theme_card_header_bg === opt.value && <svg style={{ position: 'absolute', inset: 0, margin: 'auto' }} width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M3 8l4 4 6-6" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-                                </button>
-                              ))}
-                            </div>
-                            <div style={{ marginTop: 5, fontSize: 11, color: '#888' }}>{curHeaderBg.label}</div>
-                          </div>
-
-                          {/* Card header text */}
+                          {/* Card header text — keep as Aa swatches since it's text color */}
                           <div>
                             <div className="mc-picker-label" style={{ marginBottom: 4 }}>Card header text</div>
                             <div className="admin-section-desc" style={{ marginBottom: 10 }}>Title text color inside the header band</div>
+                            <div className="mc-custom-row" style={{ marginBottom: 10 }}>
+                              <input type="color" className="mc-color-input"
+                                value={settings.theme_card_header_text || '#ffffff'}
+                                onChange={e => setSettings(s => ({ ...s, theme_card_header_text: e.target.value }))} />
+                              <span className="mc-hex-value">{settings.theme_card_header_text}</span>
+                              <div className="mc-current-dot" style={{ background: settings.theme_card_header_text }} />
+                            </div>
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
                               {HEADER_TEXT_OPTIONS.map(opt => (
                                 <button key={opt.value} title={opt.label}
@@ -1425,23 +1421,6 @@ export default function AdminPage() {
                             </div>
                             <div style={{ marginTop: 5, fontSize: 11, color: '#888' }}>{curHeaderTxt.label}</div>
                           </div>
-
-                          {/* Card body background */}
-                          <div>
-                            <div className="mc-picker-label" style={{ marginBottom: 4 }}>Card body background</div>
-                            <div className="admin-section-desc" style={{ marginBottom: 10 }}>The main content area of each card</div>
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
-                              {CARD_BODY_OPTIONS.map(opt => (
-                                <button key={opt.value} title={opt.label}
-                                  onClick={() => setSettings(s => ({ ...s, theme_card_body: opt.value }))}
-                                  style={{ width: 34, height: 34, borderRadius: 7, background: opt.value, border: settings.theme_card_body === opt.value ? '2.5px solid #1A3C2E' : '1.5px solid rgba(0,0,0,0.15)', cursor: 'pointer', transform: settings.theme_card_body === opt.value ? 'scale(1.15)' : 'scale(1)', transition: 'transform 0.1s', position: 'relative', flexShrink: 0 }}>
-                                  {settings.theme_card_body === opt.value && <svg style={{ position: 'absolute', inset: 0, margin: 'auto' }} width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M3 8l4 4 6-6" stroke="#1A3C2E" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-                                </button>
-                              ))}
-                            </div>
-                            <div style={{ marginTop: 5, fontSize: 11, color: '#888' }}>{curCardBody.label}</div>
-                          </div>
-
                         </div>
                       </div>
                     )}
@@ -1683,23 +1662,35 @@ export default function AdminPage() {
                         { key: 'marker_color_selected', label: 'Selected',   desc: 'Club currently selected in the panel' },
                         { key: 'marker_color_team',     label: 'Team clubs', desc: 'Clubs in your team (when team filter is on)' },
                       ].map(({ key, label, desc }) => {
-                        const presets = ['#D94F4F','#6B8DD6','#F59E0B','#7C3AED','#4CAF82','#E24B4A','#185FA5','#854F0B','#0F6E56','#D4537E','#888780','#1A3C2E']
+                        const base = settings[key] || '#D94F4F'
+                        // Generate 7 shade variants from the picked color
+                        function hexToHsl(hex) {
+                          const r = parseInt(hex.slice(1,3),16)/255, g = parseInt(hex.slice(3,5),16)/255, b = parseInt(hex.slice(5,7),16)/255
+                          const max = Math.max(r,g,b), min = Math.min(r,g,b)
+                          let h, s, l = (max+min)/2
+                          if (max === min) { h = s = 0 } else {
+                            const d = max - min; s = l > 0.5 ? d/(2-max-min) : d/(max+min)
+                            switch(max) {
+                              case r: h = ((g-b)/d + (g<b?6:0))/6; break
+                              case g: h = ((b-r)/d + 2)/6; break
+                              default: h = ((r-g)/d + 4)/6
+                            }
+                          }
+                          return [Math.round(h*360), Math.round(s*100), Math.round(l*100)]
+                        }
+                        function hslToHex(h,s,l) {
+                          s/=100; l/=100
+                          const a = s*Math.min(l,1-l)
+                          const f = n => { const k=(n+h/30)%12; const c=l-a*Math.max(-1,Math.min(k-3,9-k,1)); return Math.round(255*c).toString(16).padStart(2,'0') }
+                          return `#${f(0)}${f(8)}${f(4)}`
+                        }
+                        const [h,s] = hexToHsl(base)
+                        const shades = [92,78,62,48,35,22,12].map(l => hslToHex(h, Math.min(s+10,100), l))
                         return (
                           <div key={key} className="mc-picker-card">
                             <div className="mc-picker-label">{label}</div>
                             <div className="mc-picker-desc">{desc}</div>
-                            <div className="mc-presets">
-                              {presets.map(c => (
-                                <button
-                                  key={c}
-                                  className={`mc-preset-swatch ${settings[key] === c ? 'active' : ''}`}
-                                  style={{ background: c }}
-                                  onClick={() => setSettings(s => ({ ...s, [key]: c }))}
-                                  title={c}
-                                />
-                              ))}
-                            </div>
-                            <div className="mc-custom-row">
+                            <div className="mc-custom-row" style={{ marginBottom: 10 }}>
                               <input
                                 type="color"
                                 className="mc-color-input"
@@ -1708,6 +1699,17 @@ export default function AdminPage() {
                               />
                               <span className="mc-hex-value">{settings[key]}</span>
                               <div className="mc-current-dot" style={{ background: settings[key] }} />
+                            </div>
+                            <div className="mc-presets">
+                              {shades.map(c => (
+                                <button
+                                  key={c}
+                                  className={`mc-preset-swatch ${settings[key] === c ? 'active' : ''}`}
+                                  style={{ background: c }}
+                                  onClick={() => setSettings(s => ({ ...s, [key]: c }))}
+                                  title={c}
+                                />
+                              ))}
                             </div>
                           </div>
                         )
@@ -1743,16 +1745,35 @@ export default function AdminPage() {
                     </div>
                     <div className="field">
                       <label>Minimum level to create a team</label>
-                      <select
-                        value={settings.team_creation_min_level}
-                        onChange={e => setSettings(s => ({ ...s, team_creation_min_level: e.target.value }))}
-                        disabled={!settings.team_creation_enabled}
-                      >
-                        {['Distributor','Success Builder','Supervisor','World Team','Active World Team','Get Team','Get Team 2500','Millionaire Team','Millionaire Team 7500','Presidents Team','Chairmans Club','Founders Circle'].map(l => (
-                          <option key={l} value={l}>{l}</option>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8, opacity: settings.team_creation_enabled ? 1 : 0.4, pointerEvents: settings.team_creation_enabled ? 'auto' : 'none' }}>
+                        {[
+                          { val: 'Distributor',       label: 'Distributor',       c: '#e3e3e3', cd: '#555' },
+                          { val: 'Success Builder',   label: 'Success Builder',   c: '#e3e3e3', cd: '#555' },
+                          { val: 'Supervisor',        label: 'Supervisor',        c: '#64ba44', cd: '#2a6b1a' },
+                          { val: 'World Team',        label: 'World Team',        c: '#767678', cd: '#3a3a3a' },
+                          { val: 'Active World Team', label: 'Active World Team', c: '#767678', cd: '#3a3a3a' },
+                          { val: 'Get Team',          label: 'Get Team',          c: '#e02054', cd: '#8a0020' },
+                          { val: 'Get Team 2500',     label: 'Get Team 2500',     c: '#f39519', cd: '#7a4200' },
+                          { val: 'Millionaire Team',  label: 'Millionaire Team',  c: '#3aac77', cd: '#0c5a32' },
+                          { val: 'Millionaire Team 7500', label: 'Millionaire Team 7500', c: '#84c8d3', cd: '#1a5a60' },
+                          { val: 'Presidents Team',   label: 'Presidents Team',   c: '#fde488', cd: '#7a5200' },
+                        ].map(({ val, label, c, cd }) => (
+                          <button
+                            key={val}
+                            type="button"
+                            onClick={() => setSettings(s => ({ ...s, team_creation_min_level: val }))}
+                            style={{
+                              padding: '5px 12px', borderRadius: 20, fontSize: 12, cursor: 'pointer',
+                              background: settings.team_creation_min_level === val ? c : '#f4f4f4',
+                              color: settings.team_creation_min_level === val ? cd : '#777',
+                              border: settings.team_creation_min_level === val ? `1.5px solid ${cd}` : '1.5px solid #ddd',
+                              fontWeight: settings.team_creation_min_level === val ? 600 : 400,
+                              transition: 'all 0.12s',
+                            }}
+                          >{label}</button>
                         ))}
-                      </select>
-                      <span className="field-hint">Members below this level will not see the team creation option</span>
+                      </div>
+                      <span className="field-hint" style={{ marginTop: 8, display: 'block' }}>Members below this level will not see the team creation option</span>
                     </div>
                   </div>
                 )}

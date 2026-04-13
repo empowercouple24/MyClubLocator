@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { MapContainer, TileLayer, Marker, useMap, useMapEvents } from 'react-leaflet'
+import { MapContainer, TileLayer, Marker, Polyline, useMap, useMapEvents } from 'react-leaflet'
 import { divIcon } from 'leaflet'
 import { supabase } from '../lib/supabase'
 import { geocodeSingle } from '../lib/geocode'
@@ -27,10 +27,12 @@ function makeClubIcon(type, fill, hovered) {
       iconSize: [size, size], iconAnchor: [r, r],
     })
   }
+  // Regular markers — ambient pulse like 'own' type on MapPage
   return divIcon({
     className: '',
-    html: `<div style="width:${size}px;height:${size}px;cursor:pointer;transform:translate(-50%,-50%);transition:all 0.15s;">
-      <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+    html: `<div style="position:relative;width:${size}px;height:${size}px;cursor:pointer;transform:translate(-50%,-50%);transition:all 0.15s;">
+      <div class="marker-own-pulse" style="--pulse-color:${fill};"></div>
+      <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" style="position:relative;z-index:2;">
         <circle cx="${r}" cy="${r}" r="${r-1.5}" fill="${fill}" stroke="white" stroke-width="2"/>
       </svg>
     </div>`,
@@ -52,11 +54,15 @@ function makeUserIcon() {
   })
 }
 
-function MapFlyTo({ lat, lng, zoom }) {
+function MapFlyTo({ lat, lng, zoom, bounds }) {
   const map = useMap()
   useEffect(() => {
-    if (lat && lng) map.flyTo([lat, lng], zoom || 11, { duration: 1 })
-  }, [lat, lng, zoom])
+    if (bounds) {
+      map.fitBounds(bounds, { padding: [40, 40], maxZoom: 14, animate: true })
+    } else if (lat && lng) {
+      map.flyTo([lat, lng], zoom || 13, { duration: 1 })
+    }
+  }, [lat, lng, zoom, bounds])
   return null
 }
 
@@ -218,7 +224,7 @@ function AuthModal({ mode: initialMode, settings, onSuccess, onClose }) {
   )
 }
 
-function ClubCard({ club, expanded, onExpand, onClose, isFav, onToggleFav, onAuthRequired, publicAccountId, markerColor }) {
+function ClubCard({ club, expanded, onExpand, onClose, isFav, onToggleFav, onAuthRequired, publicAccountId, markerColor, onShowRoute, routeActive, routeLoading }) {
   const open       = isOpenNow(club)
   const todayHours = getTodayHours(club)
   const todayIdx   = getTodayIdx()
@@ -357,6 +363,21 @@ function ClubCard({ club, expanded, onExpand, onClose, isFav, onToggleFav, onAut
               {noteSent && <div className="pf-note-sent">Note submitted — thank you!</div>}
             </div>
           )}
+          {onShowRoute && (
+            <button
+              className={`pfp-route-btn ${routeActive ? 'pfp-route-btn--active' : ''}`}
+              onClick={onShowRoute}
+              disabled={routeLoading}
+            >
+              {routeLoading ? (
+                <><div className="pfp-route-spinner" /> Calculating route…</>
+              ) : routeActive ? (
+                <><svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg> Hide route</>
+              ) : (
+                <><svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M3 12l18-9-9 18-2-8-7-1z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" fill="currentColor"/></svg> Show driving route</>
+              )}
+            </button>
+          )}
           <a className="pfp-directions-btn" href={mapsUrl} target="_blank" rel="noopener noreferrer">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M3 12l18-9-9 18-2-8-7-1z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/></svg>
             Get directions in Google Maps
@@ -400,6 +421,9 @@ export default function PublicFinderPage() {
   const [expandedId, setExpandedId]         = useState(null)
   const [hoveredId, setHoveredId]           = useState(null)
   const [panelOpen, setPanelOpen]           = useState(false)
+  const [routeCoords, setRouteCoords]       = useState(null)   // [[lat,lng], ...]
+  const [routeClubId, setRouteClubId]       = useState(null)   // which club the route is for
+  const [routeLoading, setRouteLoading]     = useState(false)
   const [favIds, setFavIds]                 = useState(new Set())
   const [savedClubs, setSavedClubs]         = useState([])
   const [isClubOwner, setIsClubOwner]       = useState(false)
@@ -487,7 +511,7 @@ export default function PublicFinderPage() {
       setResults(mapDist(fallback).slice(0, 5)); setResultsFallback(true)
     }
     setPanelOpen(true); setSearching(false)
-    setFlyTo({ lat, lng, zoom: 11, _t: Date.now() })
+    setFlyTo({ lat, lng, zoom: 13, _t: Date.now() })
   }
 
   async function handleSearchSubmit(e) {
@@ -515,15 +539,41 @@ export default function PublicFinderPage() {
 
   function handleCardExpand(id) {
     setExpandedId(id)
+    // Clear route if switching clubs
+    if (id !== routeClubId) { setRouteCoords(null); setRouteClubId(null) }
     const club = results?.find(r => r.id === id)
     if (club?.lat && club?.lng) setFlyTo({ lat: club.lat, lng: club.lng, zoom: 14, _t: Date.now() })
   }
 
   function handlePinClick(id) {
     setExpandedId(id); setPanelOpen(true)
+    if (id !== routeClubId) { setRouteCoords(null); setRouteClubId(null) }
     const club = results?.find(r => r.id === id)
     if (club?.lat && club?.lng) setFlyTo({ lat: club.lat, lng: club.lng, zoom: 14, _t: Date.now() })
     setTimeout(() => document.getElementById(`pfp-card-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 150)
+  }
+
+  async function fetchRoute(club) {
+    if (!userLat || !userLng || !club.lat || !club.lng) return
+    if (routeClubId === club.id && routeCoords) { setRouteCoords(null); setRouteClubId(null); return }
+    setRouteLoading(true)
+    try {
+      const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${userLng},${userLat};${club.lng},${club.lat}?geometries=geojson&overview=full&access_token=${MAPBOX_TOKEN}`
+      const res  = await fetch(url)
+      const data = await res.json()
+      if (data.routes?.[0]) {
+        const coords = data.routes[0].geometry.coordinates.map(([lng, lat]) => [lat, lng])
+        setRouteCoords(coords)
+        setRouteClubId(club.id)
+        // Fit map to show full route
+        if (coords.length > 1) {
+          const lats = coords.map(c => c[0]), lngs = coords.map(c => c[1])
+          const bounds = [[Math.min(...lats), Math.min(...lngs)], [Math.max(...lats), Math.max(...lngs)]]
+          setFlyTo({ bounds, _t: Date.now() })
+        }
+      }
+    } catch {}
+    setRouteLoading(false)
   }
 
   if (loadingSettings || authLoading) return <div className="loading">Loading…</div>
@@ -560,10 +610,12 @@ export default function PublicFinderPage() {
   return (
     <div className="pfp-page">
       <div className="pfp-topbar">
-        <button className="pfp-back-btn" onClick={() => navigate('/')}>
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M10 3L5 8l5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-          Back
-        </button>
+        {!isClubOwner && (
+          <button className="pfp-back-btn" onClick={() => navigate('/')}>
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M10 3L5 8l5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            Back
+          </button>
+        )}
         <div className="pfp-brand">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="#fff"/></svg>
           My Club Locator
@@ -604,8 +656,14 @@ export default function PublicFinderPage() {
           >
             <TileLayer url={MAPBOX_URL} attribution={MAPBOX_ATTR} />
             <FindExtentTracker />
-            {flyTo && <MapFlyTo key={flyTo._t} lat={flyTo.lat} lng={flyTo.lng} zoom={flyTo.zoom} />}
+            {flyTo && <MapFlyTo key={flyTo._t} lat={flyTo.lat} lng={flyTo.lng} zoom={flyTo.zoom} bounds={flyTo.bounds} />}
             {userLat && userLng && <Marker position={[userLat, userLng]} icon={userIcon} />}
+          {routeCoords && (
+            <Polyline
+              positions={routeCoords}
+              pathOptions={{ color: '#185FA5', weight: 4, opacity: 0.85, lineCap: 'round', lineJoin: 'round' }}
+            />
+          )}
             {(results || []).map(club => {
               if (!club.lat || !club.lng) return null
               const isSelected = club.id === expandedId
@@ -683,12 +741,31 @@ export default function PublicFinderPage() {
                         onAuthRequired={!publicAccount && settings?.public_accounts_enabled !== false ? () => setAuthModal('signin') : undefined}
                         publicAccountId={publicAccount?.id}
                         markerColor={club.id === expandedId ? selColor : pinColor}
+                        onShowRoute={userLat && userLng ? () => fetchRoute(club) : undefined}
+                        routeActive={routeClubId === club.id && !!routeCoords}
+                        routeLoading={routeLoading && routeClubId === club.id}
                       />
                     </div>
                   ))}
                   <div className="pfp-panel-footer">
-                    <span>Club owner?</span>
-                    <button onClick={() => navigate('/login')} className="pfp-footer-link">Log in to manage your club →</button>
+                    {isClubOwner ? (
+                      <button
+                        onClick={() => {
+                          const ext = sessionStorage.getItem('findExtent')
+                          if (ext) sessionStorage.setItem('mapReturnExtent', ext)
+                          navigate('/app/map')
+                        }}
+                        className="pfp-panel-footer-owner-btn"
+                      >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                        Return to Owner map
+                      </button>
+                    ) : (
+                      <>
+                        <span>Club owner?</span>
+                        <button onClick={() => navigate('/login')} className="pfp-footer-link">Log in to manage your club →</button>
+                      </>
+                    )}
                   </div>
                 </div>
               )}
