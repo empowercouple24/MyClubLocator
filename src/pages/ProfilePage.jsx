@@ -90,6 +90,13 @@ function MyTeamSection({ userId, userLevel }) {
       setNewTeamName('')
       setShowCreate(false)
       setExpandedTeamId(data.id)
+      // Notify admin that a team was created
+      await supabase.from('notifications').insert({
+        type: 'team_created',
+        title: 'New team created',
+        body: `A new team "${data.name}" was created.`,
+        user_id: userId,
+      })
     }
     setCreating(false)
   }
@@ -155,8 +162,20 @@ function MyTeamSection({ userId, userLevel }) {
   async function handleRespondInvite(inviteId, accept) {
     const status = accept ? 'accepted' : 'declined'
     await supabase.from('team_members').update({ status, responded_at: new Date().toISOString() }).eq('id', inviteId)
+    const invite = pendingInvites.find(i => i.id === inviteId)
     setPendingInvites(prev => prev.filter(i => i.id !== inviteId))
-    if (accept) await loadAll()
+    if (accept) {
+      await loadAll()
+      // Notify admin that a member joined a team
+      if (invite?.teams?.name) {
+        await supabase.from('notifications').insert({
+          type: 'team_joined',
+          title: 'Member joined a team',
+          body: `A member accepted an invitation to join "${invite.teams.name}".`,
+          user_id: userId,
+        })
+      }
+    }
   }
 
   async function handleLeaveTeam(memberId) {
@@ -1878,6 +1897,15 @@ export default function ProfilePage() {
           </div>
         )}
         </div>{/* end sec-card-body */}
+        <div className="next-card-row">
+          <button className="next-card-btn" type="button" onClick={() => {
+            setMyClubsOpen(true)
+            setTimeout(() => document.querySelector('.my-clubs-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100)
+          }}>
+            Next: My Clubs
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          </button>
+        </div>
       </div>
 
       {/* Owner crop modal */}
@@ -1935,9 +1963,17 @@ export default function ProfilePage() {
           />
         )}
         </>)}
+        <div className="next-card-row">
+          <button className="next-card-btn" type="button" onClick={() => {
+            setMyClubsOpen(false)
+            setStoryOpen(true)
+            setTimeout(() => document.querySelector('.story-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100)
+          }}>
+            Next: Your Story
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          </button>
+        </div>
       </div>
-
-      {/* Add Club confirmation modal */}
       {showAddClubPrompt && (
         <AddClubPrompt
           clubCount={clubs.length}
@@ -1959,7 +1995,7 @@ export default function ProfilePage() {
         const filledCount = STORY_FIELDS.filter(({ key }) => !!personForm[key]).length
         const storyComplete = filledCount === STORY_FIELDS.length
         return (
-          <div className="sec-card" style={{ padding: 0, overflow: 'hidden' }}>
+          <div className="sec-card story-card" style={{ padding: 0, overflow: 'hidden' }}>
             <button type="button" className="survey-toggle-btn" onClick={() => setStoryOpen(o => !o)}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 }}>
                 <span className="sec-label" style={{ margin: 0 }}>Your Story</span>
@@ -1984,6 +2020,16 @@ export default function ProfilePage() {
                       placeholder="Share your answer here…" />
                   </div>
                 ))}
+                <div className="next-card-row">
+                  <button className="next-card-btn" type="button" onClick={() => {
+                    setStoryOpen(false)
+                    setSurveyOpen(true)
+                    setTimeout(() => document.querySelector('.survey-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100)
+                  }}>
+                    Next: Member Survey
+                    <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -2019,7 +2065,7 @@ export default function ProfilePage() {
           setPersonField('survey_trainings', [...set].join(','))
         }
         return (
-          <div className="sec-card" style={{ padding: 0, overflow: 'hidden' }}>
+          <div className="sec-card survey-card" style={{ padding: 0, overflow: 'hidden' }}>
             <button type="button" className="survey-toggle-btn" onClick={() => setSurveyOpen(o => !o)}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 }}>
                 <span className="sec-label" style={{ margin: 0 }}>Member Survey</span>
@@ -2171,6 +2217,15 @@ export default function ProfilePage() {
                   <label>What is your primary goal for joining this platform?</label>
                   <textarea rows={3} value={personForm.survey_goal || ''} onChange={e => setPersonField('survey_goal', e.target.value)}
                     placeholder="Share your thoughts..." />
+                </div>
+                <div className="next-card-row">
+                  <button className="next-card-btn" type="button" onClick={() => {
+                    setSurveyOpen(false)
+                    setTimeout(() => document.querySelector('.my-team-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100)
+                  }}>
+                    Next: My Team
+                    <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  </button>
                 </div>
               </div>
             )}

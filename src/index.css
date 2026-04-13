@@ -6675,6 +6675,9 @@ body:has(.admin-page-wrap) {
 
 /* ── Tooltip min-width bump for richer content ───────────────── */
 .club-tooltip { min-width: 293px !important; max-width: 347px !important; }
+.leaflet-tooltip.club-tooltip,
+.leaflet-tooltip.club-tooltip * { pointer-events: auto !important; }
+.ct-dir-link { position: relative; z-index: 10; }
 
 /* ── Demographics retry button ───────────────────────────────── */
 .demo-retry-btn {
@@ -9600,3 +9603,23 @@ input.input-ok {
   .map-controls-bottom { bottom: calc(16px + env(safe-area-inset-bottom)); }
   .pfp-topbar { padding-left: max(16px, env(safe-area-inset-left)); padding-right: max(16px, env(safe-area-inset-right)); }
 }
+
+/* ── Next card navigation buttons (profile onboarding flow) ── */
+.next-card-row {
+  display: flex;
+  justify-content: flex-end;
+  padding: 10px 16px 12px;
+  border-top: 1px solid #f0f0f0;
+  margin-top: 8px;
+}
+.next-card-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 16px;
+  font-size: 13px; font-weight: 600;
+  color: #1A3C2E; background: #E8F5EE;
+  border: 1px solid #B8DECA; border-radius: 8px;
+  cursor: pointer;
+  transition: background .15s, border-color .15s;
+}
+.next-card-btn:hover { background: #D0EDDD; border-color: #7FC4A0; }
+.next-card-btn svg { flex-shrink: 0; }

@@ -254,7 +254,9 @@ export default function AdminPage() {
     welcome_video_url: '',
     welcome_video_placeholder: 'https://www.youtube.com/embed/dQw4w9WgXcQ',
     welcome_title: 'Welcome to My Club Locator!',
+    welcome_returning_title: 'Welcome back, {{first_name}}!',
     welcome_message: "You're now part of the network. Watch the video below to get started, then add your club to the map.",
+    welcome_disclaimer_enabled: true,
     welcome_disclaimer: '',
     require_approval: false,
     member_signups_enabled: true,
@@ -640,7 +642,9 @@ export default function AdminPage() {
       welcome_video_url:          settings.welcome_video_url,
       welcome_video_placeholder:  settings.welcome_video_placeholder,
       welcome_title:              settings.welcome_title,
+      welcome_returning_title:    settings.welcome_returning_title,
       welcome_message:            settings.welcome_message,
+      welcome_disclaimer_enabled: settings.welcome_disclaimer_enabled,
       welcome_disclaimer:         settings.welcome_disclaimer,
       require_approval:           settings.require_approval,
       member_signups_enabled:     settings.member_signups_enabled,
@@ -789,6 +793,18 @@ export default function AdminPage() {
                         background: '#0891B2', color: '#fff', borderRadius: '10px',
                         fontSize: 10, fontWeight: 600, padding: '1px 6px', lineHeight: '16px'
                       }}>{unreadByType.team_invite}</span>
+                    )}
+                    {unreadByType.team_created > 0 && (
+                      <span title="New teams formed" style={{
+                        background: '#7C3AED', color: '#fff', borderRadius: '10px',
+                        fontSize: 10, fontWeight: 600, padding: '1px 6px', lineHeight: '16px'
+                      }}>{unreadByType.team_created}</span>
+                    )}
+                    {unreadByType.team_joined > 0 && (
+                      <span title="Members joined teams" style={{
+                        background: '#0D9488', color: '#fff', borderRadius: '10px',
+                        fontSize: 10, fontWeight: 600, padding: '1px 6px', lineHeight: '16px'
+                      }}>{unreadByType.team_joined}</span>
                     )}
                   </span>
                 )
@@ -1133,10 +1149,20 @@ export default function AdminPage() {
                         </div>
 
                         <div className="field">
-                          <label>Modal title</label>
+                          <label>Modal title <span className="field-optional">shown to new users without a club</span></label>
                           <input type="text" value={settings.welcome_title}
                             onChange={e => setSettings(s => ({ ...s, welcome_title: e.target.value }))}
                             placeholder="Welcome to My Club Locator!" />
+                        </div>
+
+                        <div className="field">
+                          <label>Returning member title <span className="field-optional">shown to users who already have a club</span></label>
+                          <input type="text" name="welcome_returning_title" value={settings.welcome_returning_title}
+                            onChange={e => setSettings(s => ({ ...s, welcome_returning_title: e.target.value }))}
+                            placeholder="Welcome back, {{first_name}}!" />
+                          <div className="field-hint" style={{ marginTop: 4 }}>
+                            Use <code>{"{{first_name}}"}</code> for the owner's name
+                          </div>
                         </div>
 
                         <div className="field">
@@ -1170,6 +1196,16 @@ export default function AdminPage() {
                           <span className="field-hint">Shown to new users when no video URL is set above</span>
                         </div>
 
+                        <div className="admin-toggle-row" style={{ marginTop: 16, marginBottom: 8, paddingTop: 16, borderTop: '1px solid #eee' }}>
+                          <div>
+                            <div className="admin-toggle-label">Show disclaimer</div>
+                            <div className="admin-toggle-hint">Display a disclaimer at the bottom of the welcome modal</div>
+                          </div>
+                          <ToggleSwitch on={settings.welcome_disclaimer_enabled}
+                            onChange={v => setSettings(s => ({ ...s, welcome_disclaimer_enabled: v }))} />
+                        </div>
+
+                        {settings.welcome_disclaimer_enabled && (
                         <div className="field">
                           <label>Disclaimer text <span className="field-optional">shown at bottom of modal</span></label>
                           <RichTextEditor
@@ -1183,6 +1219,7 @@ export default function AdminPage() {
                           </div>
                           <span className="field-hint">Leave blank to show the default placeholder text until you're ready</span>
                         </div>
+                        )}
                       </div>
 
                       {/* Right: live modal preview */}

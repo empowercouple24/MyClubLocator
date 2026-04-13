@@ -65,7 +65,7 @@ export default function WelcomeModal() {
         </div>
         {hasClub ? (
           <>
-            <h2 className="modal-title">{firstName ? `Welcome back, ${firstName}!` : 'Welcome back!'}</h2>
+            <h2 className="modal-title">{applyTags(settings.welcome_returning_title) || (firstName ? `Welcome back, ${firstName}!` : 'Welcome back!')}</h2>
             <div className="modal-message rte-content" dangerouslySetInnerHTML={{ __html: applyTags(settings.welcome_message) || "You're part of the network. Explore the map to see clubs near you." }} />
             <div className="modal-actions"><button className="modal-btn-primary" onClick={dismiss}>Explore the Map</button></div>
           </>
@@ -81,7 +81,9 @@ export default function WelcomeModal() {
             <div className="modal-actions"><button className="modal-btn-primary" onClick={goToProfile}>Add My Club</button></div>
           </>
         )}
-        <div className="modal-disclaimer rte-content" dangerouslySetInnerHTML={{ __html: applyTags(settings.welcome_disclaimer) || 'Disclaimer placeholder \u2014 edit in Admin \u2192 Settings.' }} />
+        {settings.welcome_disclaimer_enabled !== false && (
+          <div className="modal-disclaimer rte-content" dangerouslySetInnerHTML={{ __html: applyTags(settings.welcome_disclaimer) || 'Disclaimer placeholder \u2014 edit in Admin \u2192 Settings.' }} />
+        )}
       </div>
     </div>
   )

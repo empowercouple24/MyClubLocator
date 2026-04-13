@@ -461,17 +461,29 @@ function ClubMarkers({ locations, selectedId, userId, onSelect, navigate, teamFi
         setTimeout(() => {
           const tooltipEl = ev.tooltip && ev.tooltip._container
           if (!tooltipEl) return
+          // Force pointer-events on the tooltip container
+          tooltipEl.style.pointerEvents = 'auto'
           tooltipEl.onmouseenter = () => { isTooltipHovered = true; keepOpen() }
           tooltipEl.onmouseleave = () => { isTooltipHovered = false; _tryClose(500) }
           const el = tooltipEl.querySelector('.ct-dir-link')
           if (el) {
+            el.style.pointerEvents = 'auto'
+            el.style.position = 'relative'
+            el.style.zIndex = '9999'
             el.onmouseenter = () => { isTooltipHovered = true; keepOpen() }
-            el.onclick = (e) => {
-              e.stopPropagation(); keepOpen()
-              navigate(`/app/directory?search=${encodeURIComponent(decodeURIComponent(el.dataset.clubname || ''))}`)
-            }
+            // Remove any previous listeners by cloning
+            const fresh = el.cloneNode(true)
+            el.parentNode.replaceChild(fresh, el)
+            fresh.onmouseenter = () => { isTooltipHovered = true; keepOpen() }
+            fresh.addEventListener('click', (e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              e.stopImmediatePropagation()
+              const name = decodeURIComponent(fresh.dataset.clubname || '')
+              navigate(`/app/directory?search=${encodeURIComponent(name)}`)
+            }, true)
           }
-        }, 30)
+        }, 50)
       })
 
       markersRef.current[loc.id] = marker
