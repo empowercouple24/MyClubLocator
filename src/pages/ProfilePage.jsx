@@ -39,7 +39,6 @@ function MyTeamSection({ userId, userLevel }) {
   const [inviteTeamId, setInviteTeamId]   = useState(null)
   const [expandedTeamId, setExpandedTeamId] = useState(null)
   const [myLocationId, setMyLocationId]   = useState(null)
-  const [myClubsOpen, setMyClubsOpen]     = useState(false)
 
   useEffect(() => {
     if (!userId) return
@@ -1306,6 +1305,7 @@ export default function ProfilePage() {
   const [cropTarget, setCropTarget] = useState(null)
 
   const [showAddClubPrompt, setShowAddClubPrompt] = useState(false)
+  const [myClubsOpen, setMyClubsOpen] = useState(false)
 
   const isPersonDirty = savedPersonForm !== null
     ? JSON.stringify(personForm) !== JSON.stringify(savedPersonForm)

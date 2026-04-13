@@ -180,9 +180,14 @@ function formatHoursDisplay(loc) {
 
 function MapClickHandler({ onMapClick, active }) {
   const map = useMap()
+  const cbRef = useRef(onMapClick)
+  useEffect(() => { cbRef.current = onMapClick }, [onMapClick])
   useEffect(() => {
     if (!active) return
-    function handler(e) { onMapClick(e.latlng.lat, e.latlng.lng) }
+    function handler(e) {
+      console.log('[MarketData] Map clicked:', e.latlng.lat, e.latlng.lng)
+      cbRef.current(e.latlng.lat, e.latlng.lng)
+    }
     map.on('click', handler)
     return () => map.off('click', handler)
   }, [active, map])

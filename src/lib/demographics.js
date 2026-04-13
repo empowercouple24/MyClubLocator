@@ -37,9 +37,10 @@ export async function reverseGeocode(lat, lng) {
       try {
         const controller = new AbortController()
         const timeout = setTimeout(() => controller.abort(), 12000)
+        console.log(`[MarketData] reverseGeocode attempt ${attempt+1}, vintage=${vintage}`, url)
         const res = await fetch(url, { signal: controller.signal })
         clearTimeout(timeout)
-        if (!res.ok) { await new Promise(r => setTimeout(r, 600)); continue }
+        if (!res.ok) { console.warn(`[MarketData] reverseGeocode HTTP ${res.status}`); await new Promise(r => setTimeout(r, 600)); continue }
         const data = await res.json()
         const result = data?.result?.geographies
         const county = result?.Counties?.[0]
@@ -48,21 +49,25 @@ export async function reverseGeocode(lat, lng) {
           || result?.['2010 ZIP Code Tabulation Areas']?.[0]
 
         if (!county) {
+          console.warn('[MarketData] No county in response', JSON.stringify(result).slice(0, 200))
           if (attempt < 1) { await new Promise(r => setTimeout(r, 600)); continue }
           break
         }
 
+        console.log('[MarketData] reverseGeocode success:', county.NAME, zcta?.ZCTA5)
         return {
           zip:        zcta?.ZCTA5 || null,
           countyFips: county.STATE.padStart(2,'0') + county.COUNTY.padStart(3,'0'),
           countyName: county.NAME || null,
           stateFips:  county.STATE.padStart(2,'0') || null,
         }
-      } catch {
+      } catch (err) {
+        console.warn('[MarketData] reverseGeocode error:', err.message)
         if (attempt < 1) await new Promise(r => setTimeout(r, 600))
       }
     }
   }
+  console.error('[MarketData] reverseGeocode failed for all vintages')
   return null
 }
 
