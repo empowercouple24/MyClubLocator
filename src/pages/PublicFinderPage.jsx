@@ -70,10 +70,10 @@ function isOpenNow(loc) {
   return nowMins >= oh * 60 + om && nowMins < ch * 60 + cm
 }
 
-function MapboxTile({ lat, lng, clubName }) {
+function MapboxTile({ lat, lng, clubName, zoom = 13 }) {
   if (!MAPBOX_TOKEN || !lat || !lng) return null
-  const url = `https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/pin-s+F59E0B(${lng},${lat})/${lng},${lat},15,0/400x200@2x?access_token=${MAPBOX_TOKEN}`
-  return <img src={url} alt={`Map showing ${clubName}`} className="pf-map-tile" loading="lazy" />
+  const url = `https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/pin-s+F59E0B(${lng},${lat})/${lng},${lat},${zoom},0/400x240@2x?access_token=${MAPBOX_TOKEN}`
+  return <img src={url} alt={`Map showing ${clubName}`} className="pf-map-tile-img" loading="lazy" />
 }
 
 function DisclaimerScreen({ text, onAccept }) {
@@ -205,65 +205,114 @@ function SavedPanel({ savedClubs, expandedId, onExpand, onClose, onToggleFav, fa
   )
 }
 
+// ── Hours condensing (shared with MapPage logic) ───────────
+function buildCondensedHours(club) {
+  const days   = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday']
+  const labels = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
+  const fmt = t => {
+    if (!t) return ''
+    const [h, m] = t.split(':').map(Number)
+    const period = h < 12 ? 'AM' : 'PM'
+    const hour = h === 0 ? 12 : h > 12 ? h - 12 : h
+    return `${hour}:${String(m).padStart(2,'0')} ${period}`
+  }
+  const openDays = days.map((d, i) => ({
+    idx: i, label: labels[i],
+    o: club[`hours_${d}_open`] || '',
+    c: club[`hours_${d}_close`] || '',
+    open: !!(club[`hours_${d}_open`] && club[`hours_${d}_close`])
+  })).filter(d => d.open)
+  if (!openDays.length) return []
+  const ranges = []
+  let run = [openDays[0]]
+  for (let i = 1; i < openDays.length; i++) {
+    const prev = run[run.length - 1], curr = openDays[i]
+    if (curr.idx === prev.idx + 1 && curr.o === prev.o && curr.c === prev.c) run.push(curr)
+    else { ranges.push(run); run = [curr] }
+  }
+  ranges.push(run)
+  return ranges.map(r => ({
+    day: r.length === 1 ? r[0].label : `${r[0].label}–${r[r.length-1].label}`,
+    hours: `${fmt(r[0].o)} – ${fmt(r[0].c)}`,
+    idxStart: r[0].idx,
+    idxEnd: r[r.length-1].idx,
+  }))
+}
+
+function getTodayIdx() {
+  return (new Date().getDay() + 6) % 7 // Mon=0 … Sun=6
+}
+
+// ── Club Logo ───────────────────────────────────────────────
+function ClubLogo({ url, name }) {
+  if (url) return <img src={url} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+      <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="rgba(255,255,255,0.85)"/>
+    </svg>
+  )
+}
+
 // ── Club Card ──────────────────────────────────────────────
 function ClubCard({ club, distanceMiles, onExpand, expanded, onClose, isFav, onToggleFav, onAuthRequired, publicAccountId }) {
-  const hours  = getTodayHours(club)
-  const open   = isOpenNow(club)
+  const todayHours = getTodayHours(club)
+  const open       = isOpenNow(club)
+  const todayIdx   = getTodayIdx()
+  const condensed  = buildCondensedHours(club)
   const owners = [
     club.first_name && `${club.first_name}${club.last_name ? ' ' + club.last_name : ''}`,
     club.owner2_first_name && `${club.owner2_first_name}${club.owner2_last_name ? ' ' + club.owner2_last_name : ''}`,
     club.owner3_first_name && `${club.owner3_first_name}${club.owner3_last_name ? ' ' + club.owner3_last_name : ''}`,
   ].filter(Boolean)
 
-  const [noteText, setNoteText]     = useState('')
+  const photos = club.photo_urls || []
+  const isLoggedIn = !!publicAccountId
+
+  const [noteText, setNoteText]         = useState('')
   const [noteSubmitting, setNoteSubmitting] = useState(false)
-  const [noteSent, setNoteSent]     = useState(false)
-  const [noteOpen, setNoteOpen]     = useState(false)
+  const [noteSent, setNoteSent]         = useState(false)
+  const [noteOpen, setNoteOpen]         = useState(false)
+
+  const fullAddress = [club.address, club.city, club.state, club.zip].filter(Boolean).join(', ')
+  const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(fullAddress)}`
 
   async function submitNote() {
     if (!noteText.trim() || !publicAccountId) return
     setNoteSubmitting(true)
-    await supabase.from('club_notes').insert({
-      public_account_id: publicAccountId,
-      location_id: club.id,
-      note: noteText.trim(),
-    })
+    await supabase.from('club_notes').insert({ public_account_id: publicAccountId, location_id: club.id, note: noteText.trim() })
     await supabase.from('notifications').insert({
-      type: 'club_note',
-      title: 'New note on a club',
+      type: 'club_note', title: 'New note on a club',
       body: `A public user left a note on ${club.club_name || 'a club'}: "${noteText.trim().slice(0, 80)}${noteText.length > 80 ? '…' : ''}"`,
       user_id: null,
     })
-    setNoteSubmitting(false)
-    setNoteSent(true)
-    setNoteText('')
+    setNoteSubmitting(false); setNoteSent(true); setNoteText('')
     setTimeout(() => { setNoteSent(false); setNoteOpen(false) }, 2500)
   }
 
   return (
     <div className={`pf-club-card ${expanded ? 'expanded' : ''}`}>
+      {/* ── Collapsed header ── */}
       <div className="pf-club-card-header" onClick={expanded ? onClose : onExpand}>
+        <div className="pf-card-logo">
+          <ClubLogo url={club.logo_url} name={club.club_name} />
+        </div>
         <div className="pf-club-card-left">
           <div className="pf-club-name">{club.club_name || 'Unnamed Club'}</div>
           <div className="pf-club-meta">
             <span className="pf-club-addr">{[club.city, club.state].filter(Boolean).join(', ')}</span>
             {distanceMiles != null && <span className="pf-club-dist">{distanceMiles.toFixed(1)} mi</span>}
           </div>
-          {hours && (
+          {todayHours && (
             <div className="pf-club-hours">
               <ClockIcon />
-              <span className={open ? 'pf-open' : 'pf-closed'}>{open ? 'Open now' : 'Closed'}</span>
-              <span className="pf-hours-text">{hours}</span>
+              <span className={open ? 'pf-open' : 'pf-closed-text'}>{open ? 'Open now' : 'Closed'}</span>
+              <span className="pf-hours-text">{todayHours}</span>
             </div>
           )}
         </div>
-        <div className="pf-club-card-right" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div className="pf-club-card-right">
           {onToggleFav !== undefined && (
-            <button
-              className={`pf-heart-btn ${isFav ? 'fav' : ''}`}
-              onClick={e => { e.stopPropagation(); onToggleFav ? onToggleFav() : onAuthRequired?.() }}
-              title={isFav ? 'Remove from saved' : 'Save this club'}
-            >
+            <button className={`pf-heart-btn ${isFav ? 'fav' : ''}`} onClick={e => { e.stopPropagation(); onToggleFav ? onToggleFav() : onAuthRequired?.() }} title={isFav ? 'Remove from saved' : 'Save this club'}>
               <HeartIcon filled={isFav} />
             </button>
           )}
@@ -278,103 +327,153 @@ function ClubCard({ club, distanceMiles, onExpand, expanded, onClose, isFav, onT
         </div>
       </div>
 
+      {/* ── Expanded detail ── */}
       {expanded && (
-        <div className="pf-club-detail">
-          <MapboxTile lat={club.lat} lng={club.lng} clubName={club.club_name} />
+        <div className="pf-club-detail pf-detail-grid">
 
-          {club.address && (
-            <div className="pf-detail-row">
-              <PinIcon size={13} color="#888" />
-              <span>{club.address}{club.city ? `, ${club.city}` : ''}{club.state ? `, ${club.state}` : ''}{club.zip ? ` ${club.zip}` : ''}</span>
-            </div>
-          )}
-          {club.club_phone && (
-            <div className="pf-detail-row">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.93 11.5a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.84 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 8.91a16 16 0 0 0 5.61 5.61l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
-              <span>{club.club_phone}</span>
-            </div>
-          )}
-          {club.club_email && (
-            <div className="pf-detail-row">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" stroke="currentColor" strokeWidth="1.5"/><polyline points="22,6 12,13 2,6" stroke="currentColor" strokeWidth="1.5"/></svg>
-              <span>{club.club_email}</span>
-            </div>
-          )}
-          {owners.length > 0 && (
-            <div className="pf-detail-row">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><circle cx="12" cy="7" r="4" stroke="currentColor" strokeWidth="1.5"/></svg>
-              <span>{owners.join(', ')}</span>
-            </div>
-          )}
+          {/* Left column */}
+          <div className="pf-detail-left">
+            {/* Address */}
+            {club.address && (
+              <div className="pf-detail-row">
+                <PinIcon size={13} color="#888" />
+                <span>{fullAddress}</span>
+              </div>
+            )}
 
-          {(() => {
-            const days = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday']
-            const labels = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
-            const fmt = t => {
-              if (!t) return ''
-              const [h, m] = t.split(':').map(Number)
-              const period = h < 12 ? 'AM' : 'PM'
-              const hour = h === 0 ? 12 : h > 12 ? h - 12 : h
-              return `${hour}:${String(m).padStart(2,'0')} ${period}`
-            }
-            const openDays = days.map((d, i) => ({ label: labels[i], o: club[`hours_${d}_open`], c: club[`hours_${d}_close`] })).filter(d => d.o && d.c)
-            if (!openDays.length) return null
-            return (
-              <div className="pf-hours-block">
-                <div className="pf-hours-title">Hours</div>
-                {openDays.map((d, i) => (
-                  <div key={i} className="pf-hours-row">
-                    <span className="pf-hours-day">{d.label}</span>
-                    <span className="pf-hours-time">{fmt(d.o)} – {fmt(d.c)}</span>
+            {/* Hours condensed */}
+            {condensed.length > 0 && (
+              <div className="pf-detail-row pf-detail-row--top">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style={{flexShrink:0,marginTop:2}}><circle cx="12" cy="12" r="9" stroke="#888" strokeWidth="1.5"/><path d="M12 7v5l3 3" stroke="#888" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                <div className="pf-hours-condensed">
+                  {condensed.map((r, i) => {
+                    const isToday = todayIdx >= r.idxStart && todayIdx <= r.idxEnd
+                    return (
+                      <div key={i} className={`pf-hours-crow${isToday ? ' pf-hours-crow--today' : ''}`}>
+                        <span className="pf-hours-cday">{r.day}</span>
+                        <span className="pf-hours-ctime">{r.hours}</span>
+                        {isToday && <span className="pf-today-dot">●</span>}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Website */}
+            {club.club_website && (
+              <div className="pf-detail-row">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style={{flexShrink:0}}><circle cx="12" cy="12" r="9" stroke="#888" strokeWidth="1.5"/><path d="M2 12h20M12 2c-2.5 3-4 6-4 10s1.5 7 4 10M12 2c2.5 3 4 6 4 10s-1.5 7-4 10" stroke="#888" strokeWidth="1.5"/></svg>
+                <a href={club.club_website.startsWith('http') ? club.club_website : `https://${club.club_website}`} target="_blank" rel="noopener noreferrer" className="pf-link">{club.club_website.replace(/^https?:\/\//, '')}</a>
+              </div>
+            )}
+
+            {/* Phone — logged in only */}
+            {isLoggedIn && club.club_phone && (
+              <div className="pf-detail-row">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style={{flexShrink:0}}><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.93 11.5a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.84 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 8.91a16 16 0 0 0 5.61 5.61l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" stroke="#888" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                <span>{club.club_phone}</span>
+              </div>
+            )}
+
+            {/* Owners — logged in only */}
+            {isLoggedIn && owners.length > 0 && (
+              <div className="pf-detail-row">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style={{flexShrink:0}}><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke="#888" strokeWidth="1.5" strokeLinecap="round"/><circle cx="12" cy="7" r="4" stroke="#888" strokeWidth="1.5"/></svg>
+                <span>{owners.join(', ')}</span>
+              </div>
+            )}
+
+            {/* Leave a note */}
+            {isLoggedIn && (
+              <div className="pf-note-section">
+                {!noteOpen && !noteSent && (
+                  <button className="pf-note-toggle" onClick={() => setNoteOpen(true)}>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                    Leave a note
+                  </button>
+                )}
+                {noteOpen && !noteSent && (
+                  <div className="pf-note-form">
+                    <textarea className="pf-note-input" rows={3} placeholder="Share your experience…" value={noteText} onChange={e => setNoteText(e.target.value)} autoFocus />
+                    <div className="pf-note-actions">
+                      <button className="pf-note-cancel" onClick={() => { setNoteOpen(false); setNoteText('') }}>Cancel</button>
+                      <button className="pf-note-submit" onClick={submitNote} disabled={noteSubmitting || !noteText.trim()}>{noteSubmitting ? 'Sending…' : 'Submit'}</button>
+                    </div>
+                  </div>
+                )}
+                {noteSent && (
+                  <div className="pf-note-sent">
+                    <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.5" stroke="#0F6E56" strokeWidth="1.2"/><path d="M5 8l2 2 4-4" stroke="#0F6E56" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                    Note submitted — thank you!
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Right column */}
+          <div className="pf-detail-right">
+            {/* Map tile */}
+            <div className="pf-map-tile">
+              <MapboxTile lat={club.lat} lng={club.lng} clubName={club.club_name} zoom={13} />
+            </div>
+
+            {/* Photo strip */}
+            {isLoggedIn && photos.length > 0 ? (
+              <div className="pf-photo-strip">
+                {photos.slice(0, 4).map((url, i) => (
+                  <div key={i} className="pf-photo-strip-cell">
+                    <img src={url} alt={`Club photo ${i+1}`} />
                   </div>
                 ))}
               </div>
-            )
-          })()}
-
-          {club.photo_urls && club.photo_urls.length > 0 && (
-            <div className="pf-photos">
-              {club.photo_urls.slice(0, 4).map((url, i) => (
-                <div key={i} className="pf-photo-thumb"><img src={url} alt={`Club photo ${i+1}`} /></div>
-              ))}
-            </div>
-          )}
-
-          {/* Leave a note — only when logged in */}
-          {publicAccountId && (
-            <div className="pf-note-section">
-              {!noteOpen && !noteSent && (
-                <button className="pf-note-toggle" onClick={() => setNoteOpen(true)}>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                  Leave a note about this club
-                </button>
-              )}
-              {noteOpen && !noteSent && (
-                <div className="pf-note-form">
-                  <textarea
-                    className="pf-note-input"
-                    rows={3}
-                    placeholder="Share your experience or anything useful about this club…"
-                    value={noteText}
-                    onChange={e => setNoteText(e.target.value)}
-                    autoFocus
-                  />
-                  <div className="pf-note-actions">
-                    <button className="pf-note-cancel" onClick={() => { setNoteOpen(false); setNoteText('') }}>Cancel</button>
-                    <button className="pf-note-submit" onClick={submitNote} disabled={noteSubmitting || !noteText.trim()}>
-                      {noteSubmitting ? 'Sending…' : 'Submit note'}
-                    </button>
+            ) : !isLoggedIn && photos.length > 0 ? (
+              <div className="pf-photo-strip pf-photo-strip--locked">
+                {photos.slice(0, 4).map((url, i) => (
+                  <div key={i} className="pf-photo-strip-cell pf-photo-strip-cell--blurred">
+                    <img src={url} alt="" />
                   </div>
-                </div>
-              )}
-              {noteSent && (
-                <div className="pf-note-sent">
-                  <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.5" stroke="#0F6E56" strokeWidth="1.2"/><path d="M5 8l2 2 4-4" stroke="#0F6E56" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                  Note submitted — thank you!
-                </div>
-              )}
+                ))}
+              </div>
+            ) : null}
+          </div>
+
+          {/* Teaser row — logged out only */}
+          {!isLoggedIn && (owners.length > 0 || club.club_phone || photos.length > 0) && (
+            <div className="pf-teaser-row">
+              <div className="pf-teaser-blurred">
+                {club.club_phone && (
+                  <span className="pf-teaser-item">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.93 11.5a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.84 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 8.91a16 16 0 0 0 5.61 5.61l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" stroke="currentColor" strokeWidth="1.5"/></svg>
+                    {club.club_phone}
+                  </span>
+                )}
+                {owners.length > 0 && (
+                  <span className="pf-teaser-item">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke="currentColor" strokeWidth="1.5"/><circle cx="12" cy="7" r="4" stroke="currentColor" strokeWidth="1.5"/></svg>
+                    {owners[0]}{owners.length > 1 ? ` +${owners.length - 1}` : ''}
+                  </span>
+                )}
+                {photos.length > 0 && (
+                  <span className="pf-teaser-item">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" strokeWidth="1.5"/><circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.5"/></svg>
+                    {photos.length} photo{photos.length !== 1 ? 's' : ''}
+                  </span>
+                )}
+              </div>
+              <button className="pf-teaser-signin" onClick={() => onAuthRequired?.()}>
+                <svg width="11" height="11" viewBox="0 0 16 16" fill="none"><rect x="3" y="7.5" width="10" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.3"/><path d="M5 7.5V5a3 3 0 016 0v2.5" stroke="currentColor" strokeWidth="1.3"/></svg>
+                Sign in to view
+              </button>
             </div>
           )}
+
+          {/* Directions */}
+          <a className="pf-directions-btn" href={mapsUrl} target="_blank" rel="noopener noreferrer">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M3 12l18-9-9 18-2-8-7-1z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/></svg>
+            Get directions in Google Maps
+          </a>
         </div>
       )}
     </div>
@@ -481,7 +580,7 @@ export default function PublicFinderPage() {
     setExpandedId(null)
     const { data } = await supabase
       .from('locations')
-      .select('id,club_name,address,city,state,zip,lat,lng,club_phone,club_email,first_name,last_name,owner2_first_name,owner2_last_name,owner3_first_name,owner3_last_name,photo_urls,hours_monday_open,hours_monday_close,hours_tuesday_open,hours_tuesday_close,hours_wednesday_open,hours_wednesday_close,hours_thursday_open,hours_thursday_close,hours_friday_open,hours_friday_close,hours_saturday_open,hours_saturday_close,hours_sunday_open,hours_sunday_close')
+      .select('id,club_name,address,city,state,zip,lat,lng,club_phone,club_email,first_name,last_name,owner2_first_name,owner2_last_name,owner3_first_name,owner3_last_name,photo_urls,logo_url,club_website,instagram_url,facebook_url,hours_monday_open,hours_monday_close,hours_tuesday_open,hours_tuesday_close,hours_wednesday_open,hours_wednesday_close,hours_thursday_open,hours_thursday_close,hours_friday_open,hours_friday_close,hours_saturday_open,hours_saturday_close,hours_sunday_open,hours_sunday_close')
       .eq('approved', true)
       .eq('club_index', 0)
     if (!data) { setSearching(false); return }
