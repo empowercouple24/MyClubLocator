@@ -374,23 +374,16 @@ export default function AdminPage() {
     loadSettings()
   }, [isAdmin])
 
-  // Live-apply theme vars ONLY when Themes card is open (for preview within admin)
+  // Live-apply theme vars as admin changes pickers (for preview on other pages after save)
+  // Admin page itself is immune via !important overrides in CSS
   useEffect(() => {
-    if (!card3Open) return
     const root = document.documentElement
     if (settings.theme_page_bg)          root.style.setProperty('--theme-page-bg',          settings.theme_page_bg)
     if (settings.theme_card_header_bg)   root.style.setProperty('--theme-card-header-bg',   settings.theme_card_header_bg)
     if (settings.theme_card_header_text) root.style.setProperty('--theme-card-header-text', settings.theme_card_header_text)
     root.style.setProperty('--theme-card-header-weight', settings.theme_card_header_bold === false ? '400' : '500')
     if (settings.theme_card_body)        root.style.setProperty('--theme-card-body',         settings.theme_card_body)
-    return () => {
-      root.style.removeProperty('--theme-page-bg')
-      root.style.removeProperty('--theme-card-header-bg')
-      root.style.removeProperty('--theme-card-header-text')
-      root.style.removeProperty('--theme-card-header-weight')
-      root.style.removeProperty('--theme-card-body')
-    }
-  }, [card3Open, settings.theme_page_bg, settings.theme_card_header_bg, settings.theme_card_header_text, settings.theme_card_header_bold, settings.theme_card_body])
+  }, [settings.theme_page_bg, settings.theme_card_header_bg, settings.theme_card_header_text, settings.theme_card_header_bold, settings.theme_card_body])
 
   async function loadMembers() {
     setLoadingMembers(true)

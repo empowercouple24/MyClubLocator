@@ -39,6 +39,7 @@ function MyTeamSection({ userId, userLevel }) {
   const [inviteTeamId, setInviteTeamId]   = useState(null)
   const [expandedTeamId, setExpandedTeamId] = useState(null)
   const [myLocationId, setMyLocationId]   = useState(null)
+  const [myClubsOpen, setMyClubsOpen]     = useState(false)
 
   useEffect(() => {
     if (!userId) return
@@ -1737,10 +1738,12 @@ export default function ProfilePage() {
 
       {/* CARD 2: My Clubs — tabbed */}
       <div className="sec-card my-clubs-card">
-        <div className="my-clubs-header">
+        <button type="button" className="sec-card-band" onClick={() => setMyClubsOpen(o => !o)} style={{ cursor: 'pointer', width: '100%', border: 'none' }}>
           <span className="sec-label">My Clubs</span>
-        </div>
+          <svg className={`survey-chevron ${myClubsOpen ? 'open' : ''}`} width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+        </button>
 
+        {myClubsOpen && (<>
         {/* Tab row */}
         <div className="club-tabs">
           {clubs.map((club, i) => (
@@ -1774,6 +1777,7 @@ export default function ProfilePage() {
             userEmail={!clubs[activeTab].id && activeTab === 0 ? user.email : null}
           />
         )}
+        </>)}
       </div>
 
       {/* Add Club confirmation modal */}
