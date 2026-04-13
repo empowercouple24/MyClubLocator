@@ -1404,7 +1404,7 @@ export default function AdminPage() {
                 )}
               </div>
 
-              <div className="admin-section" style={{ padding: 0, overflow: "hidden" }}>
+              <div className="admin-section" style={{ padding: 0 }}>
                 <button type="button" className="survey-toggle-btn" style={{ padding: "14px 20px" }} onClick={() => setCard3Open(o => !o)}>
                   <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1 }}>
                     <h3 className="admin-section-title" style={{ margin: 0 }}>MyClubLocator Themes</h3>
@@ -1508,9 +1508,6 @@ export default function AdminPage() {
                         </div>
 
 
-                <div style={{ borderTop: "0.5px solid #e8ede9", padding: "12px 20px 4px" }}>
-                  <div style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: ".04em", color: "#aaa" }}>Landing Page Appearance</div>
-                </div>
                 {/* Landing Page Appearance */}
                 <div style={{ borderTop: "0.5px solid #e8ede9", padding: "12px 20px 4px" }}>
                   <div style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: ".04em", color: "#aaa", marginBottom: 12 }}>Landing Page Appearance</div>

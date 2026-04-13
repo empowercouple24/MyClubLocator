@@ -9058,6 +9058,7 @@ input.input-ok {
   background: #fff;
   border-top: 0.5px solid #e0e8e0;
   position: relative;
+  z-index: 501;
 }
 .map-prefs-trigger {
   display: flex; align-items: center; justify-content: space-between;
