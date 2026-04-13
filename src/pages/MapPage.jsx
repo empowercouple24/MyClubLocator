@@ -249,7 +249,9 @@ function ScrollZoomController({ enabled }) {
 function ClubMarkers({ locations, selectedId, userId, onSelect, navigate, teamFilter, teamLocationIds, markerColors, markerShapes, markerSizeScale }) {
   const map = useMap()
   const markersRef = useRef({})
+  const prevSelectedRef = useRef(null)
 
+  // Full rebuild only when locations, colors, shapes, or scale change
   useEffect(() => {
     Object.values(markersRef.current).forEach(m => m.remove())
     markersRef.current = {}
@@ -394,26 +396,22 @@ function ClubMarkers({ locations, selectedId, userId, onSelect, navigate, teamFi
           onSelect(loc)
         })
         .on('mouseover', openTooltip)
-        .on('mouseout', () => {
-          // If this marker is selected, use a much longer delay so user can interact with tooltip
-          const isCurrentlySelected = loc.id === selectedId
-          scheduleClose(isCurrentlySelected ? 8000 : 2500)
-        })
+        .on('mouseout', () => scheduleClose(3000))
         .on('tooltipopen', (ev) => {
           setTimeout(() => {
             const tooltipEl = ev.tooltip && ev.tooltip._container
             if (tooltipEl) {
-              tooltipEl.addEventListener('mouseenter', cancelClose)
-              tooltipEl.addEventListener('mouseleave', () => scheduleClose(2500))
+              tooltipEl.onmouseenter = cancelClose
+              tooltipEl.onmouseleave = () => scheduleClose(5000)
               const el = tooltipEl.querySelector('.ct-dir-link')
               if (el) {
-                el.addEventListener('mouseenter', cancelClose)
-                el.addEventListener('click', (e) => {
+                el.onmouseenter = cancelClose
+                el.onclick = (e) => {
                   e.stopPropagation()
                   cancelClose()
                   const name = decodeURIComponent(el.dataset.clubname || '')
                   navigate(`/app/directory?search=${encodeURIComponent(name)}`)
-                })
+                }
               }
             }
           }, 20)
@@ -422,16 +420,35 @@ function ClubMarkers({ locations, selectedId, userId, onSelect, navigate, teamFi
       markersRef.current[loc.id] = marker
     })
 
-    // Auto-open tooltip for the selected/clicked marker after recreation
+    return () => { Object.values(markersRef.current).forEach(m => m.remove()); markersRef.current = {} }
+  }, [locations, userId, teamFilter, teamLocationIds, markerColors, markerShapes, markerSizeScale])
+
+  // When selectedId changes, just swap icons — don't rebuild markers
+  useEffect(() => {
+    const { ownIcon, otherIcon, selectedIcon, teamIcon } = getIcons(markerColors || {}, markerShapes || {}, markerSizeScale || 1)
+
+    // Deselect previous
+    if (prevSelectedRef.current && markersRef.current[prevSelectedRef.current]) {
+      const prevLoc = locations.find(l => l.id === prevSelectedRef.current)
+      if (prevLoc) {
+        const isOwn  = prevLoc.user_id === userId
+        const isTeam = teamFilter && teamLocationIds?.has(prevLoc.id)
+        markersRef.current[prevSelectedRef.current].setIcon(isOwn ? ownIcon : (isTeam ? teamIcon : otherIcon))
+      }
+    }
+
+    // Select new
     if (selectedId && markersRef.current[selectedId]) {
+      markersRef.current[selectedId].setIcon(selectedIcon)
+      // Auto-open tooltip for newly selected marker
       setTimeout(() => {
         const m = markersRef.current[selectedId]
         if (m) m.openTooltip()
       }, 50)
     }
 
-    return () => { Object.values(markersRef.current).forEach(m => m.remove()); markersRef.current = {} }
-  }, [locations, selectedId, userId, teamFilter, teamLocationIds, markerColors, markerShapes, markerSizeScale])
+    prevSelectedRef.current = selectedId
+  }, [selectedId])
 
   return null
 }
@@ -1248,6 +1265,7 @@ export default function MapPage() {
               if (next) {
                 setMyClubCollapsed(true)
                 setDemoLat(null); setDemoLng(null)
+                if (panelCollapsed) setPanelCollapsed(false)
               } else {
                 setDemoLat(null); setDemoLng(null)
                 setCountyGeoJson(null)
