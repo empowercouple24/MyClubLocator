@@ -1303,7 +1303,7 @@ body:has(.admin-page-wrap) {
 
 /* Inner body of each expandable card — gives content comfortable horizontal breathing room */
 .admin-card-body {
-  padding: 0 20px 20px;
+  padding: 14px 20px 20px;
 }
 /* Section dividers inside card body sit full-width (negative margin cancels card-body padding) */
 .admin-card-body > div[style*="borderTop"] {
@@ -2009,7 +2009,7 @@ body:has(.admin-page-wrap) {
   overflow: hidden;
 }
 .owner2-block .owner2-header {
-  background: #2d6b50;
+  background: var(--theme-card-header-bg, #1A3C2E);
   padding: 9px 14px;
   font-size: 12px;
 }
@@ -2188,7 +2188,7 @@ body:has(.admin-page-wrap) {
   transition: opacity 0.15s;
 }
 .btn-save:hover:not(:disabled) { opacity: 0.88; }
-.btn-save:disabled { opacity: 0.5; }
+.btn-save:disabled { opacity: 0.4; background: #aaa; cursor: not-allowed; }
 
 .btn-save-map {
   background: #fff;
@@ -9199,3 +9199,36 @@ input.input-ok {
 
 /* Hide Leaflet default zoom control */
 .leaflet-control-zoom { display: none !important; }
+
+/* Floating zoom buttons — visible when scroll zoom is off */
+.map-zoom-float {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 500;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  pointer-events: auto;
+}
+.map-zoom-float-btn {
+  width: 40px;
+  height: 40px;
+  background: #fff;
+  border: 1px solid #e0e8e0;
+  font-size: 22px;
+  font-weight: 300;
+  color: #333;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+  transition: background 0.12s;
+  line-height: 1;
+}
+.map-zoom-float-btn:first-child { border-radius: 10px 10px 0 0; }
+.map-zoom-float-btn:last-child  { border-radius: 0 0 10px 10px; }
+.map-zoom-float-btn:hover { background: #f0f7f3; }
+.map-zoom-float-btn:active { background: #e0ede6; }

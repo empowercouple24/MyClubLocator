@@ -381,7 +381,7 @@ export default function AdminPage() {
     if (settings.theme_page_bg)          root.style.setProperty('--theme-page-bg',          settings.theme_page_bg)
     if (settings.theme_card_header_bg)   root.style.setProperty('--theme-card-header-bg',   settings.theme_card_header_bg)
     if (settings.theme_card_header_text) root.style.setProperty('--theme-card-header-text', settings.theme_card_header_text)
-    root.style.setProperty('--theme-card-header-weight', settings.theme_card_header_bold === false ? '400' : '500')
+    root.style.setProperty('--theme-card-header-weight', settings.theme_card_header_bold === false ? '400' : '600')
     if (settings.theme_card_body)        root.style.setProperty('--theme-card-body',         settings.theme_card_body)
   }, [settings.theme_page_bg, settings.theme_card_header_bg, settings.theme_card_header_text, settings.theme_card_header_bold, settings.theme_card_body])
 

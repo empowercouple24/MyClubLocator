@@ -67,7 +67,7 @@ export default function App() {
       if (data.theme_page_bg)          root.style.setProperty('--theme-page-bg',          data.theme_page_bg)
       if (data.theme_card_header_bg)   root.style.setProperty('--theme-card-header-bg',   data.theme_card_header_bg)
       if (data.theme_card_header_text) root.style.setProperty('--theme-card-header-text', data.theme_card_header_text)
-      root.style.setProperty('--theme-card-header-weight', data.theme_card_header_bold === false ? '400' : '500')
+      root.style.setProperty('--theme-card-header-weight', data.theme_card_header_bold === false ? '400' : '600')
       if (data.theme_card_body)        root.style.setProperty('--theme-card-body',         data.theme_card_body)
     }
     applyTheme()

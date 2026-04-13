@@ -1165,11 +1165,10 @@ export default function MapPage() {
                 data={countyGeoJson}
                 style={{
                   fillColor: '#ffffff',
-                  fillOpacity: 0.18,
+                  fillOpacity: 0.22,
                   color: '#1A3C2E',
-                  weight: 1.5,
-                  opacity: 0.4,
-                  dashArray: '4 4',
+                  weight: 2,
+                  opacity: 0.5,
                 }}
               />
             )}
@@ -1250,6 +1249,14 @@ export default function MapPage() {
             {geoLocating ? ' Locating…' : geoMarker ? ' My Location ✓' : ' My Location'}
           </button>
         </div>
+
+        {/* Zoom buttons — only when scroll zoom is off */}
+        {!scrollZoom && (
+          <div className="map-zoom-float">
+            <button className="map-zoom-float-btn" onClick={() => mapRef.current && mapRef.current.zoomIn()} title="Zoom in">+</button>
+            <button className="map-zoom-float-btn" onClick={() => mapRef.current && mapRef.current.zoomOut()} title="Zoom out">−</button>
+          </div>
+        )}
 
         {/* ── Floating Map Preferences ── */}
         <div className={`map-prefs-float ${prefsOpen ? 'open' : ''}`}>
@@ -1658,11 +1665,13 @@ export default function MapPage() {
                   try {
                     const countyOnly = geo.countyFips.slice(2)
                     const url = `https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/tigerWMS_ACS2022/MapServer/82/query?where=STATE%3D%27${geo.stateFips}%27+AND+COUNTY%3D%27${countyOnly}%27&outFields=*&f=geojson`
+                    console.log('[MarketData] Fetching county boundary:', url)
                     const res = await fetch(url)
                     const data = await res.json()
+                    console.log('[MarketData] County boundary response:', data?.features?.length, 'features')
                     if (data?.features?.length) setCountyGeoJson(data)
                     else setCountyGeoJson(null)
-                  } catch { setCountyGeoJson(null) }
+                  } catch (err) { console.warn('[MarketData] County boundary error:', err.message); setCountyGeoJson(null) }
                 }}
               />
             </div>

@@ -170,7 +170,7 @@ function MyTeamSection({ userId, userLevel }) {
     <div className="my-team-section">
       <div className="survey-toggle-btn" style={{ borderRadius: 10, marginBottom: 0, cursor: 'default', pointerEvents: 'none' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
-          <span style={{ fontSize: 14, fontWeight: 600, color: '#1A3C2E' }}>My Team</span>
+          <span style={{ fontSize: 14, fontWeight: 600 }} className="sec-label">My Team</span>
           {myTeams.length > 0 && <span className="survey-complete-badge">{myTeams.length} team{myTeams.length !== 1 ? 's' : ''}</span>}
         </div>
       </div>
@@ -1288,7 +1288,7 @@ export default function ProfilePage() {
 
   const [showOwner2, setShowOwner2] = useState(false)
   const [showOwner3, setShowOwner3] = useState(false)
-  const [owner1Collapsed, setOwner1Collapsed] = useState(false)
+  const [owner1Collapsed, setOwner1Collapsed] = useState(true)
   const [owner2Collapsed, setOwner2Collapsed] = useState(true)
   const [owner3Collapsed, setOwner3Collapsed] = useState(true)
   const [surveyOpen, setSurveyOpen] = useState(false)
@@ -1497,17 +1497,35 @@ export default function ProfilePage() {
         <div className="sec-card-body">
         {personErrors._general && <div className="error-msg">{personErrors._general}</div>}
 
-        {/* Owner 1 */}
-        <div className="owner2-header" style={{ marginBottom: owner1Collapsed ? 0 : 12 }}>
-          <span style={{ color: '#fff', fontSize: 12, fontWeight: 500 }}>Primary Owner</span>
-          <button className="owner2-remove"
-            onClick={() => setOwner1Collapsed(c => !c)}>
-            {owner1Collapsed ? '▼ Expand' : '▲ Collapse'}
-          </button>
-        </div>
-        {!owner1Collapsed && (
-          <>
-            <div className="fgrid">
+        {/* Owner 1 — Primary Owner */}
+        <div className="owner2-block">
+          <div className="owner2-header">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              {owner1Collapsed && (
+                <div className="owner-collapsed-avatar">
+                  {ownerPhotoUrl
+                    ? <img src={ownerPhotoUrl} alt="Primary Owner" />
+                    : <span>👤</span>
+                  }
+                </div>
+              )}
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 500, color: 'rgba(255,255,255,0.7)', marginBottom: 1 }}>Primary Owner</div>
+                {owner1Collapsed && (personForm.first_name || personForm.last_name) && (
+                  <div style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>
+                    {[personForm.first_name, personForm.last_name].filter(Boolean).join(' ')}
+                  </div>
+                )}
+              </div>
+            </div>
+            <button className="owner2-remove" style={{ color: 'rgba(255,255,255,0.7)', borderColor: 'rgba(255,255,255,0.2)' }}
+              onClick={() => setOwner1Collapsed(c => !c)}>
+              {owner1Collapsed ? '▼ Expand' : '▲ Collapse'}
+            </button>
+          </div>
+          {!owner1Collapsed && (
+            <div style={{ padding: '12px 14px' }}>
+              <div className="fgrid">
               <div className="pf">
                 <label>First name <span className="req-star">*</span></label>
                 <input type="text" value={personForm.first_name} onChange={e => setPersonField('first_name', e.target.value)}
@@ -1546,8 +1564,9 @@ export default function ProfilePage() {
               />
               {personErrors.herbalife_level && <span className="field-err">{personErrors.herbalife_level}</span>}
             </div>
-          </>
-        )}
+            </div>
+          )}
+        </div>
 
         {/* Owner 2 */}
         {showOwner2 && (
@@ -1563,16 +1582,16 @@ export default function ProfilePage() {
                   </div>
                 )}
                 <div>
-                  <div style={{ fontSize: 11, fontWeight: 500, color: '#888', marginBottom: 1 }}>Owner 2</div>
+                  <div style={{ fontSize: 11, fontWeight: 500, color: 'rgba(255,255,255,0.7)', marginBottom: 1 }}>Owner 2</div>
                   {owner2Collapsed && (personForm.owner2_first_name || personForm.owner2_last_name) && (
-                    <div style={{ fontSize: 13, fontWeight: 600, color: '#1A3C2E' }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>
                       {[personForm.owner2_first_name, personForm.owner2_last_name].filter(Boolean).join(' ')}
                     </div>
                   )}
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
-                <button className="owner2-remove" style={{ color: '#888', borderColor: '#ddd' }}
+                <button className="owner2-remove" style={{ color: 'rgba(255,255,255,0.7)', borderColor: 'rgba(255,255,255,0.2)' }}
                   onClick={() => setOwner2Collapsed(c => !c)}>
                   {owner2Collapsed ? '▼ Expand' : '▲ Collapse'}
                 </button>
@@ -1637,16 +1656,16 @@ export default function ProfilePage() {
                   </div>
                 )}
                 <div>
-                  <div style={{ fontSize: 11, fontWeight: 500, color: '#888', marginBottom: 1 }}>Owner 3</div>
+                  <div style={{ fontSize: 11, fontWeight: 500, color: 'rgba(255,255,255,0.7)', marginBottom: 1 }}>Owner 3</div>
                   {owner3Collapsed && (personForm.owner3_first_name || personForm.owner3_last_name) && (
-                    <div style={{ fontSize: 13, fontWeight: 600, color: '#1A3C2E' }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>
                       {[personForm.owner3_first_name, personForm.owner3_last_name].filter(Boolean).join(' ')}
                     </div>
                   )}
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
-                <button className="owner2-remove" style={{ color: '#888', borderColor: '#ddd' }}
+                <button className="owner2-remove" style={{ color: 'rgba(255,255,255,0.7)', borderColor: 'rgba(255,255,255,0.2)' }}
                   onClick={() => setOwner3Collapsed(c => !c)}>
                   {owner3Collapsed ? '▼ Expand' : '▲ Collapse'}
                 </button>
