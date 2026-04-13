@@ -322,6 +322,15 @@ export default function DirectoryPage() {
   const [filterLevel, setFilterLevel] = useState('')
   const [hasSearched, setHasSearched] = useState(!!(searchParams.get('search')))
 
+  // Sync search from URL params when navigating here from another page (e.g. map tooltip)
+  useEffect(() => {
+    const q = searchParams.get('search') || ''
+    if (q) {
+      setSearch(q)
+      setHasSearched(true)
+    }
+  }, [searchParams])
+
   useEffect(() => {
     async function load() {
       const { data, error } = await supabase
