@@ -1,4 +1,4 @@
-import { Outlet, NavLink, useNavigate } from 'react-router-dom'
+import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
@@ -9,6 +9,8 @@ const ACCESS_KEYS = ['member_signups_enabled','member_login_enabled','public_sea
 export default function Layout() {
   const { user, isAdmin } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
+  const isMapPage = location.pathname === '/app/map'
   const [anyPaused, setAnyPaused] = useState(false)
 
   useEffect(() => {
@@ -32,7 +34,7 @@ export default function Layout() {
       <header className="topbar">
         <NavLink to="/app/map" className="brand" style={{ textDecoration: 'none' }}>My Club<span> Locator</span></NavLink>
         <nav className="topbar-nav">
-          <button
+          {isMapPage && <button
             className="btn-outline layout-public-search-btn"
             onClick={() => {
               const ext = sessionStorage.getItem('mapExtent')
@@ -54,7 +56,7 @@ export default function Layout() {
               <path d="M21 21l-4.35-4.35" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
             </svg>
             Public search
-          </button>
+          </button>}
           <span className="topbar-user">{user?.email}</span>
           <button className="btn-outline" style={{ padding: '6px 14px', fontSize: '13px' }} onClick={handleLogout}>
             Log out

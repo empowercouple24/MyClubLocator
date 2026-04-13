@@ -166,7 +166,7 @@ function DisclaimerScreen({ text, onAccept }) {
           </svg>
         </div>
         <h2 className="pf-disclaimer-title">Before you search</h2>
-        <p className="pf-disclaimer-text">{text}</p>
+        <div className="pf-disclaimer-text rte-content" dangerouslySetInnerHTML={{ __html: text }} />
         <button className="pf-accept-btn" onClick={onAccept}>I understand — continue to search</button>
       </div>
     </div>

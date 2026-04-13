@@ -4,12 +4,13 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 import mapPreviewStreets from '../assets/map-preview-streets.png'
 import mapPreviewSatellite from '../assets/map-preview-satellite.png'
+import RichTextEditor from '../components/RichTextEditor'
 
 const TABS = ['settings', 'access', 'contacts', 'members', 'teams']
 
 const BREVO_API_KEY = import.meta.env.VITE_BREVO_API_KEY
 
-function ContactCard({ submission: c, onReplySent }) {
+function ContactCard({ submission: c, onReplySent, expanded, onToggle }) {
   const [replyBody, setReplyBody] = useState('')
   const [sending, setSending]     = useState(false)
   const [sendError, setSendError] = useState('')
@@ -22,7 +23,6 @@ function ContactCard({ submission: c, onReplySent }) {
     setSendError('')
 
     try {
-      // Send via Brevo API
       const res = await fetch('https://api.brevo.com/v3/smtp/email', {
         method: 'POST',
         headers: {
@@ -43,7 +43,6 @@ function ContactCard({ submission: c, onReplySent }) {
         throw new Error(err.message || 'Send failed')
       }
 
-      // Save reply to Supabase
       const { data: saved, error: dbErr } = await supabase
         .from('contact_replies')
         .insert({ submission_id: c.id, reply_body: replyBody })
@@ -61,59 +60,72 @@ function ContactCard({ submission: c, onReplySent }) {
     setSending(false)
   }
 
+  const preview = c.message?.slice(0, 80) + (c.message?.length > 80 ? '…' : '')
+
   return (
     <div className="contact-submission-card">
-      <div className="csub-header">
+      {/* Collapsed header — always visible */}
+      <div className="csub-collapse-header" onClick={onToggle}>
         <div className="csub-avatar">{(c.name || '?').slice(0,1).toUpperCase()}</div>
         <div className="csub-meta">
           <div className="csub-name">{c.name}</div>
           <div className="csub-email">{c.email}</div>
         </div>
-        <div className="csub-date">
-          {new Date(c.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+        {!expanded && <div className="csub-preview">{preview}</div>}
+        <div className="csub-collapse-right">
+          <div className="csub-date">
+            {new Date(c.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+          </div>
+          {replies.length > 0 && <span className="csub-reply-count">{replies.length} repl{replies.length === 1 ? 'y' : 'ies'}</span>}
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0, transition: 'transform 0.2s', transform: expanded ? 'rotate(180deg)' : 'none' }}>
+            <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
         </div>
       </div>
 
-      <div className="csub-message">{c.message}</div>
+      {/* Expanded body */}
+      {expanded && (
+        <>
+          <div className="csub-message">{c.message}</div>
 
-      {/* Sent replies */}
-      {replies.length > 0 && (
-        <div className="csub-replies">
-          {replies
-            .sort((a, b) => new Date(a.sent_at) - new Date(b.sent_at))
-            .map(r => (
-              <div key={r.id} className="csub-sent-reply">
-                <div className="csub-sent-label">Your reply</div>
-                <div className="csub-sent-text">{r.reply_body}</div>
-                <div className="csub-sent-time">
-                  {new Date(r.sent_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} · hello@myclublocator.com
-                </div>
-              </div>
-            ))
-          }
-        </div>
+          {replies.length > 0 && (
+            <div className="csub-replies">
+              {replies
+                .sort((a, b) => new Date(a.sent_at) - new Date(b.sent_at))
+                .map(r => (
+                  <div key={r.id} className="csub-sent-reply">
+                    <div className="csub-sent-label">Your reply</div>
+                    <div className="csub-sent-text">{r.reply_body}</div>
+                    <div className="csub-sent-time">
+                      {new Date(r.sent_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} · hello@myclublocator.com
+                    </div>
+                  </div>
+                ))
+              }
+            </div>
+          )}
+
+          <form className="csub-reply-form" onSubmit={handleSendReply}>
+            <div className="csub-reply-label">{replies.length > 0 ? 'Send another reply' : 'Reply'}</div>
+            <div className="csub-reply-subject">Subject: <span>Re: {c.name}</span></div>
+            {sendError && <div className="error-msg" style={{ marginBottom: 8 }}>{sendError}</div>}
+            <textarea
+              className="csub-reply-textarea"
+              placeholder="Type your reply…"
+              value={replyBody}
+              onChange={e => setReplyBody(e.target.value)}
+              rows={4}
+              required
+            />
+            <div className="csub-reply-footer">
+              <div className="csub-reply-from">From: <span>hello@myclublocator.com</span></div>
+              <button className="csub-send-btn" type="submit" disabled={sending || !replyBody.trim()}>
+                {sending ? 'Sending…' : 'Send reply'}
+              </button>
+            </div>
+          </form>
+        </>
       )}
-
-      {/* Reply form */}
-      <form className="csub-reply-form" onSubmit={handleSendReply}>
-        <div className="csub-reply-label">{replies.length > 0 ? 'Send another reply' : 'Reply'}</div>
-        <div className="csub-reply-subject">Subject: <span>Re: {c.name}</span></div>
-        {sendError && <div className="error-msg" style={{ marginBottom: 8 }}>{sendError}</div>}
-        <textarea
-          className="csub-reply-textarea"
-          placeholder="Type your reply…"
-          value={replyBody}
-          onChange={e => setReplyBody(e.target.value)}
-          rows={4}
-          required
-        />
-        <div className="csub-reply-footer">
-          <div className="csub-reply-from">From: <span>hello@myclublocator.com</span></div>
-          <button className="csub-send-btn" type="submit" disabled={sending || !replyBody.trim()}>
-            {sending ? 'Sending…' : 'Send reply'}
-          </button>
-        </div>
-      </form>
     </div>
   )
 }
@@ -225,7 +237,9 @@ export default function AdminPage() {
     theme_page_bg:          '#E8E3D8',
     theme_card_header_bg:   '#1A3C2E',
     theme_card_header_text: '#ffffff',
+    theme_card_header_bold: true,
     theme_card_body:        '#ffffff',
+    global_marker_shape:    'dot',
     demo_population: true,
     demo_income: true,
     demo_age_fit: true,
@@ -250,6 +264,9 @@ export default function AdminPage() {
   const [demoOpen, setDemoOpen]               = useState(false)
   const [welcomeModalOpen, setWelcomeModalOpen] = useState(false)
   const [loginMsgsOpen, setLoginMsgsOpen]       = useState(false)
+  const [card1Open, setCard1Open]               = useState(false)
+  const [card2Open, setCard2Open]               = useState(false)
+  const [card3Open, setCard3Open]               = useState(false)
   const [finderMsgsOpen, setFinderMsgsOpen]     = useState(false)
   const [finderSearchOpen, setFinderSearchOpen] = useState(false)
   const [markerColorsOpen, setMarkerColorsOpen] = useState(false)
@@ -263,6 +280,7 @@ export default function AdminPage() {
   const [contacts, setContacts]             = useState([])
   const [loadingContacts, setLoadingContacts] = useState(false)
   const [contactsLoaded, setContactsLoaded]   = useState(false)
+  const [expandedContact, setExpandedContact] = useState(null)
   const [notifications, setNotifications]     = useState([])
   const [notifLoaded, setNotifLoaded]         = useState(false)
   const [msgSubTab, setMsgSubTab]             = useState('contact') // 'contact' | 'members' | 'notes'
@@ -312,8 +330,9 @@ export default function AdminPage() {
     if (settings.theme_page_bg)          root.style.setProperty('--theme-page-bg',          settings.theme_page_bg)
     if (settings.theme_card_header_bg)   root.style.setProperty('--theme-card-header-bg',   settings.theme_card_header_bg)
     if (settings.theme_card_header_text) root.style.setProperty('--theme-card-header-text', settings.theme_card_header_text)
+    root.style.setProperty('--theme-card-header-weight', settings.theme_card_header_bold === false ? '400' : '500')
     if (settings.theme_card_body)        root.style.setProperty('--theme-card-body',         settings.theme_card_body)
-  }, [settings.theme_page_bg, settings.theme_card_header_bg, settings.theme_card_header_text, settings.theme_card_body])
+  }, [settings.theme_page_bg, settings.theme_card_header_bg, settings.theme_card_header_text, settings.theme_card_header_bold, settings.theme_card_body])
 
   async function loadMembers() {
     setLoadingMembers(true)
@@ -546,7 +565,9 @@ export default function AdminPage() {
       theme_page_bg:                     settings.theme_page_bg,
       theme_card_header_bg:              settings.theme_card_header_bg,
       theme_card_header_text:            settings.theme_card_header_text,
+      theme_card_header_bold:            settings.theme_card_header_bold,
       theme_card_body:                   settings.theme_card_body,
+      global_marker_shape:               settings.global_marker_shape,
       demo_population:            settings.demo_population,
       demo_income:                settings.demo_income,
       demo_age_fit:               settings.demo_age_fit,
@@ -951,6 +972,14 @@ export default function AdminPage() {
         <div>
           {loadingSettings ? <div className="loading">Loading settings…</div> : (
             <>
+              {/* ── Card 1: Welcome Messages, Member Approval, and Teams ── */}
+              <div className="admin-section" style={{ padding: 0, overflow: 'hidden' }}>
+                <button type="button" className="survey-toggle-btn" style={{ padding: '14px 20px' }} onClick={() => setCard1Open(o => !o)}>
+                  <h3 className="admin-section-title" style={{ margin: 0 }}>Welcome Messages, Member Approval, and Teams</h3>
+                  <svg className={`survey-chevron ${card1Open ? 'open' : ''}`} width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                </button>
+                {card1Open && (
+                  <div>
               {/* Welcome Modal */}
               <div className="admin-section" style={{ padding: 0, overflow: 'hidden' }}>
                 <button type="button" className="survey-toggle-btn" style={{ padding: '14px 20px' }} onClick={() => setWelcomeModalOpen(o => !o)}>
@@ -988,9 +1017,15 @@ export default function AdminPage() {
 
                         <div className="field">
                           <label>Welcome message</label>
-                          <textarea rows={3} value={settings.welcome_message}
-                            onChange={e => setSettings(s => ({ ...s, welcome_message: e.target.value }))}
-                            className="admin-tall-textarea" style={{ minHeight: 80 }} />
+                          <RichTextEditor
+                            value={settings.welcome_message}
+                            onChange={v => setSettings(s => ({ ...s, welcome_message: v }))}
+                            placeholder="You're now part of the network…"
+                            minHeight={120}
+                          />
+                          <div className="field-hint" style={{ marginTop: 6 }}>
+                            Available tags: <code>{"{{first_name}}"}</code> first name &nbsp;&middot;&nbsp; <code>{"{{club_1_name}}"}</code> <code>{"{{club_2_name}}"}</code> <code>{"{{club_3_name}}"}</code> club names &nbsp;&middot;&nbsp; <code>{"{{club_1_city}}"}</code> <code>{"{{club_2_city}}"}</code> <code>{"{{club_3_city}}"}</code> cities
+                          </div>
                         </div>
 
                         <div className="field">
@@ -1012,10 +1047,15 @@ export default function AdminPage() {
 
                         <div className="field">
                           <label>Disclaimer text <span className="field-optional">shown at bottom of modal</span></label>
-                          <textarea rows={3} value={settings.welcome_disclaimer}
-                            onChange={e => setSettings(s => ({ ...s, welcome_disclaimer: e.target.value }))}
+                          <RichTextEditor
+                            value={settings.welcome_disclaimer}
+                            onChange={v => setSettings(s => ({ ...s, welcome_disclaimer: v }))}
                             placeholder="Enter your disclaimer here — e.g. terms of use, membership rules, etc."
-                            className="admin-tall-textarea" style={{ minHeight: 80 }} />
+                            minHeight={100}
+                          />
+                          <div className="field-hint" style={{ marginTop: 6 }}>
+                            Available tags: <code>{"{{first_name}}"}</code> &nbsp;&middot;&nbsp; <code>{"{{club_1_name}}"}</code> <code>{"{{club_2_name}}"}</code> <code>{"{{club_3_name}}"}</code>
+                          </div>
                           <span className="field-hint">Leave blank to show the default placeholder text until you're ready</span>
                         </div>
                       </div>
@@ -1059,9 +1099,9 @@ export default function AdminPage() {
                               {settings.welcome_title || 'Welcome to My Club Locator!'}
                             </div>
                             {/* Message */}
-                            <div style={{ fontSize: 12, color: '#555', lineHeight: 1.65, marginBottom: 12 }}>
-                              {settings.welcome_message || 'Your welcome message will appear here.'}
-                            </div>
+                            <div className="rte-content" style={{ fontSize: 12, color: '#555', lineHeight: 1.65, marginBottom: 12 }}
+                              dangerouslySetInnerHTML={{ __html: settings.welcome_message || 'Your welcome message will appear here.' }}
+                            />
                             {/* Video placeholder */}
                             {settings.welcome_video_enabled && (
                               <div style={{
@@ -1080,13 +1120,13 @@ export default function AdminPage() {
                               Add My Club
                             </div>
                             {/* Disclaimer */}
-                            <div style={{
+                            <div className="rte-content" style={{
                               fontSize: 10, color: '#888', lineHeight: 1.6,
                               background: '#f8f8f6', borderRadius: 6, padding: '8px 10px',
                               border: '1px solid #e8e8e4',
-                            }}>
-                              {settings.welcome_disclaimer || 'Disclaimer placeholder — edit this text in Admin → Settings.'}
-                            </div>
+                            }}
+                              dangerouslySetInnerHTML={{ __html: settings.welcome_disclaimer || 'Disclaimer placeholder — edit this text in Admin → Settings.' }}
+                            />
                           </div>
                         </div>
                       </div>
@@ -1094,7 +1134,6 @@ export default function AdminPage() {
                   </div>
                 )}
               </div>
-
               {/* Login Welcome Messages */}
               <div className="admin-section" style={{ padding: 0, overflow: 'hidden' }}>
                 <button type="button" className="survey-toggle-btn" style={{ padding: '14px 20px' }} onClick={() => setLoginMsgsOpen(o => !o)}>
@@ -1107,7 +1146,7 @@ export default function AdminPage() {
                 </button>
                 {loginMsgsOpen && (
                   <div style={{ padding: '0 20px 16px' }}>
-                    <p className="admin-section-desc" style={{ marginBottom: 14 }}>Customize what members see on the screen immediately after logging in. Use <code>{'{name}'}</code> for the owner's first name and <code>{'{club}'}</code> for their club name. Toggle each message on or off independently.</p>
+                    <p className="admin-section-desc" style={{ marginBottom: 14 }}>Customize what members see on the screen immediately after logging in. Tags: <code>{'{name}'}</code> first name · <code>{'{club}'}</code> club 1 · <code>{'{club_2}'}</code> club 2 · <code>{'{club_3}'}</code> club 3. Toggle each message on or off independently.</p>
                     {[
                       {
                         enabledKey: 'login_msg_approved_enabled',
@@ -1165,7 +1204,7 @@ export default function AdminPage() {
                               onChange={e => setSettings(s => ({ ...s, [textKey]: e.target.value }))}
                               placeholder={placeholder}
                             />
-                            <span className="field-hint">Use <code style={{ fontSize: 11 }}>{'{name}'}</code> for first name · <code style={{ fontSize: 11 }}>{'{club}'}</code> for club name</span>
+                            <span className="field-hint">Tags: <code style={{ fontSize: 11 }}>{'{name}'}</code> first name · <code style={{ fontSize: 11 }}>{'{club}'}</code> club 1 · <code style={{ fontSize: 11 }}>{'{club_2}'}</code> club 2 · <code style={{ fontSize: 11 }}>{'{club_3}'}</code> club 3</span>
                           </div>
                         )}
                       </div>
@@ -1173,7 +1212,170 @@ export default function AdminPage() {
                   </div>
                 )}
               </div>
+                    <div style={{ borderTop: '0.5px solid #e0e8e0', padding: '10px 20px 2px' }}>
+                      <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em', color: '#aaa' }}>Team Creation and Member Approval Settings</div>
+                    </div>
+              {/* Team Creation Settings — collapsible */}
+              <div className="admin-section" style={{ padding: 0, overflow: 'hidden' }}>
+                <button type="button" className="survey-toggle-btn" style={{ padding: '14px 20px' }} onClick={() => setTeamCreationOpen(o => !o)}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
+                    <h3 className="admin-section-title" style={{ margin: 0 }}>Team Creation</h3>
+                    <span className="survey-progress-badge" style={{ background: settings.team_creation_enabled ? '#E1F5EE' : '#FFF3CD', color: settings.team_creation_enabled ? '#0F6E56' : '#854F0B' }}>
+                      {settings.team_creation_enabled ? 'Enabled' : 'Disabled'}
+                    </span>
+                  </div>
+                  <svg className={`survey-chevron ${teamCreationOpen ? 'open' : ''}`} width="14" height="14" viewBox="0 0 16 16" fill="none">
+                    <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+                {teamCreationOpen && (
+                  <div style={{ padding: '0 20px 20px' }}>
+                    <p className="admin-section-desc" style={{ marginBottom: 14 }}>Control which members can create and manage teams.</p>
+                    <div className="admin-toggle-row" style={{ marginBottom: 14 }}>
+                      <div>
+                        <div className="admin-toggle-label">Allow team creation</div>
+                        <div className="admin-toggle-hint">When off, no member can create new teams</div>
+                      </div>
+                      <ToggleSwitch on={settings.team_creation_enabled}
+                        onChange={v => setSettings(s => ({ ...s, team_creation_enabled: v }))} />
+                    </div>
+                    <div className="field">
+                      <label>Minimum level to create a team</label>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8, opacity: settings.team_creation_enabled ? 1 : 0.4, pointerEvents: settings.team_creation_enabled ? 'auto' : 'none' }}>
+                        {[
+                          { val: 'Distributor',       label: 'Distributor',       c: '#e3e3e3', cd: '#555' },
+                          { val: 'Success Builder',   label: 'Success Builder',   c: '#e3e3e3', cd: '#555' },
+                          { val: 'Supervisor',        label: 'Supervisor',        c: '#64ba44', cd: '#2a6b1a' },
+                          { val: 'World Team',        label: 'World Team',        c: '#767678', cd: '#3a3a3a' },
+                          { val: 'Active World Team', label: 'Active World Team', c: '#767678', cd: '#3a3a3a' },
+                          { val: 'Get Team',          label: 'Get Team',          c: '#e02054', cd: '#8a0020' },
+                          { val: 'Get Team 2500',     label: 'Get Team 2500',     c: '#f39519', cd: '#7a4200' },
+                          { val: 'Millionaire Team',  label: 'Millionaire Team',  c: '#3aac77', cd: '#0c5a32' },
+                          { val: 'Millionaire Team 7500', label: 'Millionaire Team 7500', c: '#84c8d3', cd: '#1a5a60' },
+                          { val: 'Presidents Team',   label: 'Presidents Team',   c: '#fde488', cd: '#7a5200' },
+                        ].map(({ val, label, c, cd }) => (
+                          <button
+                            key={val}
+                            type="button"
+                            onClick={() => setSettings(s => ({ ...s, team_creation_min_level: val }))}
+                            style={{
+                              padding: '5px 12px', borderRadius: 20, fontSize: 12, cursor: 'pointer',
+                              background: settings.team_creation_min_level === val ? c : '#f4f4f4',
+                              color: settings.team_creation_min_level === val ? cd : '#777',
+                              border: settings.team_creation_min_level === val ? `1.5px solid ${cd}` : '1.5px solid #ddd',
+                              fontWeight: settings.team_creation_min_level === val ? 600 : 400,
+                              transition: 'all 0.12s',
+                            }}
+                          >{label}</button>
+                        ))}
+                      </div>
+                      <span className="field-hint" style={{ marginTop: 8, display: 'block' }}>Members below this level will not see the team creation option</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+              {/* Member Approval — collapsible */}
+              <div className="admin-section" style={{ padding: 0, overflow: 'hidden' }}>
+                <button type="button" className="survey-toggle-btn" style={{ padding: '14px 20px' }} onClick={() => setMemberApprovalOpen(o => !o)}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
+                    <h3 className="admin-section-title" style={{ margin: 0 }}>Member Approval</h3>
+                    <span className="survey-progress-badge" style={{ background: settings.require_approval ? '#E1F5EE' : '#F5F5F5', color: settings.require_approval ? '#0F6E56' : '#888' }}>
+                      {settings.require_approval ? 'Required' : 'Auto-approve'}
+                    </span>
+                  </div>
+                  <svg className={`survey-chevron ${memberApprovalOpen ? 'open' : ''}`} width="14" height="14" viewBox="0 0 16 16" fill="none">
+                    <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+                {memberApprovalOpen && (
+                  <div style={{ padding: '0 20px 20px' }}>
+                    <p className="admin-section-desc" style={{ marginBottom: 14 }}>When enabled, new signups must be approved before appearing on the map.</p>
+                    <div className="admin-toggle-row">
+                      <div>
+                        <div className="admin-toggle-label">Require approval for new members</div>
+                        <div className="admin-toggle-hint">New clubs will be hidden until you approve them</div>
+                      </div>
+                      <ToggleSwitch on={settings.require_approval}
+                        onChange={v => setSettings(s => ({ ...s, require_approval: v }))} />
+                    </div>
+                  </div>
+                )}
+              </div>
+                  </div>
+                )}
+              </div>
 
+              {/* ── Card 2: Public Finder Settings ── */}
+              <div className="admin-section" style={{ padding: 0, overflow: 'hidden' }}>
+                <button type="button" className="survey-toggle-btn" style={{ padding: '14px 20px' }} onClick={() => setCard2Open(o => !o)}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
+                    <h3 className="admin-section-title" style={{ margin: 0 }}>Public Finder Settings</h3>
+                    <span style={{ fontSize: 12, color: '#888' }}>{settings.search_radius_miles === 0 ? 'Custom' : settings.search_radius_miles + ' mi radius'}</span>
+                  </div>
+                  <svg className={`survey-chevron ${card2Open ? 'open' : ''}`} width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                </button>
+                {card2Open && (
+                  <div>
+              {/* Public Finder Messages */}
+              <div className="admin-section" style={{ padding: 0, overflow: 'hidden' }}>
+                <button type="button" className="survey-toggle-btn" style={{ padding: '14px 20px' }} onClick={() => setFinderMsgsOpen(o => !o)}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
+                    <h3 className="admin-section-title" style={{ margin: 0 }}>Public Finder Messages</h3>
+                  </div>
+                  <svg className={`survey-chevron ${finderMsgsOpen ? 'open' : ''}`} width="14" height="14" viewBox="0 0 16 16" fill="none">
+                    <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+                {finderMsgsOpen && (
+                  <div style={{ padding: '0 20px 16px' }}>
+                    <p className="admin-section-desc" style={{ marginBottom: 16 }}>Customize what public visitors see on the club finder page before and during their search. These are the people looking for a club — not club owners.</p>
+
+                    {/* Welcome heading */}
+                    <div className="field" style={{ marginBottom: 16 }}>
+                      <label>Finder page heading</label>
+                      <input
+                        type="text"
+                        value={settings.public_finder_welcome}
+                        onChange={e => setSettings(s => ({ ...s, public_finder_welcome: e.target.value }))}
+                        placeholder="Find a nutrition club near you"
+                      />
+                      <span className="field-hint">Shown as the main heading on the public search page</span>
+                    </div>
+
+                    {/* Disclaimer */}
+                    <div className="login-msg-block">
+                      <div className="login-msg-header">
+                        <div className="login-msg-label-wrap">
+                          <span className="login-msg-dot" style={{ background: '#854F0B' }} />
+                          <span className="admin-toggle-label">Disclaimer / acknowledgement</span>
+                        </div>
+                        <ToggleSwitch
+                          on={settings.public_finder_disclaimer_enabled}
+                          onChange={v => setSettings(s => ({ ...s, public_finder_disclaimer_enabled: v }))}
+                        />
+                      </div>
+                      <div className="login-msg-audience" style={{ borderLeftColor: '#854F0B', background: '#FEF3C7' }}>
+                        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0, marginTop: 1 }}>
+                          <circle cx="8" cy="8" r="6.5" stroke="#854F0B" strokeWidth="1.2"/>
+                          <circle cx="8" cy="5.5" r="1" fill="#854F0B"/>
+                          <line x1="8" y1="8" x2="8" y2="11.5" stroke="#854F0B" strokeWidth="1.2" strokeLinecap="round"/>
+                        </svg>
+                        <span style={{ color: '#854F0B' }}>Shown to every public visitor before they can search. They must tap "I understand" to proceed. Use this for legal disclaimers, terms of use, or any notice you want visitors to acknowledge.</span>
+                      </div>
+                      {settings.public_finder_disclaimer_enabled && (
+                        <div style={{ marginTop: 8 }}>
+                          <RichTextEditor
+                            value={settings.public_finder_disclaimer}
+                            onChange={v => setSettings(s => ({ ...s, public_finder_disclaimer: v }))}
+                            placeholder="This directory is provided for informational purposes only..."
+                            minHeight={120}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
               {/* Public Search Settings */}
               <div className="admin-section" style={{ padding: 0, overflow: 'hidden' }}>
                 <button type="button" className="survey-toggle-btn" style={{ padding: '14px 20px' }} onClick={() => setFinderSearchOpen(o => !o)}>
@@ -1237,69 +1439,25 @@ export default function AdminPage() {
                   </div>
                 )}
               </div>
-
-              {/* Public Finder Messages */}
-              <div className="admin-section" style={{ padding: 0, overflow: 'hidden' }}>
-                <button type="button" className="survey-toggle-btn" style={{ padding: '14px 20px' }} onClick={() => setFinderMsgsOpen(o => !o)}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
-                    <h3 className="admin-section-title" style={{ margin: 0 }}>Public Finder Messages</h3>
-                  </div>
-                  <svg className={`survey-chevron ${finderMsgsOpen ? 'open' : ''}`} width="14" height="14" viewBox="0 0 16 16" fill="none">
-                    <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </button>
-                {finderMsgsOpen && (
-                  <div style={{ padding: '0 20px 16px' }}>
-                    <p className="admin-section-desc" style={{ marginBottom: 16 }}>Customize what public visitors see on the club finder page before and during their search. These are the people looking for a club — not club owners.</p>
-
-                    {/* Welcome heading */}
-                    <div className="field" style={{ marginBottom: 16 }}>
-                      <label>Finder page heading</label>
-                      <input
-                        type="text"
-                        value={settings.public_finder_welcome}
-                        onChange={e => setSettings(s => ({ ...s, public_finder_welcome: e.target.value }))}
-                        placeholder="Find a nutrition club near you"
-                      />
-                      <span className="field-hint">Shown as the main heading on the public search page</span>
-                    </div>
-
-                    {/* Disclaimer */}
-                    <div className="login-msg-block">
-                      <div className="login-msg-header">
-                        <div className="login-msg-label-wrap">
-                          <span className="login-msg-dot" style={{ background: '#854F0B' }} />
-                          <span className="admin-toggle-label">Disclaimer / acknowledgement</span>
-                        </div>
-                        <ToggleSwitch
-                          on={settings.public_finder_disclaimer_enabled}
-                          onChange={v => setSettings(s => ({ ...s, public_finder_disclaimer_enabled: v }))}
-                        />
-                      </div>
-                      <div className="login-msg-audience" style={{ borderLeftColor: '#854F0B', background: '#FEF3C7' }}>
-                        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0, marginTop: 1 }}>
-                          <circle cx="8" cy="8" r="6.5" stroke="#854F0B" strokeWidth="1.2"/>
-                          <circle cx="8" cy="5.5" r="1" fill="#854F0B"/>
-                          <line x1="8" y1="8" x2="8" y2="11.5" stroke="#854F0B" strokeWidth="1.2" strokeLinecap="round"/>
-                        </svg>
-                        <span style={{ color: '#854F0B' }}>Shown to every public visitor before they can search. They must tap "I understand" to proceed. Use this for legal disclaimers, terms of use, or any notice you want visitors to acknowledge.</span>
-                      </div>
-                      {settings.public_finder_disclaimer_enabled && (
-                        <div style={{ marginTop: 8 }}>
-                          <textarea
-                            rows={4}
-                            className="admin-tall-textarea"
-                            value={settings.public_finder_disclaimer}
-                            onChange={e => setSettings(s => ({ ...s, public_finder_disclaimer: e.target.value }))}
-                            placeholder="This directory is provided for informational purposes only..."
-                          />
-                        </div>
-                      )}
-                    </div>
                   </div>
                 )}
               </div>
 
+              {/* ── Card 3: MyClubLocator Themes ── */}
+              <div className="admin-section" style={{ padding: 0, overflow: 'hidden' }}>
+                <button type="button" className="survey-toggle-btn" style={{ padding: '14px 20px' }} onClick={() => setCard3Open(o => !o)}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1 }}>
+                    <h3 className="admin-section-title" style={{ margin: 0 }}>MyClubLocator Themes</h3>
+                    <div style={{ display: 'flex', gap: 4 }}>
+                      {[settings.theme_card_header_bg, settings.landing_hero_panel_color, settings.marker_color_own].map((c, i) => (
+                        <span key={i} style={{ width: 12, height: 12, borderRadius: '50%', background: c || '#888', border: '1px solid rgba(0,0,0,0.1)', display: 'inline-block' }} />
+                      ))}
+                    </div>
+                  </div>
+                  <svg className={`survey-chevron ${card3Open ? 'open' : ''}`} width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                </button>
+                {card3Open && (
+                  <div>
               {/* App Theme */}
               {(() => {
                 function hexToHsl(hex) {
@@ -1399,10 +1557,10 @@ export default function AdminPage() {
                             </div>
                           ))}
 
-                          {/* Card header text — keep as Aa swatches since it's text color */}
+                          {/* Card header text — Aa swatches + bold toggle */}
                           <div>
                             <div className="mc-picker-label" style={{ marginBottom: 4 }}>Card header text</div>
-                            <div className="admin-section-desc" style={{ marginBottom: 10 }}>Title text color inside the header band</div>
+                            <div className="admin-section-desc" style={{ marginBottom: 10 }}>Title text color and weight inside the header band</div>
                             <div className="mc-custom-row" style={{ marginBottom: 10 }}>
                               <input type="color" className="mc-color-input"
                                 value={settings.theme_card_header_text || '#ffffff'}
@@ -1410,7 +1568,7 @@ export default function AdminPage() {
                               <span className="mc-hex-value">{settings.theme_card_header_text}</span>
                               <div className="mc-current-dot" style={{ background: settings.theme_card_header_text }} />
                             </div>
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginBottom: 10 }}>
                               {HEADER_TEXT_OPTIONS.map(opt => (
                                 <button key={opt.value} title={opt.label}
                                   onClick={() => setSettings(s => ({ ...s, theme_card_header_text: opt.value }))}
@@ -1419,7 +1577,26 @@ export default function AdminPage() {
                                 </button>
                               ))}
                             </div>
-                            <div style={{ marginTop: 5, fontSize: 11, color: '#888' }}>{curHeaderTxt.label}</div>
+                            <div style={{ marginTop: 2, fontSize: 11, color: '#888', marginBottom: 10 }}>{curHeaderTxt.label}</div>
+                            {/* Bold toggle */}
+                            <div style={{ display: 'flex', gap: 6 }}>
+                              {[
+                                { val: true,  label: 'Bold',   weight: 600 },
+                                { val: false, label: 'Normal', weight: 400 },
+                              ].map(({ val, label, weight }) => (
+                                <button key={label} type="button"
+                                  onClick={() => setSettings(s => ({ ...s, theme_card_header_bold: val }))}
+                                  style={{
+                                    padding: '5px 14px', borderRadius: 7, cursor: 'pointer', fontSize: 12,
+                                    fontWeight: weight,
+                                    background: settings.theme_card_header_bold === val || (val === true && settings.theme_card_header_bold === undefined) ? settings.theme_card_header_bg || '#1A3C2E' : '#f4f4f4',
+                                    color: settings.theme_card_header_bold === val || (val === true && settings.theme_card_header_bold === undefined) ? settings.theme_card_header_text || '#fff' : '#666',
+                                    border: settings.theme_card_header_bold === val || (val === true && settings.theme_card_header_bold === undefined) ? `1.5px solid ${settings.theme_card_header_bg || '#1A3C2E'}` : '1.5px solid #ddd',
+                                    transition: 'all 0.12s',
+                                  }}
+                                >{label}</button>
+                              ))}
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -1430,27 +1607,31 @@ export default function AdminPage() {
 
               {/* Landing Page Appearance */}
               {(() => {
-                const EYEBROW_OPTIONS = [
-                  { value: '#F1EFE8', label: 'Cool grey',      textColor: '#5F5E5A', subColor: '#444441' },
-                  { value: '#FAF8F4', label: 'Warm parchment', textColor: '#a89880', subColor: '#6b5c48' },
-                  { value: '#1A3C2E', label: 'Dark green',     textColor: 'rgba(255,255,255,0.5)', subColor: 'rgba(255,255,255,0.9)' },
-                  { value: '#E1F5EE', label: 'Mint tint',      textColor: '#5a9e80', subColor: '#0F6E56' },
-                  { value: '#2C2C2A', label: 'Charcoal',       textColor: 'rgba(255,255,255,0.4)', subColor: 'rgba(255,255,255,0.85)' },
-                  { value: '#0C447C', label: 'Navy blue',      textColor: 'rgba(255,255,255,0.45)', subColor: 'rgba(255,255,255,0.9)' },
-                  { value: '#FAEEDA', label: 'Amber',          textColor: '#c49030', subColor: '#854F0B' },
-                ]
-                const PANEL_OPTIONS = [
-                  { value: '#1A3C2E', label: 'Forest green' },
-                  { value: '#0C447C', label: 'Navy blue' },
-                  { value: '#2C2C2A', label: 'Charcoal' },
-                  { value: '#4338CA', label: 'Indigo' },
-                  { value: '#7C3AED', label: 'Purple' },
-                  { value: '#854F0B', label: 'Amber dark' },
-                  { value: '#185FA5', label: 'Steel blue' },
-                  { value: '#0F6E56', label: 'Teal green' },
-                ]
-                const curEyebrow = EYEBROW_OPTIONS.find(o => o.value === settings.landing_eyebrow_color) || EYEBROW_OPTIONS[0]
-                const curPanel   = PANEL_OPTIONS.find(o => o.value === settings.landing_hero_panel_color) || PANEL_OPTIONS[0]
+                function hexToHsl(hex) {
+                  if (!hex || hex.length < 7) return [0, 0, 50]
+                  const r = parseInt(hex.slice(1,3),16)/255, g = parseInt(hex.slice(3,5),16)/255, b = parseInt(hex.slice(5,7),16)/255
+                  const max = Math.max(r,g,b), min = Math.min(r,g,b)
+                  let h, s, l = (max+min)/2
+                  if (max === min) { h = s = 0 } else {
+                    const d = max - min; s = l > 0.5 ? d/(2-max-min) : d/(max+min)
+                    switch(max) {
+                      case r: h = ((g-b)/d + (g<b?6:0))/6; break
+                      case g: h = ((b-r)/d + 2)/6; break
+                      default: h = ((r-g)/d + 4)/6
+                    }
+                  }
+                  return [Math.round(h*360), Math.round(s*100), Math.round(l*100)]
+                }
+                function hslToHex(h,s,l) {
+                  s/=100; l/=100
+                  const a = s*Math.min(l,1-l)
+                  const f = n => { const k=(n+h/30)%12; const c=l-a*Math.max(-1,Math.min(k-3,9-k,1)); return Math.round(255*c).toString(16).padStart(2,'0') }
+                  return `#${f(0)}${f(8)}${f(4)}`
+                }
+                function genShades(hex) {
+                  const [h, s] = hexToHsl(hex)
+                  return [94,82,68,54,40,28,18,10].map(l => hslToHex(h, Math.min(s+8,100), l))
+                }
                 return (
                   <div className="admin-section" style={{ padding: 0, overflow: 'hidden' }}>
                     <button type="button" className="survey-toggle-btn" style={{ padding: '14px 20px' }} onClick={() => setLandingOpen(o => !o)}>
@@ -1469,12 +1650,9 @@ export default function AdminPage() {
                     {landingOpen && (
                       <div style={{ padding: '0 20px 20px' }}>
                         <p className="admin-section-desc" style={{ marginBottom: 18 }}>Customize the color scheme of the public-facing landing page.</p>
-
-                        {/* Live mini-preview */}
                         <div style={{ marginBottom: 20 }}>
                           <div className="mc-preview-label" style={{ marginBottom: 8 }}>Preview</div>
                           <div style={{ border: '1px solid #dde8e2', borderRadius: 10, overflow: 'hidden', fontSize: 12 }}>
-                            {/* stub hero */}
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px', background: '#fff' }}>
                               <div style={{ padding: '12px 14px', borderBottom: '0.5px solid #e8f0eb' }}>
                                 <div style={{ display: 'inline-block', background: '#E6F1FB', color: '#185FA5', fontSize: 9, fontWeight: 600, padding: '2px 6px', borderRadius: 4, textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 6 }}>Find a club</div>
@@ -1487,100 +1665,55 @@ export default function AdminPage() {
                                 </div>
                               </div>
                             </div>
-                            {/* eyebrow strip */}
                             <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr 1fr', borderTop: '0.5px solid #e8f0eb' }}>
                               <div style={{ background: settings.landing_eyebrow_color || '#F1EFE8', borderRight: '0.5px solid #e0ddd5', padding: '8px 12px', display: 'flex', flexDirection: 'column', justifyContent: 'center', minWidth: 80 }}>
-                                <div style={{ fontSize: 9, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.5px', color: curEyebrow.textColor, whiteSpace: 'nowrap' }}>Club owners</div>
-                                <div style={{ fontSize: 10, fontWeight: 500, color: curEyebrow.subColor, marginTop: 2, whiteSpace: 'nowrap' }}>Add &amp; manage →</div>
+                                <div style={{ fontSize: 9, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.5px', color: '#555', whiteSpace: 'nowrap' }}>Club owners</div>
+                                <div style={{ fontSize: 10, fontWeight: 500, color: '#333', marginTop: 2, whiteSpace: 'nowrap' }}>Add &amp; manage &#x2192;</div>
                               </div>
                               <div style={{ background: '#fff', padding: '8px 10px', borderRight: '0.5px solid #e8f0eb', display: 'flex', alignItems: 'center', gap: 7 }}>
                                 <div style={{ width: 20, height: 20, borderRadius: 5, background: '#E1F5EE', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none"><path d="M15 3h6v6M10 14L21 3M9 7H3v14h14v-6" stroke="#0F6E56" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
                                 </div>
-                                <div>
-                                  <div style={{ fontSize: 10, fontWeight: 500, color: '#222' }}>Log in to manage</div>
-                                  <div style={{ fontSize: 9, color: '#999' }}>Returning member</div>
-                                </div>
+                                <div><div style={{ fontSize: 10, fontWeight: 500, color: '#222' }}>Log in</div><div style={{ fontSize: 9, color: '#999' }}>Returning member</div></div>
                               </div>
                               <div style={{ background: '#fff', padding: '8px 10px', display: 'flex', alignItems: 'center', gap: 7 }}>
                                 <div style={{ width: 20, height: 20, borderRadius: 5, background: '#EEF2FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="#4338CA" strokeWidth="2"/><path d="M12 8v8M8 12h8" stroke="#4338CA" strokeWidth="2" strokeLinecap="round"/></svg>
                                 </div>
-                                <div>
-                                  <div style={{ fontSize: 10, fontWeight: 500, color: '#222' }}>Add my club</div>
-                                  <div style={{ fontSize: 9, color: '#999' }}>New member</div>
-                                </div>
+                                <div><div style={{ fontSize: 10, fontWeight: 500, color: '#222' }}>Add my club</div><div style={{ fontSize: 9, color: '#999' }}>New member</div></div>
                               </div>
                             </div>
                           </div>
                         </div>
-
-                        {/* Eyebrow color picker */}
-                        <div style={{ marginBottom: 20 }}>
-                          <div className="mc-picker-label" style={{ marginBottom: 4 }}>Club owners eyebrow color</div>
-                          <div className="admin-section-desc" style={{ marginBottom: 10 }}>Background of the "Club owners / Add &amp; manage" label on the left side of the strip.</div>
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                            {EYEBROW_OPTIONS.map(opt => (
-                              <button
-                                key={opt.value}
-                                title={opt.label}
-                                onClick={() => setSettings(s => ({ ...s, landing_eyebrow_color: opt.value }))}
-                                style={{
-                                  width: 36, height: 36, borderRadius: 8,
-                                  background: opt.value,
-                                  border: settings.landing_eyebrow_color === opt.value
-                                    ? '2.5px solid #1A3C2E'
-                                    : '1.5px solid rgba(0,0,0,0.12)',
-                                  cursor: 'pointer',
-                                  transform: settings.landing_eyebrow_color === opt.value ? 'scale(1.15)' : 'scale(1)',
-                                  transition: 'transform 0.1s, border-color 0.1s',
-                                  position: 'relative',
-                                  flexShrink: 0,
-                                }}
-                              >
-                                {settings.landing_eyebrow_color === opt.value && (
-                                  <svg style={{ position: 'absolute', inset: 0, margin: 'auto' }} width="14" height="14" viewBox="0 0 16 16" fill="none">
-                                    <path d="M3 8l4 4 6-6" stroke={['#1A3C2E','#2C2C2A','#0C447C'].includes(opt.value) ? '#fff' : '#1A3C2E'} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-                                  </svg>
-                                )}
-                              </button>
-                            ))}
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18 }}>
+                          <div>
+                            <div className="mc-picker-label" style={{ marginBottom: 4 }}>Club owners eyebrow color</div>
+                            <div className="admin-section-desc" style={{ marginBottom: 10 }}>Background of the "Club owners" label strip</div>
+                            <div className="mc-custom-row" style={{ marginBottom: 10 }}>
+                              <input type="color" className="mc-color-input" value={settings.landing_eyebrow_color || '#F1EFE8'} onChange={e => setSettings(s => ({ ...s, landing_eyebrow_color: e.target.value }))} />
+                              <span className="mc-hex-value">{settings.landing_eyebrow_color}</span>
+                              <div className="mc-current-dot" style={{ background: settings.landing_eyebrow_color }} />
+                            </div>
+                            <div className="mc-presets">
+                              {genShades(settings.landing_eyebrow_color || '#F1EFE8').map(c => (
+                                <button key={c} className={`mc-preset-swatch ${settings.landing_eyebrow_color === c ? 'active' : ''}`} style={{ background: c }} onClick={() => setSettings(s => ({ ...s, landing_eyebrow_color: c }))} title={c} />
+                              ))}
+                            </div>
                           </div>
-                          <div style={{ marginTop: 6, fontSize: 11, color: '#888' }}>{curEyebrow.label}</div>
-                        </div>
-
-                        {/* Hero panel color picker */}
-                        <div>
-                          <div className="mc-picker-label" style={{ marginBottom: 4 }}>Hero panel background color</div>
-                          <div className="admin-section-desc" style={{ marginBottom: 10 }}>Background of the decorative club-count panel on the right side of the hero card.</div>
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                            {PANEL_OPTIONS.map(opt => (
-                              <button
-                                key={opt.value}
-                                title={opt.label}
-                                onClick={() => setSettings(s => ({ ...s, landing_hero_panel_color: opt.value }))}
-                                style={{
-                                  width: 36, height: 36, borderRadius: 8,
-                                  background: opt.value,
-                                  border: settings.landing_hero_panel_color === opt.value
-                                    ? '2.5px solid #1A3C2E'
-                                    : '1.5px solid rgba(0,0,0,0.12)',
-                                  cursor: 'pointer',
-                                  transform: settings.landing_hero_panel_color === opt.value ? 'scale(1.15)' : 'scale(1)',
-                                  transition: 'transform 0.1s, border-color 0.1s',
-                                  position: 'relative',
-                                  flexShrink: 0,
-                                }}
-                              >
-                                {settings.landing_hero_panel_color === opt.value && (
-                                  <svg style={{ position: 'absolute', inset: 0, margin: 'auto' }} width="14" height="14" viewBox="0 0 16 16" fill="none">
-                                    <path d="M3 8l4 4 6-6" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-                                  </svg>
-                                )}
-                              </button>
-                            ))}
+                          <div>
+                            <div className="mc-picker-label" style={{ marginBottom: 4 }}>Hero panel background color</div>
+                            <div className="admin-section-desc" style={{ marginBottom: 10 }}>The decorative club-count panel on the right</div>
+                            <div className="mc-custom-row" style={{ marginBottom: 10 }}>
+                              <input type="color" className="mc-color-input" value={settings.landing_hero_panel_color || '#1A3C2E'} onChange={e => setSettings(s => ({ ...s, landing_hero_panel_color: e.target.value }))} />
+                              <span className="mc-hex-value">{settings.landing_hero_panel_color}</span>
+                              <div className="mc-current-dot" style={{ background: settings.landing_hero_panel_color }} />
+                            </div>
+                            <div className="mc-presets">
+                              {genShades(settings.landing_hero_panel_color || '#1A3C2E').map(c => (
+                                <button key={c} className={`mc-preset-swatch ${settings.landing_hero_panel_color === c ? 'active' : ''}`} style={{ background: c }} onClick={() => setSettings(s => ({ ...s, landing_hero_panel_color: c }))} title={c} />
+                              ))}
+                            </div>
                           </div>
-                          <div style={{ marginTop: 6, fontSize: 11, color: '#888' }}>{curPanel.label}</div>
                         </div>
                       </div>
                     )}
@@ -1607,50 +1740,81 @@ export default function AdminPage() {
                   <div style={{ padding: '0 20px 20px' }}>
                     <p className="admin-section-desc" style={{ marginBottom: 16 }}>Customize the color of each marker type on the map. Changes take effect immediately after saving.</p>
 
+                    {/* Global marker shape picker */}
+                    <div style={{ marginBottom: 18 }}>
+                      <div className="mc-picker-label" style={{ marginBottom: 4 }}>Default marker shape</div>
+                      <div className="admin-section-desc" style={{ marginBottom: 10 }}>Sets the default shape for all owners. Each owner can override this in their map settings.</div>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        {[
+                          { val: 'dot',     label: 'Dot',     svgPath: <circle cx="12" cy="12" r="9" fill="currentColor"/> },
+                          { val: 'pin',     label: 'Pin',     svgPath: <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="currentColor"/> },
+                          { val: 'diamond', label: 'Diamond', svgPath: <rect x="3" y="3" width="18" height="18" rx="2" fill="currentColor" transform="rotate(45 12 12)"/> },
+                        ].map(({ val, label, svgPath }) => {
+                          const active = (settings.global_marker_shape || 'dot') === val
+                          return (
+                            <button key={val} type="button"
+                              onClick={() => setSettings(s => ({ ...s, global_marker_shape: val }))}
+                              style={{
+                                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
+                                padding: '10px 14px', borderRadius: 8, cursor: 'pointer',
+                                background: active ? '#f0f7f3' : '#fafafa',
+                                border: active ? '2px solid #1A3C2E' : '1.5px solid #ddd',
+                                color: active ? '#1A3C2E' : '#888',
+                                transition: 'all 0.12s', minWidth: 68,
+                              }}
+                            >
+                              <svg width="20" height="20" viewBox="0 0 24 24">{svgPath}</svg>
+                              <span style={{ fontSize: 11, fontWeight: active ? 600 : 400 }}>{label}</span>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+
                     {/* Live preview */}
                     <div className="mc-preview-wrap">
                       <div className="mc-preview-label-row">
                         <div className="mc-preview-label">Preview</div>
                         <div className="mc-basemap-toggle">
-                          <button
-                            className={`mc-basemap-btn ${previewBasemap === 'streets' ? 'active' : ''}`}
-                            onClick={() => setPreviewBasemap('streets')}
-                          >Map</button>
-                          <button
-                            className={`mc-basemap-btn ${previewBasemap === 'satellite' ? 'active' : ''}`}
-                            onClick={() => setPreviewBasemap('satellite')}
-                          >Satellite</button>
+                          <button className={`mc-basemap-btn ${previewBasemap === 'streets' ? 'active' : ''}`} onClick={() => setPreviewBasemap('streets')}>Map</button>
+                          <button className={`mc-basemap-btn ${previewBasemap === 'satellite' ? 'active' : ''}`} onClick={() => setPreviewBasemap('satellite')}>Satellite</button>
                         </div>
                       </div>
                       <div className="mc-preview-map">
-                        {/* Real map background */}
-                        <div
-                          className="mc-map-bg"
-                          style={{
-                            backgroundImage: `url(${previewBasemap === 'streets' ? mapPreviewStreets : mapPreviewSatellite})`,
-                            backgroundSize: 'cover',
-                            backgroundPosition: 'center',
-                          }}
-                        />
-                        {/* Markers */}
+                        <div className="mc-map-bg" style={{ backgroundImage: `url(${previewBasemap === 'streets' ? mapPreviewStreets : mapPreviewSatellite})`, backgroundSize: 'cover', backgroundPosition: 'center' }} />
+                        {/* Markers — shape-aware SVG */}
                         {[
-                          { label: 'My club',      color: settings.marker_color_own,      x: '28%', y: '35%', size: 22, pulse: true },
-                          { label: 'Other club',   color: settings.marker_color_other,    x: '58%', y: '55%', size: 18, pulse: false },
-                          { label: 'Other club',   color: settings.marker_color_other,    x: '78%', y: '32%', size: 18, pulse: false },
-                          { label: 'Team club',    color: settings.marker_color_team,     x: '45%', y: '70%', size: 20, pulse: true },
-                          { label: 'Selected',     color: settings.marker_color_selected, x: '68%', y: '25%', size: 26, pulse: false, ring: true },
-                        ].map(({ label, color, x, y, size, pulse, ring }, i) => (
-                          <div key={i} className="mc-marker-wrap" style={{ left: x, top: y }}>
-                            {ring && (
-                              <div className="mc-marker-ring" style={{ width: size + 14, height: size + 14, borderColor: color, marginLeft: -(size+14)/2, marginTop: -(size+14)/2 }} />
-                            )}
-                            {pulse && (
-                              <div className="mc-marker-pulse" style={{ width: size + 10, height: size + 10, borderColor: color, marginLeft: -(size+10)/2, marginTop: -(size+10)/2 }} />
-                            )}
-                            <div className="mc-marker-dot" style={{ width: size, height: size, background: color, marginLeft: -size/2, marginTop: -size/2 }} />
-                            <div className="mc-marker-tooltip">{label}</div>
-                          </div>
-                        ))}
+                          { label: 'My club',    color: settings.marker_color_own,      x: '28%', y: '35%', size: 22, pulse: true },
+                          { label: 'Other club',  color: settings.marker_color_other,    x: '58%', y: '55%', size: 18, pulse: false },
+                          { label: 'Other club',  color: settings.marker_color_other,    x: '78%', y: '32%', size: 18, pulse: false },
+                          { label: 'Team club',   color: settings.marker_color_team,     x: '45%', y: '70%', size: 20, pulse: true },
+                          { label: 'Selected',    color: settings.marker_color_selected, x: '68%', y: '25%', size: 26, pulse: false, ring: true },
+                        ].map(({ label, color, x, y, size, pulse, ring }, i) => {
+                          const shape = settings.global_marker_shape || 'dot'
+                          const r = size / 2
+                          const pinH = Math.round(size * 1.45)
+                          const markerSvg = shape === 'pin'
+                            ? <svg width={size} height={pinH} viewBox={`0 0 ${size} ${pinH}`} style={{ display: 'block' }}>
+                                <path d={`M${r} ${pinH-1} C${r} ${pinH-1} ${r-r*0.4} ${pinH*0.7} ${r-r*0.7} ${r*1.4} A${r-1.5} ${r-1.5} 0 1 1 ${r+r*0.7} ${r*1.4} C${r+r*0.4} ${pinH*0.7} ${r} ${pinH-1} ${r} ${pinH-1}Z`} fill={color} stroke="white" strokeWidth="1.5"/>
+                                <circle cx={r} cy={r+1.5} r={r*0.38} fill="white" opacity="0.88"/>
+                              </svg>
+                            : shape === 'diamond'
+                            ? <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ display: 'block' }}>
+                                <rect x={r*0.22} y={r*0.22} width={size-r*0.44} height={size-r*0.44} rx="2" fill={color} stroke="white" strokeWidth="1.5" transform={`rotate(45 ${r} ${r})`}/>
+                              </svg>
+                            : <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ display: 'block' }}>
+                                <circle cx={r} cy={r} r={r-1.5} fill={color} stroke="white" strokeWidth="1.5"/>
+                              </svg>
+                          const anchorY = shape === 'pin' ? pinH : r
+                          return (
+                            <div key={i} className="mc-marker-wrap" style={{ left: x, top: y }}>
+                              {ring && <div className="mc-marker-ring" style={{ width: size+14, height: size+14, borderColor: color, marginLeft: -(size+14)/2, marginTop: -(size+14)/2 }} />}
+                              {pulse && <div className="mc-marker-pulse" style={{ width: size+10, height: size+10, borderColor: color, marginLeft: -(size+10)/2, marginTop: -(size+10)/2 }} />}
+                              <div style={{ marginLeft: -r, marginTop: -anchorY }}>{markerSvg}</div>
+                              <div className="mc-marker-tooltip">{label}</div>
+                            </div>
+                          )
+                        })}
                       </div>
                     </div>
 
@@ -1688,7 +1852,19 @@ export default function AdminPage() {
                         const shades = [92,78,62,48,35,22,12].map(l => hslToHex(h, Math.min(s+10,100), l))
                         return (
                           <div key={key} className="mc-picker-card">
-                            <div className="mc-picker-label">{label}</div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+                              {/* Live shape preview using chosen shape + this color */}
+                              {(() => {
+                                const shape = settings.global_marker_shape || 'dot'
+                                const c = settings[key] || '#ccc'
+                                const sz = 20, r = 10
+                                const pinH = 29
+                                if (shape === 'pin') return <svg width={sz} height={pinH} viewBox={`0 0 ${sz} ${pinH}`} style={{flexShrink:0}}><path d={`M${r} ${pinH-1} C${r} ${pinH-1} ${r-r*0.4} ${pinH*0.7} ${r-r*0.7} ${r*1.4} A${r-1.5} ${r-1.5} 0 1 1 ${r+r*0.7} ${r*1.4} C${r+r*0.4} ${pinH*0.7} ${r} ${pinH-1} ${r} ${pinH-1}Z`} fill={c} stroke="white" strokeWidth="1.5"/><circle cx={r} cy={r+1.5} r={r*0.38} fill="white" opacity="0.88"/></svg>
+                                if (shape === 'diamond') return <svg width={sz} height={sz} viewBox={`0 0 ${sz} ${sz}`} style={{flexShrink:0}}><rect x={r*0.22} y={r*0.22} width={sz-r*0.44} height={sz-r*0.44} rx="2" fill={c} stroke="white" strokeWidth="1.5" transform={`rotate(45 ${r} ${r})`}/></svg>
+                                return <svg width={sz} height={sz} viewBox={`0 0 ${sz} ${sz}`} style={{flexShrink:0}}><circle cx={r} cy={r} r={r-1.5} fill={c} stroke="white" strokeWidth="1.5"/></svg>
+                              })()}
+                              <div className="mc-picker-label" style={{ margin: 0 }}>{label}</div>
+                            </div>
                             <div className="mc-picker-desc">{desc}</div>
                             <div className="mc-custom-row" style={{ marginBottom: 10 }}>
                               <input
@@ -1718,94 +1894,10 @@ export default function AdminPage() {
                   </div>
                 )}
               </div>
-
-              {/* Team Creation Settings — collapsible */}
-              <div className="admin-section" style={{ padding: 0, overflow: 'hidden' }}>
-                <button type="button" className="survey-toggle-btn" style={{ padding: '14px 20px' }} onClick={() => setTeamCreationOpen(o => !o)}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
-                    <h3 className="admin-section-title" style={{ margin: 0 }}>Team Creation</h3>
-                    <span className="survey-progress-badge" style={{ background: settings.team_creation_enabled ? '#E1F5EE' : '#FFF3CD', color: settings.team_creation_enabled ? '#0F6E56' : '#854F0B' }}>
-                      {settings.team_creation_enabled ? 'Enabled' : 'Disabled'}
-                    </span>
-                  </div>
-                  <svg className={`survey-chevron ${teamCreationOpen ? 'open' : ''}`} width="14" height="14" viewBox="0 0 16 16" fill="none">
-                    <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </button>
-                {teamCreationOpen && (
-                  <div style={{ padding: '0 20px 20px' }}>
-                    <p className="admin-section-desc" style={{ marginBottom: 14 }}>Control which members can create and manage teams.</p>
-                    <div className="admin-toggle-row" style={{ marginBottom: 14 }}>
-                      <div>
-                        <div className="admin-toggle-label">Allow team creation</div>
-                        <div className="admin-toggle-hint">When off, no member can create new teams</div>
-                      </div>
-                      <ToggleSwitch on={settings.team_creation_enabled}
-                        onChange={v => setSettings(s => ({ ...s, team_creation_enabled: v }))} />
-                    </div>
-                    <div className="field">
-                      <label>Minimum level to create a team</label>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8, opacity: settings.team_creation_enabled ? 1 : 0.4, pointerEvents: settings.team_creation_enabled ? 'auto' : 'none' }}>
-                        {[
-                          { val: 'Distributor',       label: 'Distributor',       c: '#e3e3e3', cd: '#555' },
-                          { val: 'Success Builder',   label: 'Success Builder',   c: '#e3e3e3', cd: '#555' },
-                          { val: 'Supervisor',        label: 'Supervisor',        c: '#64ba44', cd: '#2a6b1a' },
-                          { val: 'World Team',        label: 'World Team',        c: '#767678', cd: '#3a3a3a' },
-                          { val: 'Active World Team', label: 'Active World Team', c: '#767678', cd: '#3a3a3a' },
-                          { val: 'Get Team',          label: 'Get Team',          c: '#e02054', cd: '#8a0020' },
-                          { val: 'Get Team 2500',     label: 'Get Team 2500',     c: '#f39519', cd: '#7a4200' },
-                          { val: 'Millionaire Team',  label: 'Millionaire Team',  c: '#3aac77', cd: '#0c5a32' },
-                          { val: 'Millionaire Team 7500', label: 'Millionaire Team 7500', c: '#84c8d3', cd: '#1a5a60' },
-                          { val: 'Presidents Team',   label: 'Presidents Team',   c: '#fde488', cd: '#7a5200' },
-                        ].map(({ val, label, c, cd }) => (
-                          <button
-                            key={val}
-                            type="button"
-                            onClick={() => setSettings(s => ({ ...s, team_creation_min_level: val }))}
-                            style={{
-                              padding: '5px 12px', borderRadius: 20, fontSize: 12, cursor: 'pointer',
-                              background: settings.team_creation_min_level === val ? c : '#f4f4f4',
-                              color: settings.team_creation_min_level === val ? cd : '#777',
-                              border: settings.team_creation_min_level === val ? `1.5px solid ${cd}` : '1.5px solid #ddd',
-                              fontWeight: settings.team_creation_min_level === val ? 600 : 400,
-                              transition: 'all 0.12s',
-                            }}
-                          >{label}</button>
-                        ))}
-                      </div>
-                      <span className="field-hint" style={{ marginTop: 8, display: 'block' }}>Members below this level will not see the team creation option</span>
-                    </div>
                   </div>
                 )}
               </div>
 
-              {/* Member Approval — collapsible */}
-              <div className="admin-section" style={{ padding: 0, overflow: 'hidden' }}>
-                <button type="button" className="survey-toggle-btn" style={{ padding: '14px 20px' }} onClick={() => setMemberApprovalOpen(o => !o)}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
-                    <h3 className="admin-section-title" style={{ margin: 0 }}>Member Approval</h3>
-                    <span className="survey-progress-badge" style={{ background: settings.require_approval ? '#E1F5EE' : '#F5F5F5', color: settings.require_approval ? '#0F6E56' : '#888' }}>
-                      {settings.require_approval ? 'Required' : 'Auto-approve'}
-                    </span>
-                  </div>
-                  <svg className={`survey-chevron ${memberApprovalOpen ? 'open' : ''}`} width="14" height="14" viewBox="0 0 16 16" fill="none">
-                    <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </button>
-                {memberApprovalOpen && (
-                  <div style={{ padding: '0 20px 20px' }}>
-                    <p className="admin-section-desc" style={{ marginBottom: 14 }}>When enabled, new signups must be approved before appearing on the map.</p>
-                    <div className="admin-toggle-row">
-                      <div>
-                        <div className="admin-toggle-label">Require approval for new members</div>
-                        <div className="admin-toggle-hint">New clubs will be hidden until you approve them</div>
-                      </div>
-                      <ToggleSwitch on={settings.require_approval}
-                        onChange={v => setSettings(s => ({ ...s, require_approval: v }))} />
-                    </div>
-                  </div>
-                )}
-              </div>
 
               {/* Demographics */}
               {(() => {
@@ -2138,6 +2230,8 @@ export default function AdminPage() {
                       {!c.is_read && <div className="msg-unread-dot" />}
                       <ContactCard
                         submission={c}
+                        expanded={expandedContact === c.id}
+                        onToggle={() => setExpandedContact(expandedContact === c.id ? null : c.id)}
                         onReplySent={(reply) => {
                           setContacts(prev => prev.map(x =>
                             x.id === c.id

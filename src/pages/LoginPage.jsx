@@ -81,12 +81,13 @@ export default function LoginPage() {
       .eq('user_id', user.id)
       .single()
 
-    const { data: loc } = await supabase
+    const { data: locs } = await supabase
       .from('locations')
       .select('first_name, club_name, approved')
       .eq('user_id', user.id)
-      .eq('club_index', 0)
-      .single()
+      .order('created_at')
+
+    const loc = locs?.[0] || null
 
     // Route based on state
     if (!uta?.onboarding_done) {
@@ -94,11 +95,13 @@ export default function LoginPage() {
       return
     }
 
-    // Helper to replace {name} and {club} tokens
+    // Replace {name}, {club}, {club_2}, {club_3} tokens
     const applyTokens = (template, name, club) =>
       (template || '')
         .replace(/\{name\}/g, name || '')
-        .replace(/\{club\}/g, club || '')
+        .replace(/\{club\}/g, club || locs?.[0]?.club_name || '')
+        .replace(/\{club_2\}/g, locs?.[1]?.club_name || '')
+        .replace(/\{club_3\}/g, locs?.[2]?.club_name || '')
         .trim()
 
     if (!loc) {
