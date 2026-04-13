@@ -832,7 +832,7 @@ function ClubEditor({ club, clubIndex, userId, isOnly, allClubs, onSaved, onRemo
       photo_urls: photoUrls,
       // Always sync person fields from person form / first club — keeps all location rows in sync
       ...(() => {
-        const src = personData && personData.first_name ? personData : (allClubs && allClubs[0]) || {}
+        const src = personData || (allClubs && allClubs[0]) || {}
         const fields = {}
         const PERSON_KEYS = [
           'first_name', 'last_name', 'owner_email', 'herbalife_level',
@@ -1476,6 +1476,26 @@ export default function ProfilePage() {
         const row0 = data[0]
         const pf = { ...DEFAULT_PERSON }
         Object.keys(DEFAULT_PERSON).forEach(k => { if (row0[k] != null) pf[k] = row0[k] })
+
+        // Check if survey fields are empty on the locations row — if so, try pending_survey
+        const hasSurveyData = pf.survey_upline || pf.survey_hl_year || pf.survey_trainings || pf.survey_hear_how || pf.survey_goal
+        if (!hasSurveyData) {
+          const { data: uta } = await supabase
+            .from('user_terms_acceptance')
+            .select('pending_survey')
+            .eq('user_id', user.id)
+            .single()
+          if (uta?.pending_survey) {
+            try {
+              const survey = JSON.parse(uta.pending_survey)
+              Object.keys(survey).forEach(k => { if (survey[k] != null) pf[k] = survey[k] })
+              // Also write survey fields to locations so they persist
+              await supabase.from('locations').update(survey).eq('user_id', user.id)
+              await supabase.from('user_terms_acceptance').update({ pending_survey: null }).eq('user_id', user.id)
+            } catch {}
+          }
+        }
+
         setPersonForm(pf)
 
         if (row0.owner2_first_name) setShowOwner2(true)
