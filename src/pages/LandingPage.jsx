@@ -2,10 +2,15 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
-function PinIcon() {
+function TargetIcon() {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-      <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="#fff"/>
+    <svg width="20" height="20" viewBox="0 0 18 18" fill="none">
+      <circle cx="9" cy="9" r="3.5" fill="#fff"/>
+      <circle cx="9" cy="9" r="7" stroke="#fff" strokeWidth="1.5" fill="none"/>
+      <line x1="9" y1="2" x2="9" y2="0.5" stroke="#fff" strokeWidth="1.5" strokeLinecap="round"/>
+      <line x1="9" y1="16" x2="9" y2="17.5" stroke="#fff" strokeWidth="1.5" strokeLinecap="round"/>
+      <line x1="2" y1="9" x2="0.5" y2="9" stroke="#fff" strokeWidth="1.5" strokeLinecap="round"/>
+      <line x1="16" y1="9" x2="17.5" y2="9" stroke="#fff" strokeWidth="1.5" strokeLinecap="round"/>
     </svg>
   )
 }
@@ -142,7 +147,7 @@ export default function LandingPage() {
 
         {/* Logo */}
         <div className="landing-logo">
-          <div className="landing-logo-pin"><PinIcon /></div>
+          <div className="landing-logo-pin"><TargetIcon /></div>
           <span className="landing-logo-text">My Club Locator</span>
         </div>
 

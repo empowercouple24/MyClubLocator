@@ -1,0 +1,21 @@
+{
+  "name": "My Club Locator",
+  "short_name": "ClubLocator",
+  "description": "The community-powered map where Nutrition Club owners get discovered, connect, and grow.",
+  "start_url": "/login",
+  "display": "standalone",
+  "background_color": "#1A3C2E",
+  "theme_color": "#1A3C2E",
+  "orientation": "any",
+  "icons": [
+    { "src": "/icon-48.png",  "sizes": "48x48",   "type": "image/png" },
+    { "src": "/icon-96.png",  "sizes": "96x96",   "type": "image/png" },
+    { "src": "/icon-144.png", "sizes": "144x144", "type": "image/png" },
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-256.png", "sizes": "256x256", "type": "image/png" },
+    { "src": "/icon-384.png", "sizes": "384x384", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

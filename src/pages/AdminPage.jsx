@@ -287,6 +287,7 @@ export default function AdminPage() {
     theme_card_header_text: '#ffffff',
     theme_card_header_bold: true,
     theme_card_body:        '#ffffff',
+    site_font:              'dm-sans',
     global_marker_shape:    'dot',
     global_marker_size:     'small',
     demo_population: true,
@@ -397,7 +398,13 @@ export default function AdminPage() {
     if (settings.theme_card_header_text) root.style.setProperty('--theme-card-header-text', settings.theme_card_header_text)
     root.style.setProperty('--theme-card-header-weight', settings.theme_card_header_bold === false ? '400' : '600')
     if (settings.theme_card_body)        root.style.setProperty('--theme-card-body',         settings.theme_card_body)
-  }, [settings.theme_page_bg, settings.theme_card_header_bg, settings.theme_card_header_text, settings.theme_card_header_bold, settings.theme_card_body])
+    const fontMap = {
+      'dm-sans': "'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+      'playfair': "'Playfair Display', Georgia, 'Times New Roman', serif",
+      'system': "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+    }
+    root.style.setProperty('--site-font', fontMap[settings.site_font] || fontMap['dm-sans'])
+  }, [settings.theme_page_bg, settings.theme_card_header_bg, settings.theme_card_header_text, settings.theme_card_header_bold, settings.theme_card_body, settings.site_font])
 
   async function loadMembers() {
     setLoadingMembers(true)
@@ -675,6 +682,7 @@ export default function AdminPage() {
       theme_card_header_text:            settings.theme_card_header_text,
       theme_card_header_bold:            settings.theme_card_header_bold,
       theme_card_body:                   settings.theme_card_body,
+      site_font:                         settings.site_font,
       global_marker_shape:               settings.global_marker_shape,
       global_marker_size:                settings.global_marker_size,
       demo_population:            settings.demo_population,
@@ -1645,6 +1653,52 @@ export default function AdminPage() {
                                 >{label}</button>
                               ))}
                             </div>
+                          </div>
+                        </div>
+
+                {/* Site Font */}
+                <div style={{ borderTop: "0.5px solid #e8ede9", padding: "12px 20px 4px" }}>
+                  <div style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: ".04em", color: "#aaa", marginBottom: 12 }}>Site Font</div>
+                </div>
+                        <p className="admin-section-desc" style={{ marginBottom: 14 }}>Choose the primary font used across the entire app — all pages, cards, labels, and buttons.</p>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
+                          {[
+                            { value: 'dm-sans', label: 'DM Sans', family: "'DM Sans', sans-serif", desc: 'Clean, modern geometric sans-serif' },
+                            { value: 'playfair', label: 'Playfair Display', family: "'Playfair Display', Georgia, serif", desc: 'Elegant editorial serif' },
+                            { value: 'system', label: 'System Default', family: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", desc: 'Uses the device native font' },
+                          ].map(opt => (
+                            <button key={opt.value} type="button"
+                              style={{
+                                display: 'flex', alignItems: 'center', gap: 14,
+                                padding: '12px 16px', borderRadius: 10,
+                                border: (settings.site_font || 'dm-sans') === opt.value ? '2px solid #1A3C2E' : '1.5px solid #e0e0e0',
+                                background: (settings.site_font || 'dm-sans') === opt.value ? '#F0FAF4' : '#fff',
+                                cursor: 'pointer', textAlign: 'left', width: '100%',
+                                transition: 'border-color 0.15s, background 0.15s',
+                              }}
+                              onClick={() => setSettings(s => ({ ...s, site_font: opt.value }))}
+                            >
+                              <span style={{
+                                fontFamily: opt.family,
+                                fontSize: 22, fontWeight: 600,
+                                color: '#1A3C2E', lineHeight: 1,
+                                width: 36, textAlign: 'center', flexShrink: 0,
+                              }}>Aa</span>
+                              <div style={{ flex: 1 }}>
+                                <div style={{ fontFamily: opt.family, fontSize: 14, fontWeight: 600, color: '#222', marginBottom: 2 }}>{opt.label}</div>
+                                <div style={{ fontSize: 11.5, color: '#999' }}>{opt.desc}</div>
+                              </div>
+                              {(settings.site_font || 'dm-sans') === opt.value && (
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" fill="#1A3C2E"/><path d="M8 12l3 3 5-5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                        <div style={{ background: '#f8faf9', borderRadius: 10, padding: '14px 16px', marginBottom: 20, border: '1px solid #e8ede8' }}>
+                          <div style={{ fontSize: 11, color: '#999', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 8, fontWeight: 600 }}>Preview</div>
+                          <div style={{ fontFamily: settings.site_font === 'playfair' ? "'Playfair Display', Georgia, serif" : settings.site_font === 'system' ? "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" : "'DM Sans', sans-serif" }}>
+                            <div style={{ fontSize: 18, fontWeight: 700, color: '#1A3C2E', marginBottom: 4 }}>My Club Locator</div>
+                            <div style={{ fontSize: 13, color: '#666', lineHeight: 1.5 }}>The quick brown fox jumps over the lazy dog. 0123456789</div>
                           </div>
                         </div>
 

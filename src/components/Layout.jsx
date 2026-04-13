@@ -32,7 +32,17 @@ export default function Layout() {
       <WelcomeModal />
 
       <header className="topbar">
-        <NavLink to="/app/map" className="brand" style={{ textDecoration: 'none' }}>My Club<span> Locator</span></NavLink>
+        <NavLink to="/app/map" className="brand" style={{ textDecoration: 'none' }}>
+          <svg className="brand-target" width="22" height="22" viewBox="0 0 18 18" fill="none">
+            <circle cx="9" cy="9" r="3.5" fill="#4CAF82"/>
+            <circle cx="9" cy="9" r="7" stroke="#4CAF82" strokeWidth="1.5" fill="none"/>
+            <line x1="9" y1="2" x2="9" y2="0.5" stroke="#4CAF82" strokeWidth="1.5" strokeLinecap="round"/>
+            <line x1="9" y1="16" x2="9" y2="17.5" stroke="#4CAF82" strokeWidth="1.5" strokeLinecap="round"/>
+            <line x1="2" y1="9" x2="0.5" y2="9" stroke="#4CAF82" strokeWidth="1.5" strokeLinecap="round"/>
+            <line x1="16" y1="9" x2="17.5" y2="9" stroke="#4CAF82" strokeWidth="1.5" strokeLinecap="round"/>
+          </svg>
+          My<span>Club</span> Locator
+        </NavLink>
         <nav className="topbar-nav">
           {isMapPage && <button
             className="btn-outline layout-public-search-btn"
