@@ -834,6 +834,9 @@ function ClubEditor({ club, clubIndex, userId, isOnly, allClubs, onSaved, onRemo
 
     let result
     if (isNew) {
+      // Check if approval is required
+      const { data: appSettings } = await supabase.from('app_settings').select('require_approval').eq('id', 1).single()
+      record.approved = appSettings?.require_approval ? false : true
       result = await supabase.from('locations').insert(record).select().single()
     } else {
       result = await supabase.from('locations').update(record).eq('id', form.id).select().single()
@@ -2289,9 +2292,10 @@ export default function ProfilePage() {
         }).filter(Boolean)
 
         async function handleApproveAndGo() {
-          // Save person fields to all clubs
+          // Save person fields + mark as approved on all clubs
           const personRecord = {
             ...personForm,
+            approved: true,
             owner_photo_url: ownerPhotoUrl,
             owner2_photo_url: owner2PhotoUrl,
             owner3_photo_url: owner3PhotoUrl,

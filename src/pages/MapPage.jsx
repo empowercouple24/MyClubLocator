@@ -1157,7 +1157,7 @@ export default function MapPage() {
     async function load() {
       const { data, error } = await supabase
         .from('locations').select('*').not('lat', 'is', null).not('lng', 'is', null)
-        .neq('approved', false)
+        .or('approved.eq.true,approved.is.null')
       if (!error && data) setLocations(data)
       setLoading(false)
     }
