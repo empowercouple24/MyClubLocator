@@ -1,6 +1,9 @@
 // ── US Census API — Demographics Service ────────────────────
+const CENSUS_KEY     = import.meta.env.VITE_CENSUS_API_KEY || ''
 const CENSUS_BASE    = 'https://api.census.gov/data/2022/acs/acs5'
 const CENSUS_SUBJECT = 'https://api.census.gov/data/2022/acs/acs5/subject'
+const keyParam       = CENSUS_KEY ? `&key=${CENSUS_KEY}` : ''
+if (!CENSUS_KEY) console.warn('[MyClubLocator] VITE_CENSUS_API_KEY is not set — market data may fail due to Census API rate limits.')
 
 // ── All demographic categories with descriptions ─────────────
 export const DEMO_CATEGORIES = {
@@ -70,7 +73,7 @@ export async function fetchZipData(zip) {
       'S0101_C01_001E', 'S1901_C01_012E', 'S0101_C01_026E',
       'S1701_C03_001E', 'S2301_C04_001E', 'S1101_C01_001E', 'S1101_C01_002E',
     ].join(',')
-    const res = await fetch(`${CENSUS_SUBJECT}?get=${vars}&for=zip%20code%20tabulation%20area:${zip}`)
+    const res = await fetch(`${CENSUS_SUBJECT}?get=${vars}&for=zip%20code%20tabulation%20area:${zip}${keyParam}`)
     const raw = await res.json()
     if (!raw?.[1]) return null
     const d = raw[1]
@@ -99,7 +102,7 @@ export async function fetchCountyData(stateFips, countyFips) {
       'B01001_031E','B01001_032E','B01001_033E','B01001_034E',
       'B01001_035E','B01001_036E','B01001_037E',
     ].join(',')
-    const res = await fetch(`${CENSUS_BASE}?get=${vars}&for=county:${countyOnly}&in=state:${stateFips}`)
+    const res = await fetch(`${CENSUS_BASE}?get=${vars}&for=county:${countyOnly}&in=state:${stateFips}${keyParam}`)
     const raw = await res.json()
     if (!raw?.[1]) return null
     const d = raw[1]
@@ -148,7 +151,7 @@ export async function fetchSpendingData(stateFips, countyFips) {
     // Census doesn't have direct consumer expenditure at county level
     // We use B19051 (earnings), B19052 (wage), B19054 (interest) as spending proxies
     const vars = ['B19051_001E', 'B19052_001E', 'B19301_001E', 'B19013_001E'].join(',')
-    const res  = await fetch(`${CENSUS_BASE}?get=${vars}&for=county:${countyOnly}&in=state:${stateFips}`)
+    const res  = await fetch(`${CENSUS_BASE}?get=${vars}&for=county:${countyOnly}&in=state:${stateFips}${keyParam}`)
     const raw  = await res.json()
     if (!raw?.[1]) return null
     const d = raw[1]
@@ -173,8 +176,8 @@ export async function fetchGrowthData(stateFips, countyFips) {
   try {
     // Compare 2022 vs 2019 ACS estimates
     const [res22, res19] = await Promise.all([
-      fetch(`${CENSUS_BASE}?get=B01001_001E&for=county:${countyOnly}&in=state:${stateFips}`),
-      fetch(`https://api.census.gov/data/2019/acs/acs5?get=B01001_001E&for=county:${countyOnly}&in=state:${stateFips}`),
+      fetch(`${CENSUS_BASE}?get=B01001_001E&for=county:${countyOnly}&in=state:${stateFips}${keyParam}`),
+      fetch(`https://api.census.gov/data/2019/acs/acs5?get=B01001_001E&for=county:${countyOnly}&in=state:${stateFips}${keyParam}`),
     ])
     const [raw22, raw19] = await Promise.all([res22.json(), res19.json()])
     const pop22 = safeNum(raw22?.[1]?.[0])
@@ -204,7 +207,7 @@ export async function fetchCommuteData(stateFips, countyFips) {
       'B08303_001E', // total commute time
       'B08303_013E', // 60+ min commute
     ].join(',')
-    const res = await fetch(`${CENSUS_BASE}?get=${vars}&for=county:${countyOnly}&in=state:${stateFips}`)
+    const res = await fetch(`${CENSUS_BASE}?get=${vars}&for=county:${countyOnly}&in=state:${stateFips}${keyParam}`)
     const raw = await res.json()
     if (!raw?.[1]) return null
     const d = raw[1]
