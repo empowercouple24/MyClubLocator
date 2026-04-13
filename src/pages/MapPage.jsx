@@ -375,47 +375,104 @@ function ClubMarkers({ locations, selectedId, userId, onSelect, navigate, teamFi
       }).setContent(tooltipHtml)
 
       let closeTimer = null
+      let isTooltipHovered = false
+      let isMarkerHovered = false
 
-      const openTooltip = () => {
+      const keepOpen = () => {
         if (closeTimer) { clearTimeout(closeTimer); closeTimer = null }
-        marker.openTooltip()
       }
-      const scheduleClose = (delay = 2500) => {
-        if (closeTimer) clearTimeout(closeTimer)
-        closeTimer = setTimeout(() => { marker.closeTooltip() }, delay)
-      }
-      const cancelClose = () => {
-        if (closeTimer) { clearTimeout(closeTimer); closeTimer = null }
+      const tryClose = (delay = 300) => {
+        keepOpen()
+        closeTimer = setTimeout(() => {
+          if (!isMarkerHovered && !isTooltipHovered) {
+            marker.closeTooltip()
+          }
+        }, delay)
       }
 
       const marker = leafletMarker([loc.lat, loc.lng], { icon })
         .addTo(map)
         .bindTooltip(tooltip)
         .on('click', () => {
-          cancelClose()
+          keepOpen()
           onSelect(loc)
         })
-        .on('mouseover', openTooltip)
-        .on('mouseout', () => scheduleClose(1500))
-        .on('tooltipopen', (ev) => {
-          setTimeout(() => {
-            const tooltipEl = ev.tooltip && ev.tooltip._container
-            if (tooltipEl) {
-              tooltipEl.onmouseenter = cancelClose
-              tooltipEl.onmouseleave = () => scheduleClose(3000)
-              const el = tooltipEl.querySelector('.ct-dir-link')
-              if (el) {
-                el.onmouseenter = cancelClose
-                el.onclick = (e) => {
-                  e.stopPropagation()
-                  cancelClose()
-                  const name = decodeURIComponent(el.dataset.clubname || '')
-                  navigate(`/app/directory?search=${encodeURIComponent(name)}`)
-                }
-              }
-            }
-          }, 20)
+        .on('mouseover', () => {
+          isMarkerHovered = true
+          keepOpen()
+          marker.openTooltip()
         })
+        .on('mouseout', () => {
+          isMarkerHovered = false
+          tryClose(400)
+        })
+        .on('tooltipopen', (ev) => {
+          // Attach hover tracking to the tooltip DOM element once it opens
+          const attachHandlers = () => {
+            const tooltipEl = ev.tooltip && ev.tooltip._container
+            if (!tooltipEl) return
+            tooltipEl.addEventListener('mouseenter', () => {
+              isTooltipHovered = true
+              keepOpen()
+            })
+            tooltipEl.addEventListener('mouseleave', () => {
+              isTooltipHovered = false
+              tryClose(500)
+            })
+            const el = tooltipEl.querySelector('.ct-dir-link')
+            if (el) {
+              el.addEventListener('mouseenter', () => { isTooltipHovered = true; keepOpen() })
+              el.addEventListener('click', (e) => {
+                e.stopPropagation()
+                keepOpen()
+                const name = decodeURIComponent(el.dataset.clubname || '')
+                navigate(`/app/directory?search=${encodeURIComponent(name)}`)
+              })
+            }
+          }
+          // Small delay to ensure DOM is ready
+          setTimeout(attachHandlers, 30)
+        })
+
+      // Prevent Leaflet from auto-closing tooltip on mouseout — we manage closing ourselves
+      const origCloseTooltip = marker.closeTooltip.bind(marker)
+      marker.closeTooltip = function() {
+        // Only allow close if neither marker nor tooltip is hovered
+        if (isMarkerHovered || isTooltipHovered) return marker
+        return origCloseTooltip()
+      }
+      // Force-close that bypasses the guard (used by our tryClose timer)
+      const forceClose = () => origCloseTooltip()
+      // Rewrite tryClose to use forceClose
+      const origTryClose = tryClose
+      // We need to rebind tryClose since it captured the old marker.closeTooltip
+      // Actually let's just inline the force close in the timer
+      closeTimer = null // reset
+      const _tryClose = (delay = 300) => {
+        if (closeTimer) clearTimeout(closeTimer)
+        closeTimer = setTimeout(() => {
+          if (!isMarkerHovered && !isTooltipHovered) forceClose()
+        }, delay)
+      }
+      // Re-bind events with _tryClose
+      marker.off('mouseout').on('mouseout', () => { isMarkerHovered = false; _tryClose(400) })
+      // Update tooltip leave handler reference too — we'll re-attach in tooltipopen
+      marker.off('tooltipopen').on('tooltipopen', (ev) => {
+        setTimeout(() => {
+          const tooltipEl = ev.tooltip && ev.tooltip._container
+          if (!tooltipEl) return
+          tooltipEl.onmouseenter = () => { isTooltipHovered = true; keepOpen() }
+          tooltipEl.onmouseleave = () => { isTooltipHovered = false; _tryClose(500) }
+          const el = tooltipEl.querySelector('.ct-dir-link')
+          if (el) {
+            el.onmouseenter = () => { isTooltipHovered = true; keepOpen() }
+            el.onclick = (e) => {
+              e.stopPropagation(); keepOpen()
+              navigate(`/app/directory?search=${encodeURIComponent(decodeURIComponent(el.dataset.clubname || ''))}`)
+            }
+          }
+        }, 30)
+      })
 
       markersRef.current[loc.id] = marker
     })
