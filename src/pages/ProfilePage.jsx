@@ -1362,9 +1362,6 @@ function ClubEditor({ club, clubIndex, userId, isOnly, allClubs, onSaved, onRemo
           <button className="btn-save" onClick={() => handleSave('save')} disabled={saving || (!isDirty && !!form.id) || !requiredFilled}>
             {saving && saveAction === 'save' ? 'Saving…' : 'Save Club'}
           </button>
-          <button className="btn-save-map" onClick={() => handleSave('map')} disabled={saving || (!isDirty && !!form.id) || !requiredFilled}>
-            {saving && saveAction === 'map' ? 'Saving…' : 'Save & Go to Map'}
-          </button>
         </div>
         {!isOnly && (
           <div className="remove-club-zone">
@@ -1405,7 +1402,7 @@ export default function ProfilePage() {
 
   const [showOwner2, setShowOwner2] = useState(false)
   const [showOwner3, setShowOwner3] = useState(false)
-  const [owner1Collapsed, setOwner1Collapsed] = useState(true)
+  const [owner1Collapsed, setOwner1Collapsed] = useState(false) // expanded by default for new users; collapses after data loads for returning users
   const [owner2Collapsed, setOwner2Collapsed] = useState(true)
   const [owner3Collapsed, setOwner3Collapsed] = useState(true)
   const [surveyOpen, setSurveyOpen] = useState(false)
@@ -1423,6 +1420,14 @@ export default function ProfilePage() {
 
   const [showAddClubPrompt, setShowAddClubPrompt] = useState(false)
   const [myClubsOpen, setMyClubsOpen] = useState(false)
+  const [showTeamInfoModal, setShowTeamInfoModal] = useState(false)
+  const [teamInfoSettings, setTeamInfoSettings] = useState(null)
+  const [showReviewModal, setShowReviewModal] = useState(false)
+
+  // Does user's level meet the minimum for teams?
+  const meetsTeamLevel = teamInfoSettings
+    ? levelRank(personForm.herbalife_level) >= levelRank(teamInfoSettings.team_creation_min_level || 'Active World Team')
+    : false
 
   const isPersonDirty = savedPersonForm !== null
     ? JSON.stringify({ ...personForm, _p1: ownerPhotoUrl, _p2: owner2PhotoUrl, _p3: owner3PhotoUrl })
@@ -1458,6 +1463,9 @@ export default function ProfilePage() {
         if (row0.owner3_photo_url) setOwner3PhotoUrl(row0.owner3_photo_url)
 
         setSavedPersonForm({ ...pf, _p1: row0.owner_photo_url || null, _p2: row0.owner2_photo_url || null, _p3: row0.owner3_photo_url || null })
+
+        // Collapse owner card for returning users who already have their name filled in
+        if (pf.first_name) setOwner1Collapsed(true)
 
         // Build clubs array — one entry per row (include ALL DB fields, not just DEFAULT_CLUB keys)
         setClubs(data.map(row => {
@@ -1504,6 +1512,11 @@ export default function ProfilePage() {
           } catch {}
         }
       }
+      // Load team info modal settings
+      const { data: appS } = await supabase.from('app_settings')
+        .select('team_info_modal_enabled, team_info_message, team_info_video_enabled, team_info_video_url, team_creation_min_level')
+        .eq('id', 1).single()
+      if (appS) setTeamInfoSettings(appS)
       setLoading(false)
     }
     load()
@@ -1693,9 +1706,10 @@ export default function ProfilePage() {
               </div>
             </div>
             <div className="pf owner-email-full">
-              <label>Email <span className="optional-tag">optional</span></label>
-              <input type="email" name="owner_email" value={personForm.owner_email} onChange={e => setPersonField('owner_email', e.target.value)}
-                placeholder="your@email.com" />
+              <label>Email <span className="autofill-hint">linked to account</span></label>
+              <input type="email" name="owner_email" value={personForm.owner_email}
+                readOnly tabIndex={-1}
+                style={{ background: '#f8faf9', color: '#555', cursor: 'default', borderColor: '#dde8e0' }} />
             </div>
             <OwnerPhotoUpload
               label="Primary Owner"
@@ -1969,7 +1983,7 @@ export default function ProfilePage() {
             setStoryOpen(true)
             setTimeout(() => document.querySelector('.story-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100)
           }}>
-            Next: Your Story
+            <span>Next: Your Story</span><span className="next-card-optional">optional</span>
             <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
           </button>
         </div>
@@ -2026,7 +2040,7 @@ export default function ProfilePage() {
                     setSurveyOpen(true)
                     setTimeout(() => document.querySelector('.survey-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100)
                   }}>
-                    Next: Member Survey
+                    <span>Next: Member Survey</span><span className="next-card-optional">optional</span>
                     <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
                   </button>
                 </div>
@@ -2219,13 +2233,26 @@ export default function ProfilePage() {
                     placeholder="Share your thoughts..." />
                 </div>
                 <div className="next-card-row">
-                  <button className="next-card-btn" type="button" onClick={() => {
-                    setSurveyOpen(false)
-                    setTimeout(() => document.querySelector('.my-team-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100)
-                  }}>
-                    Next: My Team
-                    <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                  </button>
+                  {meetsTeamLevel ? (
+                    <button className="next-card-btn" type="button" onClick={() => {
+                      setSurveyOpen(false)
+                      if (teamInfoSettings?.team_info_modal_enabled && !localStorage.getItem(`team_info_seen_${user?.id}`)) {
+                        setShowTeamInfoModal(true)
+                      }
+                      setTimeout(() => document.querySelector('.my-team-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100)
+                    }}>
+                      <span>Next: My Team</span>
+                      <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                    </button>
+                  ) : (
+                    <button className="next-card-btn next-card-btn--primary" type="button" onClick={() => {
+                      setSurveyOpen(false)
+                      setShowReviewModal(true)
+                    }}>
+                      <span>Save & Review</span>
+                      <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                    </button>
+                  )}
                 </div>
               </div>
             )}
@@ -2235,13 +2262,151 @@ export default function ProfilePage() {
 
       <div style={{ height: 32 }} />
 
-      {/* My Team */}
-      <MyTeamSection userId={user?.id} userLevel={personForm.herbalife_level} />
+      {/* My Team — only shown if user meets min level */}
+      {meetsTeamLevel && (<>
+        <div style={{ height: 32 }} />
+        <MyTeamSection userId={user?.id} userLevel={personForm.herbalife_level} />
+        <div className="next-card-row" style={{ marginTop: 16 }}>
+          <button className="next-card-btn next-card-btn--primary" type="button" onClick={() => setShowReviewModal(true)}>
+            <span>Save & Review</span>
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          </button>
+        </div>
+      </>)}
 
       <div style={{ height: 32 }} />
       <div className="profile-privacy-link">
         <a href="/privacy" target="_blank" rel="noreferrer">Privacy & Use Policy</a>
       </div>
+
+      {/* Review Modal */}
+      {showReviewModal && (() => {
+        const club = clubs[0] || {}
+        const DAY_LABELS_SHORT = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
+        const hoursRows = DAYS.map((d, i) => {
+          const o = club['hours_' + d + '_open'], c = club['hours_' + d + '_close']
+          return o && c ? { day: DAY_LABELS_SHORT[i], hours: `${o} – ${c}` } : null
+        }).filter(Boolean)
+
+        async function handleApproveAndGo() {
+          // Save person fields to all clubs
+          const personRecord = {
+            ...personForm,
+            owner_photo_url: ownerPhotoUrl,
+            owner2_photo_url: owner2PhotoUrl,
+            owner3_photo_url: owner3PhotoUrl,
+          }
+          await supabase.from('locations').update(personRecord).eq('user_id', user.id)
+          setSavedPersonForm({ ...personForm, _p1: ownerPhotoUrl, _p2: owner2PhotoUrl, _p3: owner3PhotoUrl })
+          setShowReviewModal(false)
+          navigate('/app/map')
+        }
+
+        return (
+          <div className="modal-overlay">
+            <div className="modal-box review-modal" onClick={e => e.stopPropagation()}>
+              <div className="review-modal-header">
+                <div className="review-modal-icon">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                    <path d="M9 11l3 3L22 4" stroke="#4CAF82" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" stroke="#4CAF82" strokeWidth="1.5" strokeLinecap="round"/>
+                  </svg>
+                </div>
+                <h3 className="review-modal-title">Review Your Profile</h3>
+              </div>
+              <div className="review-modal-body">
+                <p className="review-modal-intro">Take a moment to review everything before going live on the map.</p>
+
+                {/* Owner info */}
+                <div className="review-section">
+                  <div className="review-section-label">Owner</div>
+                  <div className="review-row"><span className="review-key">Name</span><span>{[personForm.first_name, personForm.last_name].filter(Boolean).join(' ') || '—'}</span></div>
+                  <div className="review-row"><span className="review-key">Email</span><span>{personForm.owner_email || '—'}</span></div>
+                  <div className="review-row"><span className="review-key">Level</span><span>{personForm.herbalife_level || '—'}</span></div>
+                </div>
+
+                {/* Club info */}
+                <div className="review-section">
+                  <div className="review-section-label">Club — {club.club_name || 'Unnamed'}</div>
+                  <div className="review-row"><span className="review-key">Address</span><span>{[club.address, club.city, club.state, club.zip].filter(Boolean).join(', ') || '—'}</span></div>
+                  <div className="review-row"><span className="review-key">Phone</span><span>{club.club_phone || '—'}</span></div>
+                  <div className="review-row"><span className="review-key">Email</span><span>{club.club_email || '—'}</span></div>
+                  <div className="review-row"><span className="review-key">Opened</span><span>{club.opened_month && club.opened_year ? `${club.opened_month} ${club.opened_year}` : '—'}</span></div>
+                  {hoursRows.length > 0 && (
+                    <div className="review-row review-row--top"><span className="review-key">Hours</span>
+                      <div>{hoursRows.map(r => <div key={r.day} style={{ fontSize: 12.5 }}><strong>{r.day}</strong> {r.hours}</div>)}</div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Socials */}
+                {(club.social_facebook || club.social_instagram || club.social_tiktok || club.social_youtube || club.website) && (
+                  <div className="review-section">
+                    <div className="review-section-label">Social & Website</div>
+                    {club.website && <div className="review-row"><span className="review-key">Website</span><span>{club.website}</span></div>}
+                    {club.social_facebook && <div className="review-row"><span className="review-key">Facebook</span><span>✓</span></div>}
+                    {club.social_instagram && <div className="review-row"><span className="review-key">Instagram</span><span>✓</span></div>}
+                    {club.social_tiktok && <div className="review-row"><span className="review-key">TikTok</span><span>✓</span></div>}
+                    {club.social_youtube && <div className="review-row"><span className="review-key">YouTube</span><span>✓</span></div>}
+                  </div>
+                )}
+
+                {/* Additional clubs */}
+                {clubs.length > 1 && (
+                  <div className="review-section">
+                    <div className="review-section-label">{clubs.length} Clubs Total</div>
+                    {clubs.slice(1).map((c, i) => (
+                      <div key={i} className="review-row"><span className="review-key">Club {i + 2}</span><span>{c.club_name || 'Unnamed'} — {c.city}{c.state ? `, ${c.state}` : ''}</span></div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="review-modal-footer">
+                <button className="review-btn review-btn--back" onClick={() => setShowReviewModal(false)}>
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M10 13l-5-5 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  Go back & edit
+                </button>
+                <button className="review-btn review-btn--approve" onClick={handleApproveAndGo}>
+                  Approve & go to map
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
+
+      {/* Team Info Modal */}
+      {showTeamInfoModal && teamInfoSettings && (
+        <div className="modal-overlay" onClick={() => { setShowTeamInfoModal(false); localStorage.setItem(`team_info_seen_${user?.id}`, 'true') }}>
+          <div className="modal-box team-info-modal" onClick={e => e.stopPropagation()}>
+            <div className="team-info-modal-header">
+              <div className="team-info-modal-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="#4CAF82" strokeWidth="1.5" strokeLinecap="round"/>
+                  <circle cx="9" cy="7" r="4" stroke="#4CAF82" strokeWidth="1.5"/>
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87" stroke="#4CAF82" strokeWidth="1.5" strokeLinecap="round"/>
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75" stroke="#4CAF82" strokeWidth="1.5" strokeLinecap="round"/>
+                </svg>
+              </div>
+              <h3 className="team-info-modal-title">What are Teams?</h3>
+              <button className="team-info-modal-close" onClick={() => { setShowTeamInfoModal(false); localStorage.setItem(`team_info_seen_${user?.id}`, 'true') }}>✕</button>
+            </div>
+            <div className="team-info-modal-body rte-content" dangerouslySetInnerHTML={{ __html: teamInfoSettings.team_info_message || '' }} />
+            {teamInfoSettings.team_info_video_enabled && teamInfoSettings.team_info_video_url && (
+              <div className="team-info-modal-video">
+                <iframe src={teamInfoSettings.team_info_video_url} title="Teams explainer" frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen />
+              </div>
+            )}
+            <div className="team-info-modal-footer">
+              <button className="auth-btn auth-btn--forest" onClick={() => { setShowTeamInfoModal(false); localStorage.setItem(`team_info_seen_${user?.id}`, 'true') }}>
+                Got it!
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className={'toast' + (personToast ? ' show' : '')}>{personToast}</div>
     </div>
   )

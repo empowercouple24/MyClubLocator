@@ -9954,3 +9954,203 @@ input.input-ok {
 @media (max-width: 380px) {
   .auth-stats-grid { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* ── Next button optional subtitle ────── */
+.next-card-optional {
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: #999;
+  background: #f4f4f4;
+  padding: 2px 7px;
+  border-radius: 4px;
+  margin-left: 2px;
+}
+
+/* ── Team Info Modal ──────────────────── */
+.team-info-modal {
+  max-width: 480px;
+  width: 100%;
+  border-radius: 16px;
+  overflow: hidden;
+}
+.team-info-modal-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 24px 0;
+}
+.team-info-modal-icon {
+  width: 44px; height: 44px;
+  background: #E8F5EE;
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.team-info-modal-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1A3C2E;
+  flex: 1;
+}
+.team-info-modal-close {
+  background: none; border: none;
+  font-size: 18px; color: #bbb;
+  cursor: pointer; padding: 4px;
+  line-height: 1;
+}
+.team-info-modal-close:hover { color: #666; }
+.team-info-modal-body {
+  padding: 16px 24px;
+  font-size: 14px;
+  color: #555;
+  line-height: 1.65;
+}
+.team-info-modal-body ul {
+  padding-left: 20px;
+  margin: 8px 0;
+}
+.team-info-modal-body li {
+  margin-bottom: 4px;
+}
+.team-info-modal-video {
+  padding: 0 24px 16px;
+}
+.team-info-modal-video iframe {
+  width: 100%;
+  aspect-ratio: 16/9;
+  border-radius: 10px;
+  border: none;
+}
+.team-info-modal-footer {
+  padding: 0 24px 24px;
+}
+.team-info-modal-footer .auth-btn {
+  max-width: 200px;
+}
+
+@media (max-width: 600px) {
+  .team-info-modal { margin: 12px; }
+  .team-info-modal-header { padding: 16px 16px 0; }
+  .team-info-modal-body { padding: 12px 16px; font-size: 13px; }
+  .team-info-modal-video { padding: 0 16px 12px; }
+  .team-info-modal-footer { padding: 0 16px 16px; }
+}
+
+/* ── Save & Review primary button variant ── */
+.next-card-btn--primary {
+  background: #1A3C2E;
+  color: #fff;
+  border-color: #1A3C2E;
+}
+.next-card-btn--primary:hover {
+  background: #153326;
+  border-color: #153326;
+}
+
+/* ── Review Modal ─────────────────────── */
+.review-modal {
+  max-width: 520px;
+  width: 100%;
+  border-radius: 16px;
+  max-height: 85vh;
+  overflow-y: auto;
+}
+.review-modal-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 24px 0;
+}
+.review-modal-icon {
+  width: 40px; height: 40px;
+  background: #E8F5EE;
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.review-modal-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1A3C2E;
+}
+.review-modal-body {
+  padding: 12px 24px 0;
+}
+.review-modal-intro {
+  font-size: 13.5px;
+  color: #888;
+  margin-bottom: 16px;
+  line-height: 1.5;
+}
+.review-section {
+  border: 1px solid #f0f0f0;
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+}
+.review-section-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #1A3C2E;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #f0f0f0;
+}
+.review-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 3px 0;
+  font-size: 13px;
+  gap: 12px;
+}
+.review-row--top { align-items: flex-start; }
+.review-key {
+  color: #999;
+  font-size: 12px;
+  flex-shrink: 0;
+  min-width: 70px;
+}
+.review-modal-footer {
+  display: flex;
+  gap: 10px;
+  padding: 20px 24px 24px;
+  justify-content: space-between;
+}
+.review-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 11px 20px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+  border: none;
+}
+.review-btn:hover { transform: translateY(-1px); }
+.review-btn--back {
+  background: #f4f4f4;
+  color: #666;
+}
+.review-btn--back:hover { background: #eee; }
+.review-btn--approve {
+  background: #1A3C2E;
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(26,60,46,0.18);
+}
+.review-btn--approve:hover { box-shadow: 0 6px 20px rgba(26,60,46,0.25); }
+
+@media (max-width: 600px) {
+  .review-modal { margin: 12px; max-height: 90vh; }
+  .review-modal-header { padding: 16px 16px 0; }
+  .review-modal-body { padding: 10px 16px 0; }
+  .review-modal-footer { padding: 16px; flex-direction: column; }
+  .review-btn { width: 100%; justify-content: center; }
+}

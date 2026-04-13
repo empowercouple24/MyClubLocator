@@ -26,11 +26,15 @@ function parseStreet(feature) {
 /**
  * Autocomplete search — returns array of result objects ready for display + selection.
  * Each result: { id, displayStreet, displaySecondary, label, street, city, state, zip, lat, lng }
+ * proximity: { lat, lng } — optional, biases results toward this location
  */
-export async function geocodeAutocomplete(query, { types = 'address,place,postcode', limit = 6 } = {}) {
+export async function geocodeAutocomplete(query, { types = 'address,place,postcode', limit = 6, proximity = null } = {}) {
   if (!TOKEN || query.length < 3) return []
   try {
-    const url = `${BASE}/${encodeURIComponent(query)}.json?access_token=${TOKEN}&country=US&types=${types}&limit=${limit}&language=en`
+    let url = `${BASE}/${encodeURIComponent(query)}.json?access_token=${TOKEN}&country=US&types=${types}&limit=${limit}&language=en`
+    if (proximity?.lng && proximity?.lat) {
+      url += `&proximity=${proximity.lng},${proximity.lat}`
+    }
     const res  = await fetch(url)
     const data = await res.json()
     if (!data.features?.length) return []

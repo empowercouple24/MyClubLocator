@@ -17,6 +17,18 @@ export default function AddressAutocomplete({ value, onChange, onSelect, error, 
   const [highlighted, setHighlighted] = useState(-1)
   const wrapRef = useRef()
   const inputRef = useRef()
+  const userLocRef = useRef(null)
+
+  // Get user location once for proximity bias
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        pos => { userLocRef.current = { lat: pos.coords.latitude, lng: pos.coords.longitude } },
+        () => {}, // silently fail
+        { timeout: 5000, maximumAge: 300000 }
+      )
+    }
+  }, [])
 
   useEffect(() => { setQuery(value || '') }, [value])
 
@@ -32,7 +44,7 @@ export default function AddressAutocomplete({ value, onChange, onSelect, error, 
     debounce(async (q) => {
       if (q.length < 3) { setResults([]); setOpen(false); return }
       setLoading(true)
-      const data = await geocodeAutocomplete(q, { types: 'address,place,postcode', limit: 6 })
+      const data = await geocodeAutocomplete(q, { types: 'address,place,postcode', limit: 6, proximity: userLocRef.current })
       setResults(data)
       setOpen(data.length > 0)
       setHighlighted(-1)

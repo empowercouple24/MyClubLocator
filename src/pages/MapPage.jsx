@@ -1096,6 +1096,13 @@ export default function MapPage() {
           setMapCenter([lat, lng])
           setMapZoom(zoom)
         } catch {}
+      } else {
+        // No saved view — center on user's own club if it has coordinates
+        const own = locations.find(l => l.user_id === user?.id && l.lat && l.lng)
+        if (own) {
+          setMapCenter([own.lat, own.lng])
+          setMapZoom(13)
+        }
       }
       defaultViewApplied.current = true
     }

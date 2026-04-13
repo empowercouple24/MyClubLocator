@@ -276,6 +276,10 @@ export default function AdminPage() {
     search_radius_miles: 20,
     team_creation_enabled: true,
     team_creation_min_level: 'Active World Team',
+    team_info_modal_enabled: true,
+    team_info_message: '<p>Teams let you organize your downline into groups. As a team leader, you can:</p><ul><li>Create a named team and invite club owners to join</li><li>See all your team members\' clubs highlighted on the map</li><li>Track who\'s joined and who\'s pending</li><li>Build a stronger, more connected network</li></ul><p>Your team members can see they belong to your team and find each other on the map. It\'s the easiest way to stay connected with the people in your organization.</p>',
+    team_info_video_enabled: false,
+    team_info_video_url: '',
     marker_color_own:      '#D94F4F',
     marker_color_other:    '#6B8DD6',
     marker_color_selected: '#F59E0B',
@@ -671,6 +675,10 @@ export default function AdminPage() {
       search_radius_miles:               settings.search_radius_miles,
       team_creation_enabled:             settings.team_creation_enabled,
       team_creation_min_level:           settings.team_creation_min_level,
+      team_info_modal_enabled:           settings.team_info_modal_enabled,
+      team_info_message:                 settings.team_info_message,
+      team_info_video_enabled:           settings.team_info_video_enabled,
+      team_info_video_url:               settings.team_info_video_url,
       marker_color_own:                  settings.marker_color_own,
       marker_color_other:                settings.marker_color_other,
       marker_color_selected:             settings.marker_color_selected,
@@ -1430,7 +1438,50 @@ export default function AdminPage() {
                       <span className="field-hint" style={{ marginTop: 8, display: 'block' }}>Members below this level will not see the team creation option</span>
                     </div>
 
-                    <p className="admin-section-desc" style={{ marginBottom: 14 }}>When enabled, new signups must be approved before appearing on the map.</p>
+                    {/* Team Info Modal */}
+                    <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: 16, marginTop: 16 }}>
+                      <div className="admin-toggle-row" style={{ marginBottom: 12 }}>
+                        <div>
+                          <div className="admin-toggle-label">Team info popup</div>
+                          <div className="admin-toggle-hint">Show an introductory popup explaining Teams when users reach the My Team section</div>
+                        </div>
+                        <ToggleSwitch on={settings.team_info_modal_enabled}
+                          onChange={v => setSettings(s => ({ ...s, team_info_modal_enabled: v }))} />
+                      </div>
+
+                      {settings.team_info_modal_enabled && (<>
+                        <div className="field">
+                          <label>Team info message</label>
+                          <RichTextEditor
+                            value={settings.team_info_message}
+                            onChange={v => setSettings(s => ({ ...s, team_info_message: v }))}
+                            placeholder="Explain what Teams are and how they work…"
+                            minHeight={120}
+                          />
+                        </div>
+
+                        <div className="admin-toggle-row" style={{ marginBottom: 12 }}>
+                          <div>
+                            <div className="admin-toggle-label">Show video in team info popup</div>
+                            <div className="admin-toggle-hint">Embed a video explaining Teams</div>
+                          </div>
+                          <ToggleSwitch on={settings.team_info_video_enabled}
+                            onChange={v => setSettings(s => ({ ...s, team_info_video_enabled: v }))} />
+                        </div>
+
+                        {settings.team_info_video_enabled && (
+                          <div className="field">
+                            <label>Video embed URL</label>
+                            <input type="url" value={settings.team_info_video_url}
+                              onChange={e => setSettings(s => ({ ...s, team_info_video_url: e.target.value }))}
+                              placeholder="https://www.youtube.com/embed/VIDEO_ID" />
+                            <span className="field-hint">YouTube embed format: youtube.com/embed/VIDEO_ID</span>
+                          </div>
+                        )}
+                      </>)}
+                    </div>
+
+                    <p className="admin-section-desc" style={{ marginBottom: 14, marginTop: 16 }}>When enabled, new signups must be approved before appearing on the map.</p>
                     <div className="admin-toggle-row">
                       <div>
                         <div className="admin-toggle-label">Require approval for new members</div>

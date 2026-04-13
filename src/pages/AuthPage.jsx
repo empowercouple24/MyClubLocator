@@ -122,6 +122,8 @@ export default function AuthPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const isSignupRoute = location.pathname === '/signup'
+  const searchParams = new URLSearchParams(location.search)
+  const isEmailConfirmed = searchParams.get('confirmed') === '1'
 
   const [tab, setTab] = useState(isSignupRoute ? 'signup' : 'signin')
   const [email, setEmail]               = useState('')
@@ -130,7 +132,7 @@ export default function AuthPage() {
   const [error, setError]               = useState('')
   const [loading, setLoading]           = useState(false)
   const [oauthLoading, setOauthLoading] = useState('')
-  const [termsAccepted, setTermsAccepted] = useState(false)
+  const [termsAccepted, setTermsAccepted] = useState(true)
 
   // Signup enabled check
   const [signupsEnabled, setSignupsEnabled] = useState(true)
@@ -138,6 +140,25 @@ export default function AuthPage() {
 
   // Welcome state (post-login)
   const [welcome, setWelcome] = useState(null)
+
+  // Email confirmed welcome state
+  const [emailJustConfirmed, setEmailJustConfirmed] = useState(false)
+
+  // Detect email confirmation redirect — Supabase auto-signs in via URL tokens
+  useEffect(() => {
+    if (!isEmailConfirmed) return
+    async function handleConfirmed() {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session?.user) {
+        // User is auto-signed in from the confirmation link
+        setEmailJustConfirmed(true)
+        // After showing welcome, route to onboarding
+        setTimeout(() => navigate('/onboarding'), 3000)
+      }
+    }
+    // Small delay to let Supabase process the auth tokens from URL hash
+    setTimeout(handleConfirmed, 500)
+  }, [isEmailConfirmed])
 
   // Hero data
   const { stats, latestClub } = useHeroStats()
@@ -222,19 +243,26 @@ export default function AuthPage() {
     setTimeout(() => navigate('/app/map'), 2200)
   }
 
+  // Post-signup confirmation state
+  const [signupDone, setSignupDone] = useState(false)
+
   // ── Sign Up handler ──
   async function handleSignUp(e) {
     e.preventDefault()
     if (!termsAccepted) { setError('You must accept the Privacy & Use Policy to continue.'); return }
     setError(''); setLoading(true)
-    const { data, error } = await supabase.auth.signUp({ email, password })
+    const { data, error } = await supabase.auth.signUp({
+      email, password,
+      options: { emailRedirectTo: `${window.location.origin}/login?confirmed=1` }
+    })
     if (error) { setError(error.message); setLoading(false) }
     else {
       if (data?.user?.id) {
         await supabase.from('user_terms_acceptance').insert({ user_id: data.user.id })
         await supabase.from('notifications').insert({ type: 'new_signup', title: 'New member signed up', body: `${email} just created an account.`, user_id: data.user.id })
       }
-      navigate('/onboarding')
+      setLoading(false)
+      setSignupDone(true)
     }
   }
 
@@ -275,6 +303,97 @@ export default function AuthPage() {
               <button className="auth-btn auth-btn--forest" style={{ marginTop: 16 }} onClick={() => navigate('/app/profile')}>Set up my club →</button>
               <button className="auth-text-link" style={{ marginTop: 10 }} onClick={() => navigate('/app/map')}>Go to map first</button>
             </>}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ── Email just confirmed — welcome + auto-redirect to onboarding ──
+  if (emailJustConfirmed) {
+    return (
+      <div className="auth-page-v2">
+        <div className="auth-hero">
+          <NetworkDots />
+          <div className="auth-hero-content">
+            <div className="auth-hero-icon">
+              <svg width="26" height="26" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="3.5" fill="#4CAF82"/><circle cx="9" cy="9" r="7" stroke="#4CAF82" strokeWidth="1.5" fill="none"/><line x1="9" y1="2" x2="9" y2="0.5" stroke="#4CAF82" strokeWidth="1.5" strokeLinecap="round"/><line x1="9" y1="16" x2="9" y2="17.5" stroke="#4CAF82" strokeWidth="1.5" strokeLinecap="round"/><line x1="2" y1="9" x2="0.5" y2="9" stroke="#4CAF82" strokeWidth="1.5" strokeLinecap="round"/><line x1="16" y1="9" x2="17.5" y2="9" stroke="#4CAF82" strokeWidth="1.5" strokeLinecap="round"/></svg>
+            </div>
+          </div>
+          <div className="auth-hero-divider" />
+        </div>
+        <div className="auth-form-zone">
+          <div className="auth-card" style={{ textAlign: 'center', padding: '2.5rem 2rem' }}>
+            <div style={{
+              width: 56, height: 56, borderRadius: 16,
+              background: '#E8F5EE', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              margin: '0 auto 1.25rem',
+            }}>
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="10" stroke="#4CAF82" strokeWidth="1.5"/>
+                <path d="M8 12l3 3 5-5" stroke="#4CAF82" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </div>
+            <h2 style={{ fontSize: 22, fontWeight: 700, color: '#1A3C2E', marginBottom: 8 }}>Welcome to My Club Locator!</h2>
+            <p style={{ fontSize: 14, color: '#666', lineHeight: 1.6, marginBottom: 8 }}>
+              Your email is confirmed and your account is active.
+            </p>
+            <p style={{ fontSize: 13, color: '#999', lineHeight: 1.5 }}>
+              Taking you to onboarding to get your club on the map…
+            </p>
+            <div style={{ marginTop: 20 }}>
+              <div style={{ width: 32, height: 32, border: '3px solid #E8F5EE', borderTopColor: '#4CAF82', borderRadius: '50%', animation: 'authSpin 0.8s linear infinite', margin: '0 auto' }} />
+            </div>
+          </div>
+        </div>
+        <style>{`@keyframes authSpin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    )
+  }
+
+  // ── Check your email screen (post-signup) ──
+  if (signupDone) {
+    return (
+      <div className="auth-page-v2">
+        <div className="auth-hero">
+          <NetworkDots />
+          <div className="auth-hero-content">
+            <div className="auth-hero-icon">
+              <svg width="26" height="26" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="3.5" fill="#4CAF82"/><circle cx="9" cy="9" r="7" stroke="#4CAF82" strokeWidth="1.5" fill="none"/><line x1="9" y1="2" x2="9" y2="0.5" stroke="#4CAF82" strokeWidth="1.5" strokeLinecap="round"/><line x1="9" y1="16" x2="9" y2="17.5" stroke="#4CAF82" strokeWidth="1.5" strokeLinecap="round"/><line x1="2" y1="9" x2="0.5" y2="9" stroke="#4CAF82" strokeWidth="1.5" strokeLinecap="round"/><line x1="16" y1="9" x2="17.5" y2="9" stroke="#4CAF82" strokeWidth="1.5" strokeLinecap="round"/></svg>
+            </div>
+          </div>
+          <div className="auth-hero-divider" />
+        </div>
+        <div className="auth-form-zone">
+          <div className="auth-card" style={{ textAlign: 'center', padding: '2.5rem 2rem' }}>
+            <div style={{
+              width: 56, height: 56, borderRadius: 16,
+              background: '#E8F5EE', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              margin: '0 auto 1.25rem',
+            }}>
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                <rect x="2" y="4" width="20" height="16" rx="2" stroke="#4CAF82" strokeWidth="1.5"/>
+                <path d="M2 7l10 7 10-7" stroke="#4CAF82" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </div>
+            <h2 style={{ fontSize: 22, fontWeight: 700, color: '#1A3C2E', marginBottom: 8 }}>Check your email</h2>
+            <p style={{ fontSize: 14, color: '#666', lineHeight: 1.6, marginBottom: 6 }}>
+              We sent a confirmation link to
+            </p>
+            <p style={{ fontSize: 15, fontWeight: 600, color: '#1A3C2E', marginBottom: 16 }}>{email}</p>
+            <p style={{ fontSize: 13, color: '#999', lineHeight: 1.5, marginBottom: 24 }}>
+              Click the link in your email to verify your account, then come back here and sign in. Once confirmed, we'll walk you through a quick onboarding to get your club on the map.
+            </p>
+            <button className="auth-btn auth-btn--forest" onClick={() => { setSignupDone(false); switchTab('signin') }}>
+              I've confirmed — Sign in
+            </button>
+            <p style={{ fontSize: 12, color: '#bbb', marginTop: 16 }}>
+              Didn't get the email? Check your spam folder or <a style={{ color: '#4CAF82', cursor: 'pointer', textDecoration: 'none', fontWeight: 600 }} onClick={async () => {
+                await supabase.auth.resend({ type: 'signup', email })
+                setError('')
+                alert('Confirmation email resent! Check your inbox.')
+              }}>resend it</a>.
+            </p>
           </div>
         </div>
       </div>
