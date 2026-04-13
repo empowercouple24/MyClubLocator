@@ -795,23 +795,19 @@ function ClubEditor({ club, clubIndex, userId, isOnly, allClubs, onSaved, onRemo
       state_zip: (form.state + ' ' + form.zip).trim(),
       logo_url: logoUrl,
       photo_urls: photoUrls,
-      ...(isNew ? (() => {
-        // Inherit person fields — prefer personData (live form state), fall back to first club's saved DB row
+      // Always sync person fields from person form / first club — keeps all location rows in sync
+      ...(() => {
         const src = personData && personData.first_name ? personData : (allClubs && allClubs[0]) || {}
-        return {
-          first_name: src.first_name || '',
-          last_name: src.last_name || '',
-          owner_email: src.owner_email || '',
-          herbalife_level: src.herbalife_level || '',
-          owner2_first_name: src.owner2_first_name || '',
-          owner2_last_name: src.owner2_last_name || '',
-          owner3_first_name: src.owner3_first_name || '',
-          owner3_last_name: src.owner3_last_name || '',
-          owner_photo_url: src.owner_photo_url || '',
-          owner2_photo_url: src.owner2_photo_url || '',
-          owner3_photo_url: src.owner3_photo_url || '',
-        }
-      })() : {}),
+        const fields = {}
+        const PERSON_KEYS = [
+          'first_name', 'last_name', 'owner_email', 'herbalife_level',
+          'owner2_first_name', 'owner2_last_name', 'owner2_email', 'owner2_herbalife_level',
+          'owner3_first_name', 'owner3_last_name', 'owner3_email', 'owner3_herbalife_level',
+          'owner_photo_url', 'owner2_photo_url', 'owner3_photo_url',
+        ]
+        PERSON_KEYS.forEach(k => { if (src[k]) fields[k] = src[k] })
+        return fields
+      })(),
     }
     delete record.id
 
@@ -1441,6 +1437,27 @@ export default function ProfilePage() {
           c.club_index = row.club_index ?? 0
           return c
         }))
+
+        // Auto-sync: if first club has person data but other clubs are missing it, push to all rows
+        if (data.length > 1 && row0.first_name) {
+          const needsSync = data.slice(1).some(r => !r.first_name)
+          if (needsSync) {
+            const syncFields = {}
+            const SYNC_KEYS = [
+              'first_name', 'last_name', 'owner_email', 'herbalife_level',
+              'owner2_first_name', 'owner2_last_name', 'owner2_email', 'owner2_herbalife_level',
+              'owner3_first_name', 'owner3_last_name', 'owner3_email', 'owner3_herbalife_level',
+              'owner_photo_url', 'owner2_photo_url', 'owner3_photo_url',
+              'story_why', 'story_favorite_part', 'story_favorite_products', 'story_unique',
+              'story_before', 'story_goal',
+              'survey_upline', 'survey_hl_month', 'survey_hl_year',
+              'survey_active_club', 'survey_club_month', 'survey_club_year',
+              'survey_trainings', 'survey_hear_how', 'survey_hear_detail', 'survey_goal',
+            ]
+            SYNC_KEYS.forEach(k => { if (row0[k] != null) syncFields[k] = row0[k] })
+            await supabase.from('locations').update(syncFields).eq('user_id', user.id)
+          }
+        }
       } else {
         // Brand new user — pre-fill email
         const baseClub = user.email ? { ...DEFAULT_CLUB, club_email: user.email } : { ...DEFAULT_CLUB }

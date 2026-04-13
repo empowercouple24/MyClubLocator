@@ -844,6 +844,7 @@ export default function MapPage() {
   })
   const [panelWidth,     setPanelWidth]     = useState('normal')   // 'normal' | 'wide'
   const [panelCollapsed, setPanelCollapsed] = useState(false)
+  const panelWasCollapsedBeforeDemo = useRef(false) // tracks whether panel was collapsed before market data was toggled on
   const [clickBehavior,  setClickBehavior]  = useState('zoom')     // 'zoom' | 'pan' | 'stay'
   const [demoViewMode,   setDemoViewMode]   = useState('table')    // 'table' | 'widget'
   const [teamFilter, setTeamFilter]           = useState(false)      // show my team clubs highlighted
@@ -1109,6 +1110,8 @@ export default function MapPage() {
     setSelected(loc)
     setRadiusMiles(null)
     setCustomMiles('')
+    // Auto-expand the panel if it's collapsed
+    if (panelCollapsed) setPanelCollapsed(false)
     if (clickBehavior === 'zoom') {
       setMapCenter([loc.lat, loc.lng])
       setMapZoom(14)
@@ -1318,10 +1321,17 @@ export default function MapPage() {
               if (next) {
                 setMyClubCollapsed(true)
                 setDemoLat(null); setDemoLng(null)
+                // Remember if panel was collapsed, then expand it
+                panelWasCollapsedBeforeDemo.current = panelCollapsed
                 if (panelCollapsed) setPanelCollapsed(false)
               } else {
                 setDemoLat(null); setDemoLng(null)
                 setCountyGeoJson(null)
+                // Restore collapsed state if it was collapsed before activating
+                if (panelWasCollapsedBeforeDemo.current) {
+                  setPanelCollapsed(true)
+                  panelWasCollapsedBeforeDemo.current = false
+                }
               }
             }}
             title="Toggle market data">
@@ -1700,6 +1710,7 @@ export default function MapPage() {
                 filteredCount={filteredLocations.length}
                 setGalleryPhotos={setGalleryPhotos}
                 onExploreArea={selected?.lat && selected?.lng ? () => {
+                  panelWasCollapsedBeforeDemo.current = panelCollapsed
                   setDemoActive(true)
                   setDemoLat(selected.lat)
                   setDemoLng(selected.lng)
@@ -1739,7 +1750,13 @@ export default function MapPage() {
                   <div className="cp-research-title">Market Research Mode</div>
                   <div className="cp-research-sub">Click anywhere on the map to analyze</div>
                 </div>
-                <button className="cp-research-exit" onClick={() => { setDemoActive(false); setDemoLat(null); setDemoLng(null) }}>
+                <button className="cp-research-exit" onClick={() => {
+                  setDemoActive(false); setDemoLat(null); setDemoLng(null); setCountyGeoJson(null)
+                  if (panelWasCollapsedBeforeDemo.current) {
+                    setPanelCollapsed(true)
+                    panelWasCollapsedBeforeDemo.current = false
+                  }
+                }}>
                   Exit
                 </button>
               </div>
