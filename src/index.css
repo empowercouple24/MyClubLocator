@@ -2167,6 +2167,39 @@ body:has(.admin-page-wrap) {
   cursor: pointer;
 }
 
+/* Cross-club hours copy */
+.cross-club-copy-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 12px; margin-bottom: 10px;
+  border: 1px dashed #B0C4B1; border-radius: 7px;
+  background: #F3F8F4; color: #1A3C2E;
+  font-size: 12.5px; font-weight: 500; cursor: pointer;
+  transition: background .15s, border-color .15s;
+}
+.cross-club-copy-btn:hover { background: #E5F0E8; border-color: #7FA882; }
+.cross-club-copy-panel {
+  background: #F8FAF9; border: 1px solid #D1DDD3;
+  border-radius: 10px; padding: 12px; margin-bottom: 12px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.cross-club-copy-title { font-size: 13px; font-weight: 600; color: #333; margin-bottom: 2px; }
+.cross-club-copy-item {
+  display: flex; flex-direction: column; gap: 2px;
+  padding: 10px 12px; border-radius: 8px;
+  background: #fff; border: 1px solid #D9E2DB;
+  cursor: pointer; text-align: left;
+  transition: background .12s, border-color .12s;
+}
+.cross-club-copy-item:hover { background: #E5F0E8; border-color: #7FA882; }
+.cross-club-copy-name { font-size: 13px; font-weight: 600; color: #1A3C2E; }
+.cross-club-copy-preview { font-size: 11.5px; color: #777; }
+.cross-club-copy-cancel {
+  align-self: flex-start; padding: 5px 12px; margin-top: 2px;
+  background: none; border: none; color: #888;
+  font-size: 12.5px; cursor: pointer;
+}
+.cross-club-copy-cancel:hover { color: #444; }
+
 /* Save bar — two buttons */
 .save-bar {
   display: flex;
@@ -4705,7 +4738,7 @@ body:has(.admin-page-wrap) {
 .amt-logo-thumb {
   width: 32px;
   height: 32px;
-  border-radius: 6px;
+  border-radius: 50%;
   object-fit: cover;
   display: block;
 }
@@ -4713,7 +4746,7 @@ body:has(.admin-page-wrap) {
 .amt-initials-sm {
   width: 32px;
   height: 32px;
-  border-radius: 6px;
+  border-radius: 50%;
   background: #1A3C2E;
   color: #fff;
   font-size: 11px;
@@ -4837,14 +4870,14 @@ body:has(.admin-page-wrap) {
 .amt-detail-logo {
   width: 44px;
   height: 44px;
-  border-radius: 10px;
+  border-radius: 50%;
   object-fit: cover;
 }
 
 .amt-detail-initials {
   width: 44px;
   height: 44px;
-  border-radius: 10px;
+  border-radius: 50%;
   background: #1A3C2E;
   color: #fff;
   font-size: 15px;
@@ -7170,6 +7203,21 @@ input.input-ok {
   border-color: #4CAF82;
 }
 
+/* ── Share location button (shared across MapPage + PublicFinder) */
+.share-location-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 14px; border-radius: 8px;
+  font-size: 13px; font-weight: 500; cursor: pointer;
+  border: 1px solid #C4D7F0; background: #EBF2FC; color: #2563EB;
+  transition: background .15s, border-color .15s, color .15s;
+  width: 100%;
+  justify-content: center;
+}
+.share-location-btn:hover { background: #DBEAFE; border-color: #93B4E8; }
+.share-location-btn--copied { background: #ECFDF5; color: #059669; border-color: #A7F3D0; }
+.share-location-btn--copied:hover { background: #D1FAE5; }
+.pfp-share-btn { margin-top: 4px; }
+
 /* ── Selected marker pulse rings ─────────────────────────── */
 .marker-pulse-ring {
   position: absolute;
@@ -9337,4 +9385,201 @@ input.input-ok {
 }
 .pfp-pin-tooltip::before {
   border-top-color: #fff !important;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   MOBILE RESPONSIVE OVERHAUL — #13
+   Three breakpoints: 768px (tablet), 600px (phone), 400px (small phone)
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── Tablet (≤768px) ──────────────────────────────────────── */
+@media (max-width: 768px) {
+  /* Topbar: hide email, tighten padding */
+  .topbar-user { display: none; }
+  .topbar { padding: 10px 16px; }
+  .topbar-nav { gap: 4px; }
+
+  /* Tabbar: horizontal scroll */
+  .tabbar { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; padding: 0 12px; }
+  .tabbar::-webkit-scrollbar { display: none; }
+  .tabbar a { white-space: nowrap; padding: 10px 14px; font-size: 12.5px; }
+
+  /* Admin stats: 2 columns */
+  .admin-stats-row { grid-template-columns: repeat(2, 1fr) !important; }
+
+  /* Admin tabs: scroll */
+  .admin-tabs { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .admin-tabs::-webkit-scrollbar { display: none; }
+  .admin-tab { white-space: nowrap; padding: 10px 14px; font-size: 13px; }
+
+  /* Admin page: tighter padding */
+  .admin-page-wrap { padding: 16px; }
+
+  /* Profile: tighter max-width */
+  .profile-page { padding: 20px 16px; }
+}
+
+/* ── Phone (≤600px) ──────────────────────────────────────── */
+@media (max-width: 600px) {
+  /* Map page: full-screen map with pull-up panel */
+  .map-page { height: calc(100vh - 90px); height: calc(100dvh - 90px); }
+
+  /* Map panel: sliding bottom sheet */
+  .map-pos-right .club-panel,
+  .map-pos-left .club-panel,
+  .map-pos-bottom .club-panel {
+    height: 52% !important;
+    max-height: 52vh !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+  .map-pos-right .club-panel--collapsed,
+  .map-pos-left .club-panel--collapsed,
+  .map-pos-bottom .club-panel--collapsed {
+    height: 18px !important;
+    max-height: 18px !important;
+  }
+
+  /* Map toolbar: compact */
+  .map-toolbar { flex-wrap: wrap; gap: 4px; padding: 6px 8px; }
+  .map-toolbar input,
+  .map-toolbar select,
+  .map-toolbar button { font-size: 11.5px; padding: 5px 8px; }
+
+  /* Panel width toggle: hide on mobile (always full-width) */
+  .panel-width-row { display: none !important; }
+
+  /* Club detail panel: tighter spacing */
+  .cp-header { padding: 10px 12px; }
+  .cp-name { font-size: 15px; }
+  .cp-section { padding: 8px 12px; }
+  .cp-section-title { font-size: 11px; }
+  .cp-row { font-size: 12.5px; gap: 6px; }
+
+  /* Hours row: stack on very small screens */
+  .hrs-row { flex-wrap: wrap; gap: 4px; }
+  .hrs-day-label { min-width: 60px; font-size: 11.5px; }
+  .hrs-pickers { min-width: 0; }
+  .copy-hours-btn { margin-left: auto; }
+
+  /* TimePicker triggers: smaller */
+  .tp-trigger { font-size: 12px; padding: 6px 8px; }
+
+  /* Address grid: single column */
+  .addr-grid { grid-template-columns: 1fr; gap: 10px; }
+  .addr-city, .addr-state { grid-column: 1 / -1; }
+
+  /* Club tabs: scroll horizontally */
+  .club-tabs { overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; flex-wrap: nowrap; }
+  .club-tab { white-space: nowrap; min-width: 0; flex-shrink: 0; padding: 8px 14px; font-size: 12.5px; }
+
+  /* My Clubs card: tighter */
+  .my-clubs-card { margin-bottom: 16px; }
+
+  /* Profile section cards */
+  .sec-card { margin-bottom: 14px; }
+  .sec-card-body { padding: 12px; }
+  .sec-label { font-size: 14px; }
+  .sec-sublabel { font-size: 13px; }
+
+  /* Owner cards: stack avatar + fields */
+  .owner-header { flex-wrap: wrap; gap: 8px; }
+
+  /* Photo upload strip: smaller tiles */
+  .photo-strip { gap: 4px; }
+  .photo-tile { width: 64px; height: 64px; }
+
+  /* Share button: full width */
+  .share-location-btn { font-size: 12.5px; padding: 7px 12px; }
+
+  /* Cross-club copy: tighter */
+  .cross-club-copy-panel { padding: 10px; }
+  .cross-club-copy-item { padding: 8px 10px; }
+
+  /* Save bar: stack vertically */
+  .save-bar { flex-direction: column; gap: 8px; }
+  .btn-save, .btn-save-map { width: 100%; text-align: center; }
+
+  /* Admin page */
+  .admin-page-wrap { padding: 12px; }
+  .admin-section { margin-bottom: 14px; }
+  .admin-card-body { padding: 12px; }
+
+  /* Directory: single column, full-width cards */
+  .dir-grid { grid-template-columns: 1fr !important; }
+  .dir-controls { flex-direction: column; gap: 8px; }
+  .search-input { width: 100% !important; }
+
+  /* Finder panel: bottom sheet on mobile, wider */
+  .pfp-panel { max-height: 55vh; }
+  .pfp-card-name { font-size: 14px; }
+  .pfp-card-meta { font-size: 11.5px; }
+  .pfp-detail-row { font-size: 12.5px; }
+  .pfp-directions-btn { font-size: 12.5px; padding: 8px 0; }
+  .pfp-share-btn { font-size: 12px; }
+
+  /* Demographics panel: compact */
+  .demo-panel { max-height: 45vh; }
+  .demo-wv-grid { grid-template-columns: 1fr !important; }
+
+  /* Modal overlays: almost full-screen on mobile */
+  .modal-box { margin: 12px; max-height: calc(100vh - 40px); overflow-y: auto; }
+
+  /* Radius section: stack */
+  .radius-presets { flex-wrap: wrap; gap: 4px; }
+  .radius-custom { flex-wrap: wrap; }
+}
+
+/* ── Small phone (≤400px) ─────────────────────────────────── */
+@media (max-width: 400px) {
+  .topbar { padding: 8px 10px; }
+  .brand { font-size: 14px; }
+  .tabbar a { padding: 8px 10px; font-size: 11.5px; }
+
+  /* Hours: stack day label above pickers */
+  .hrs-row { flex-direction: column; align-items: stretch; gap: 2px; padding: 6px 0; border-bottom: 1px solid #f0f0f0; }
+  .hrs-day-label { min-width: unset; font-size: 11.5px; font-weight: 600; }
+  .hrs-pickers { width: 100%; }
+  .copy-hours-btn { align-self: flex-end; }
+
+  /* Map controls: smaller */
+  .map-prefs-float { right: 6px; bottom: 6px; }
+  .map-zoom-float { left: 6px; }
+
+  /* Admin stats: single column */
+  .admin-stats-row { grid-template-columns: 1fr !important; }
+
+  /* Profile: minimal padding */
+  .profile-page { padding: 12px 10px; }
+  .sec-card-body { padding: 10px; }
+
+  /* Finder: tighter cards */
+  .pfp-card-row { padding: 8px; gap: 8px; }
+  .pfp-card-logo { width: 34px; height: 34px; min-width: 34px; border-radius: 8px; }
+  .pfp-detail { padding: 6px 10px 10px; }
+}
+
+/* ── Touch-friendly tap targets ───────────────────────────── */
+@media (pointer: coarse) {
+  /* Minimum 44px touch targets on mobile */
+  .tabbar a,
+  .admin-tab,
+  .club-tab,
+  .radius-preset-btn,
+  .copy-hours-btn,
+  .pfp-heart-btn { min-height: 44px; display: inline-flex; align-items: center; }
+
+  /* Larger checkboxes */
+  .copy-check-label input[type="checkbox"] { width: 20px; height: 20px; }
+
+  /* Map controls: bigger tap area */
+  .map-zoom-float-btn { width: 40px; height: 40px; }
+  .map-prefs-trigger { width: 40px; height: 40px; }
+}
+
+/* ── Safe area insets (notched phones) ────────────────────── */
+@supports (padding: env(safe-area-inset-bottom)) {
+  .pfp-panel { padding-bottom: env(safe-area-inset-bottom); }
+  .map-controls-bottom { bottom: calc(16px + env(safe-area-inset-bottom)); }
+  .pfp-topbar { padding-left: max(16px, env(safe-area-inset-left)); padding-right: max(16px, env(safe-area-inset-right)); }
 }

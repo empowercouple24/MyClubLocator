@@ -7,71 +7,92 @@
 
 ## Work Completed This Session
 
-### Admin Panel — Settings Tab Restructure
-- Consolidated 10 individual expandable cards into **4 top-level cards**:
-  1. **Welcome Messages, Member Approval, and Teams** — Welcome Modal, Login Welcome Messages, Team Creation, Member Approval
-  2. **Public Finder Settings** — Finder messages + search radius
-  3. **MyClubLocator Themes** — App Theme, Landing Page Appearance, Map Marker Colors
-  4. **Demographics — Market Data** — unchanged
-- Removed all inner expandable toggle headers; content shows directly with subtle uppercase section dividers
-- Added `admin-card-body` CSS class (`padding: 0 20px 20px`) to all three card bodies — content no longer touches left/right edges
-- Extracted `hexToHsl` / `hslToHex` / `genShades` color helpers to module level (previously trapped in iife wrappers per card)
+### 1. Share Location Button (Priority #1)
+- **Web Share API** on mobile — opens native share sheet (iOS/Android)
+- **Clipboard fallback** on desktop — copies Google Maps URL with "Link copied!" confirmation
+- Added to **MapPage** `ClubDetail` panel (after photos section)
+- Added to **PublicFinderPage** `ClubCard` (between directions + route buttons)
+- Shared `ShareLocationButton` component defined independently in each page (no cross-import needed)
+- Google Maps search URL format: `https://www.google.com/maps/search/?api=1&query=<address>`
+- CSS: `.share-location-btn` with blue theme, green copied state
 
-### Admin Panel — Bug Fixes
-- **Crash on load** — `card1Open`, `card2Open`, `card3Open` state vars were missing after rebuild script; added back
-- **Sticky save bar false positive** — `isSettingsDirty` used full `JSON.stringify` comparison causing the bar to appear on every card toggle. Fixed to compare only keys present in `savedSettingsRef` (DB fields only)
-- **"20 mi radius" subtitle color** — was hardcoded `#888` on the card header; now `var(--theme-card-header-text)` at 75% opacity
-- **Chevron icon color** — was hardcoded `rgba(255,255,255,0.45)`; now `var(--theme-card-header-text)`
-- **MyClubLocator Themes page takeover** — opening card3 triggered the live-apply `useEffect` which set `--theme-page-bg` on `documentElement`, flooding the entire admin page with the member theme background color. Fixed with `body:has(.admin-page-wrap) { background: #f0ede6 !important }` to lock admin background independently
+### 2. Hours Copy Modal (Priority #2 — Issue #9)
+- **Cross-club hour copying** — when an owner has 2+ clubs, a "Copy hours from another club" button appears above the hours grid
+- Clicking opens an inline panel listing other clubs (filtered to those with at least one day of hours set)
+- Each club shows a preview of its first 2 days of hours
+- One-click copies all 7 days of hours from the selected source club into the current form
+- `allClubs` prop passed from parent `ProfilePage` to `ClubEditor`
+- CSS: `.cross-club-copy-btn`, `.cross-club-copy-panel`, `.cross-club-copy-item`
 
-### Admin Panel — Level Picker Upgrade
-- Team creation minimum level picker now uses the same grouped `lvl-btn` component as Profile Settings
-- Three groups: **Tab Team** (DS / SB / SP / WT / AWT) · **Future Pres Team 🚀** (GT / GP / MT / MP) · **Pres Team 💎** (PT)
-- Color-tinted rest state, full color on selection
-- Fixed **Millionaire Team 7500** abbreviation (`MP` was showing full name)
+### 3. Mobile Responsive Overhaul (Priority #3 — Issue #13)
+Comprehensive CSS-only mobile pass added at end of `index.css`:
 
-### Admin Panel — Rich Text Editor Fix
-- Quill toolbar icons were rendering as large triangle/diamond shapes
-- Root cause: `build.mjs` uses `loader: { '.css': 'empty' }` which silently drops all `import '*.css'` statements in JSX files
-- Fix: Quill snow CSS (24KB) prepended directly into `src/index.css` so it bundles through esbuild normally
+**Tablet (≤768px):**
+- Topbar: email hidden, tighter padding
+- Tabbar + admin tabs: horizontal scroll with hidden scrollbars
+- Admin: 2-column stats grid, tighter padding
 
-### Map — Preferences Panel (New)
-- Replaced cluttered `map-controls-bottom` bar with a collapsible **Map Preferences Panel**
-- **Collapsed trigger** — gear icon + label + live summary (e.g. "Zoom in · Right panel · Scroll zoom on")
-- **Expanded rows**: On marker click · Panel side · Scroll zoom · Marker shapes
-- **Marker shapes** — single-click cycle (dot → pin → diamond) per type, with color dot preview. Replaces 12-button grid
-- **Views panel** — replaces separate "Saved Views" + "Set Default View" buttons with one unified panel:
-  - ⭐ Default view row with "Set to current" button
-  - Named view save input
-  - Saved views list with fly-to + delete
-- **My Team** filter remains visible in the collapsed trigger
-- **Basemap toggle** stays below the panel, always visible
-- **Layout fix** — `map-area` was `overflow: hidden`, clipping the panel completely. Changed to `display: flex; flex-direction: column`; `overflow: hidden` moved to the Leaflet container only
-- **Gray edge fix** — `club-panel--collapsed` background was `transparent`, exposing Leaflet tile bleed; set to `#fff`
+**Phone (≤600px):**
+- Map: dvh-aware height, panel max-height 52vh, hidden panel-width toggle
+- Club detail: compact spacing throughout
+- Hours rows: flex-wrap enabled, smaller labels
+- Address grid: single column
+- Club tabs: horizontal scroll
+- Profile cards: tighter padding throughout
+- Finder panel: bottom-sheet max-height 55vh, compact typography
+- Demographics: single-column widget grid
+- Modals: near-full-screen with scroll
+- Directory: forced single column, stacked controls
 
-### Welcome Modal — Merge Tags
-- `WelcomeModal.jsx` rewritten to fetch all clubs for the user and substitute merge tags at render time
-- Tags: `{{first_name}}`, `{{club_1_name}}`, `{{club_2_name}}`, `{{club_3_name}}`, `{{club_1_city}}`, `{{club_2_city}}`, `{{club_3_city}}`
-- Hint text shown under welcome message and disclaimer editors in admin
-- Login message editors show `{name}` · `{club}` · `{club_2}` · `{club_3}` hints
+**Small phone (≤400px):**
+- Hours rows: fully stacked (day label above pickers)
+- Admin stats: single column
+- Finder cards: smaller logos, tighter padding
+- Minimal padding everywhere
+
+**Touch & accessibility:**
+- `pointer: coarse` — 44px minimum tap targets on buttons/tabs
+- Larger checkboxes (20×20)
+- Bigger map control buttons
+- Safe area insets for notched phones (env(safe-area-inset-*))
+
+### 4. Debug Console.log Cleanup (Priority #6)
+- Removed all `[MarketData]` console.log statements from `MapPage.jsx` and `demographics.js`
+- Removed all `[ClubEditor]` console.log statements from `ProfilePage.jsx`
+- **Preserved** all `console.warn` and `console.error` calls (useful for production debugging)
 
 ---
 
 ## Build State
-- **Command:** `node build.mjs` (esbuild — not Vite)
+- **Command:** `rm -rf dist && node build.mjs`
 - **Status:** ✅ Clean
+- **JS:** 2.4mb (main-bundle.js)
+- **CSS:** 178.8kb (index-ZUJMEZLI.css)
 
 ---
 
-## Pending
-- [ ] Google Maps "share to phone" on club cards (Web Share API + clipboard fallback)
-- [ ] #9 Hours copy modal
-- [ ] #13 Mobile overhaul
+## Still Pending
+- [ ] Verify 2nd/3rd club appears on map (depends on `VITE_MAPBOX_TOKEN` in Vercel)
+- [ ] Confirm Supabase storage UPDATE policy applied for photo upserts on 2nd+ clubs
+- [ ] Test Share button behavior on actual iOS/Android devices
+- [ ] Test mobile layout on real devices (CSS-only changes — no JS mobile logic)
+
+---
+
+## Vercel Env Vars
+| Key | Purpose | Status |
+|-----|---------|--------|
+| `VITE_SUPABASE_URL` | Supabase | ✅ |
+| `VITE_SUPABASE_ANON_KEY` | Supabase | ✅ |
+| `VITE_MAPBOX_TOKEN` | Map search + geocoding | ⚠️ Verify |
+| `VITE_CENSUS_API_KEY` | Market Data | ✅ |
+| `VITE_BREVO_API_KEY` | Email | ✅ |
 
 ---
 
 ## Key Gotchas
-- **CSS imports in JSX are silently dropped** by esbuild (`loader: { '.css': 'empty' }`). Always add CSS to `src/index.css` directly — never `import 'x.css'` in a component.
-- **`body` uses `var(--theme-page-bg)`** — admin page overrides this with `body:has(.admin-page-wrap)`. Any new full-page view that should be theme-independent needs a similar override.
+- Never `import 'x.css'` in JSX — esbuild drops it. Add to `src/index.css` only.
+- `body` uses `var(--theme-page-bg)` — admin overrides with `body:has(.admin-page-wrap)`.
+- Always `rm -rf dist` before build — stale CSS hashes cause wrong file pickup.
 - **Supabase:** `https://ulezfnzqwebkupgxqprs.supabase.co` · Admin ID: `ed1f34a7-7838-4d01-a29c-63220c43e9f1`
-- **Live:** `https://myclublocator.com` (Vercel project: `clubregistry`, team: `empowercouple24s-projects`)
+- **Live:** `https://myclublocator.com` (Vercel: `clubregistry`, team: `empowercouple24s-projects`)

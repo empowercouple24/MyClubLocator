@@ -185,7 +185,6 @@ function MapClickHandler({ onMapClick, active }) {
   useEffect(() => {
     if (!active) return
     function handler(e) {
-      console.log('[MarketData] Map clicked:', e.latlng.lat, e.latlng.lng)
       cbRef.current(e.latlng.lat, e.latlng.lng)
     }
     map.on('click', handler)
@@ -484,6 +483,55 @@ function MyClubCard({ myClub, onManage }) {
   )
 }
 
+// ── Share location button ──────────────────────────────────
+function ShareLocationButton({ club, className }) {
+  const [copied, setCopied] = useState(false)
+  const fullAddress = [club.address, club.city, club.state, club.zip].filter(Boolean).join(', ')
+  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fullAddress)}`
+  const shareText = `${club.club_name || 'Nutrition Club'} — ${fullAddress}`
+
+  async function handleShare() {
+    // Try Web Share API first (mobile)
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: club.club_name || 'Nutrition Club', text: shareText, url: mapsUrl })
+        return
+      } catch (e) {
+        if (e.name === 'AbortError') return // user cancelled
+      }
+    }
+    // Clipboard fallback (desktop)
+    try {
+      await navigator.clipboard.writeText(mapsUrl)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2200)
+    } catch {
+      // Final fallback
+      const ta = document.createElement('textarea')
+      ta.value = mapsUrl; ta.style.position = 'fixed'; ta.style.opacity = '0'
+      document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2200)
+    }
+  }
+
+  return (
+    <button className={`share-location-btn ${copied ? 'share-location-btn--copied' : ''} ${className || ''}`} onClick={handleShare}>
+      {copied ? (
+        <>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          Link copied!
+        </>
+      ) : (
+        <>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="18" cy="5" r="3" stroke="currentColor" strokeWidth="1.8"/><circle cx="6" cy="12" r="3" stroke="currentColor" strokeWidth="1.8"/><circle cx="18" cy="19" r="3" stroke="currentColor" strokeWidth="1.8"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49" stroke="currentColor" strokeWidth="1.8"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" stroke="currentColor" strokeWidth="1.8"/></svg>
+          Share location
+        </>
+      )}
+    </button>
+  )
+}
+
 // ── Club detail panel content ───────────────────────────────
 function ClubDetail({ club, userId, panelWidth, onManage, radiusMiles, setRadiusMiles, customMiles, setCustomMiles, filteredCount, setGalleryPhotos, onExploreArea }) {
   const [photoPage, setPhotoPage] = useState(0)
@@ -659,6 +707,11 @@ function ClubDetail({ club, userId, panelWidth, onManage, radiusMiles, setRadius
           </div>
         )
       })()}
+
+      {/* Share location */}
+      {club.address && (
+        <ShareLocationButton club={club} />
+      )}
 
       {/* Explore area button */}
       {club.lat && club.lng && onExploreArea && (
@@ -1716,11 +1769,9 @@ export default function MapPage() {
                   try {
                     const countyOnly = geo.countyFips.slice(2)
                     const url = `/api/county-boundary?state=${geo.stateFips}&county=${countyOnly}`
-                    console.log('[MarketData] Fetching county boundary via proxy:', geo.stateFips, countyOnly)
                     const res = await fetch(url)
                     if (!res.ok) { console.warn('[MarketData] County boundary HTTP', res.status); setCountyGeoJson(null); return }
                     const data = await res.json()
-                    console.log('[MarketData] County boundary response:', data?.features?.length, 'features')
                     if (data?.features?.length) setCountyGeoJson(data)
                     else setCountyGeoJson(null)
                   } catch (err) { console.warn('[MarketData] County boundary error:', err.message); setCountyGeoJson(null) }

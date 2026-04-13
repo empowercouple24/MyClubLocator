@@ -650,7 +650,7 @@ function RemoveClubPrompt({ clubName, onConfirm, onCancel }) {
 }
 
 // ── ClubEditor: renders one club's fields ─────────────────────
-function ClubEditor({ club, clubIndex, userId, isOnly, onSaved, onRemove, userEmail, personData }) {
+function ClubEditor({ club, clubIndex, userId, isOnly, allClubs, onSaved, onRemove, userEmail, personData }) {
   const [form, setForm]       = useState({ ...DEFAULT_CLUB, ...club })
   const [savedForm, setSavedForm] = useState({ ...DEFAULT_CLUB, ...club })
   const [errors, setErrors]   = useState({})
@@ -675,7 +675,7 @@ function ClubEditor({ club, clubIndex, userId, isOnly, onSaved, onRemove, userEm
 
   const [copySource, setCopySource]   = useState(null)
   const [copyTargets, setCopyTargets] = useState({})
-
+  const [showCrossClubCopy, setShowCrossClubCopy] = useState(false)
   const isDirty = JSON.stringify({ ...form, logo_url: logoUrl, photo_urls: photoUrls })
     !== JSON.stringify({ ...savedForm, logo_url: savedForm.logo_url, photo_urls: savedForm.photo_urls })
 
@@ -720,7 +720,6 @@ function ClubEditor({ club, clubIndex, userId, isOnly, onSaved, onRemove, userEm
     setUploadingLogo(true)
     setUploadError(null)
     const path = userId + '/logo' + (clubIndex > 0 ? `-${clubIndex}` : '') + '.jpg'
-    console.log('[ClubEditor] Uploading logo to:', path, 'size:', blob.size)
     const { error } = await supabase.storage.from('club-photos').upload(path, blob, { upsert: true, contentType: 'image/jpeg' })
     if (error) {
       console.error('[ClubEditor] Logo upload error:', error.message)
@@ -728,7 +727,6 @@ function ClubEditor({ club, clubIndex, userId, isOnly, onSaved, onRemove, userEm
     } else {
       const { data } = supabase.storage.from('club-photos').getPublicUrl(path)
       const url = data.publicUrl + '?t=' + Date.now()
-      console.log('[ClubEditor] Logo uploaded:', url)
       setLogoUrl(url)
     }
     setUploadingLogo(false)
@@ -797,16 +795,23 @@ function ClubEditor({ club, clubIndex, userId, isOnly, onSaved, onRemove, userEm
       state_zip: (form.state + ' ' + form.zip).trim(),
       logo_url: logoUrl,
       photo_urls: photoUrls,
-      ...(isNew && personData ? {
-        first_name: personData.first_name,
-        last_name: personData.last_name,
-        owner_email: personData.owner_email,
-        herbalife_level: personData.herbalife_level,
-        owner2_first_name: personData.owner2_first_name,
-        owner2_last_name: personData.owner2_last_name,
-        owner3_first_name: personData.owner3_first_name,
-        owner3_last_name: personData.owner3_last_name,
-      } : {}),
+      ...(isNew ? (() => {
+        // Inherit person fields — prefer personData (live form state), fall back to first club's saved DB row
+        const src = personData && personData.first_name ? personData : (allClubs && allClubs[0]) || {}
+        return {
+          first_name: src.first_name || '',
+          last_name: src.last_name || '',
+          owner_email: src.owner_email || '',
+          herbalife_level: src.herbalife_level || '',
+          owner2_first_name: src.owner2_first_name || '',
+          owner2_last_name: src.owner2_last_name || '',
+          owner3_first_name: src.owner3_first_name || '',
+          owner3_last_name: src.owner3_last_name || '',
+          owner_photo_url: src.owner_photo_url || '',
+          owner2_photo_url: src.owner2_photo_url || '',
+          owner3_photo_url: src.owner3_photo_url || '',
+        }
+      })() : {}),
     }
     delete record.id
 
@@ -844,7 +849,6 @@ function ClubEditor({ club, clubIndex, userId, isOnly, onSaved, onRemove, userEm
       try {
         const coords = await geocodeAddress(fullAddress)
         if (coords) {
-          console.log('[ClubEditor] Geocoded:', fullAddress, '→', coords.lat, coords.lng)
           await supabase.from('locations').update({ lat: coords.lat, lng: coords.lng }).eq('id', savedRow.id)
         } else {
           console.warn('[ClubEditor] Geocode returned null for:', fullAddress, '— is VITE_MAPBOX_TOKEN set?')
@@ -886,6 +890,20 @@ function ClubEditor({ club, clubIndex, userId, isOnly, onSaved, onRemove, userEm
   function toggleCopyTarget(day) { setCopyTargets(t => ({ ...t, [day]: !t[day] })) }
   function selectAllTargets() { const t = {}; DAYS.forEach(d => { if (d !== copySource) t[d] = true }); setCopyTargets(t) }
   function selectWeekdays()   { const t = {}; WEEKDAYS.forEach(d => { if (d !== copySource) t[d] = true }); setCopyTargets(t) }
+
+  // Cross-club hour copying
+  const otherClubs = (allClubs || []).filter((_, i) => i !== clubIndex).filter(c =>
+    DAYS.some(d => c['hours_' + d + '_open'] && c['hours_' + d + '_close'])
+  )
+  function copyHoursFromClub(sourceClub) {
+    const updates = {}
+    DAYS.forEach(d => {
+      updates['hours_' + d + '_open']  = sourceClub['hours_' + d + '_open']  || ''
+      updates['hours_' + d + '_close'] = sourceClub['hours_' + d + '_close'] || ''
+    })
+    setForm(f => ({ ...f, ...updates }))
+    setShowCrossClubCopy(false)
+  }
 
   const errorCount = Object.keys(errors).filter(k => k !== '_general' && errors[k]).length
 
@@ -986,6 +1004,30 @@ function ClubEditor({ club, clubIndex, userId, isOnly, onSaved, onRemove, userEm
         {/* Hours */}
         <div className="sec-sublabel">Hours of operation <span className="req-star">*</span></div>
         {errors.hours && <div className="field-err" style={{ marginBottom: 8 }}>{errors.hours}</div>}
+        {otherClubs.length > 0 && (
+          <button className="cross-club-copy-btn" type="button" onClick={() => setShowCrossClubCopy(true)}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><rect x="9" y="9" width="13" height="13" rx="2" stroke="currentColor" strokeWidth="1.5"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="currentColor" strokeWidth="1.5"/></svg>
+            Copy hours from another club
+          </button>
+        )}
+        {showCrossClubCopy && (
+          <div className="cross-club-copy-panel">
+            <div className="cross-club-copy-title">Copy all hours from:</div>
+            {otherClubs.map((oc, i) => {
+              const preview = DAYS.filter(d => oc['hours_' + d + '_open'] && oc['hours_' + d + '_close'])
+                .slice(0, 2)
+                .map(d => `${DAY_LABELS[DAYS.indexOf(d)]} ${oc['hours_' + d + '_open']}–${oc['hours_' + d + '_close']}`)
+                .join(', ')
+              return (
+                <button key={i} className="cross-club-copy-item" type="button" onClick={() => copyHoursFromClub(oc)}>
+                  <span className="cross-club-copy-name">{oc.club_name || `Club ${i + 2}`}</span>
+                  {preview && <span className="cross-club-copy-preview">{preview}{DAYS.filter(d => oc['hours_' + d + '_open']).length > 2 ? '…' : ''}</span>}
+                </button>
+              )
+            })}
+            <button className="cross-club-copy-cancel" type="button" onClick={() => setShowCrossClubCopy(false)}>Cancel</button>
+          </div>
+        )}
         <div className="hrs-list">
           {DAYS.map((day, i) => (
             <div key={day} className={'hrs-row' + (errors['hours_' + day] ? ' row-err' : '')}>
@@ -1515,7 +1557,17 @@ export default function ProfilePage() {
   function confirmAddClub() {
     setShowAddClubPrompt(false)
     const newIndex = clubs.length
-    const newClub = { ...DEFAULT_CLUB, club_index: newIndex }
+    // Inherit person fields from first club so they carry over to the new row
+    const source = clubs[0] || {}
+    const personFields = {}
+    const INHERIT_KEYS = [
+      'first_name', 'last_name', 'owner_email', 'herbalife_level',
+      'owner2_first_name', 'owner2_last_name', 'owner2_email', 'owner2_herbalife_level',
+      'owner3_first_name', 'owner3_last_name', 'owner3_email', 'owner3_herbalife_level',
+      'owner_photo_url', 'owner2_photo_url', 'owner3_photo_url',
+    ]
+    INHERIT_KEYS.forEach(k => { if (source[k]) personFields[k] = source[k] })
+    const newClub = { ...DEFAULT_CLUB, ...personFields, club_index: newIndex }
     setClubs(prev => [...prev, newClub])
     setActiveTab(newIndex)
   }
@@ -1848,6 +1900,7 @@ export default function ProfilePage() {
             clubIndex={activeTab}
             userId={user.id}
             isOnly={clubs.length === 1}
+            allClubs={clubs}
             onSaved={handleClubSaved}
             onRemove={() => handleClubRemoved(activeTab)}
             userEmail={!clubs[activeTab].id && activeTab === 0 ? user.email : null}

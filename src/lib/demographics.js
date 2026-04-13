@@ -37,7 +37,6 @@ export async function reverseGeocode(lat, lng) {
       try {
         const controller = new AbortController()
         const timeout = setTimeout(() => controller.abort(), 12000)
-        console.log(`[MarketData] reverseGeocode attempt ${attempt+1}, vintage=${vintage}`, url)
         const res = await fetch(url, { signal: controller.signal })
         clearTimeout(timeout)
         if (!res.ok) { console.warn(`[MarketData] reverseGeocode HTTP ${res.status}`); await new Promise(r => setTimeout(r, 600)); continue }
@@ -54,7 +53,6 @@ export async function reverseGeocode(lat, lng) {
           break
         }
 
-        console.log('[MarketData] reverseGeocode success:', county.NAME, zcta?.ZCTA5)
         return {
           zip:        zcta?.ZCTA5 || null,
           countyFips: county.STATE.padStart(2,'0') + county.COUNTY.padStart(3,'0'),
