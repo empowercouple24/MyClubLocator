@@ -10,6 +10,34 @@ const TABS = ['settings', 'access', 'contacts', 'members', 'teams']
 
 const BREVO_API_KEY = import.meta.env.VITE_BREVO_API_KEY
 
+// ── Shared color helpers (used by App Theme, Landing Page, Marker Colors) ──
+function hexToHsl(hex) {
+  if (!hex || hex.length < 7) return [0, 0, 50]
+  const r = parseInt(hex.slice(1,3),16)/255, g = parseInt(hex.slice(3,5),16)/255, b = parseInt(hex.slice(5,7),16)/255
+  const max = Math.max(r,g,b), min = Math.min(r,g,b)
+  let h, s, l = (max+min)/2
+  if (max === min) { h = s = 0 } else {
+    const d = max - min; s = l > 0.5 ? d/(2-max-min) : d/(max+min)
+    switch(max) {
+      case r: h = ((g-b)/d + (g<b?6:0))/6; break
+      case g: h = ((b-r)/d + 2)/6; break
+      default: h = ((r-g)/d + 4)/6
+    }
+  }
+  return [Math.round(h*360), Math.round(s*100), Math.round(l*100)]
+}
+function hslToHex(h,s,l) {
+  s/=100; l/=100
+  const a = s*Math.min(l,1-l)
+  const f = n => { const k=(n+h/30)%12; const c=l-a*Math.max(-1,Math.min(k-3,9-k,1)); return Math.round(255*c).toString(16).padStart(2,'0') }
+  return `#${f(0)}${f(8)}${f(4)}`
+}
+function genShades(hex, count = 8) {
+  const [h, s] = hexToHsl(hex)
+  const stops = count === 8 ? [94,82,68,54,40,28,18,10] : [92,78,62,48,35,22,12]
+  return stops.map(l => hslToHex(h, Math.min(s + 8, 100), l))
+}
+
 function ContactCard({ submission: c, onReplySent, expanded, onToggle }) {
   const [replyBody, setReplyBody] = useState('')
   const [sending, setSending]     = useState(false)
@@ -264,9 +292,6 @@ export default function AdminPage() {
   const [demoOpen, setDemoOpen]               = useState(false)
   const [welcomeModalOpen, setWelcomeModalOpen] = useState(false)
   const [loginMsgsOpen, setLoginMsgsOpen]       = useState(false)
-  const [card1Open, setCard1Open]               = useState(false)
-  const [card2Open, setCard2Open]               = useState(false)
-  const [card3Open, setCard3Open]               = useState(false)
   const [finderMsgsOpen, setFinderMsgsOpen]     = useState(false)
   const [finderSearchOpen, setFinderSearchOpen] = useState(false)
   const [markerColorsOpen, setMarkerColorsOpen] = useState(false)
@@ -972,26 +997,15 @@ export default function AdminPage() {
         <div>
           {loadingSettings ? <div className="loading">Loading settings…</div> : (
             <>
-              {/* ── Card 1: Welcome Messages, Member Approval, and Teams ── */}
-              <div className="admin-section" style={{ padding: 0, overflow: 'hidden' }}>
-                <button type="button" className="survey-toggle-btn" style={{ padding: '14px 20px' }} onClick={() => setCard1Open(o => !o)}>
-                  <h3 className="admin-section-title" style={{ margin: 0 }}>Welcome Messages, Member Approval, and Teams</h3>
-                  <svg className={`survey-chevron ${card1Open ? 'open' : ''}`} width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              <div className="admin-section" style={{ padding: 0, overflow: "hidden" }}>
+                <button type="button" className="survey-toggle-btn" style={{ padding: "14px 20px" }} onClick={() => setCard1Open(o => !o)}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1 }}>
+                    <h3 className="admin-section-title" style={{ margin: 0 }}>Welcome Messages, Member Approval, and Teams</h3>
+                  </div>
+                  <svg className={`survey-chevron ${card1Open ? "open" : ""}`} width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
                 </button>
                 {card1Open && (
                   <div>
-              {/* Welcome Modal */}
-              <div className="admin-section" style={{ padding: 0, overflow: 'hidden' }}>
-                <button type="button" className="survey-toggle-btn" style={{ padding: '14px 20px' }} onClick={() => setWelcomeModalOpen(o => !o)}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
-                    <h3 className="admin-section-title" style={{ margin: 0 }}>Welcome Modal</h3>
-                  </div>
-                  <svg className={`survey-chevron ${welcomeModalOpen ? 'open' : ''}`} width="14" height="14" viewBox="0 0 16 16" fill="none">
-                    <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </button>
-                {welcomeModalOpen && (
-                  <div style={{ padding: '0 20px 20px' }}>
                     <p className="admin-section-desc" style={{ marginBottom: 16 }}>Controls the modal shown to members on first login.</p>
 
                     {/* Two-column layout: fields left, live preview right */}
@@ -1024,8 +1038,9 @@ export default function AdminPage() {
                             minHeight={120}
                           />
                           <div className="field-hint" style={{ marginTop: 6 }}>
-                            Available tags: <code>{"{{first_name}}"}</code> first name &nbsp;&middot;&nbsp; <code>{"{{club_1_name}}"}</code> <code>{"{{club_2_name}}"}</code> <code>{"{{club_3_name}}"}</code> club names &nbsp;&middot;&nbsp; <code>{"{{club_1_city}}"}</code> <code>{"{{club_2_city}}"}</code> <code>{"{{club_3_city}}"}</code> cities
+                            Available tags: <code>{"{{first_name}}"}</code> first name · <code>{"{{club_1_name}}"}</code> <code>{"{{club_2_name}}"}</code> <code>{"{{club_3_name}}"}</code> club names · <code>{"{{club_1_city}}"}</code> <code>{"{{club_2_city}}"}</code> <code>{"{{club_3_city}}"}</code> cities
                           </div>
+
                         </div>
 
                         <div className="field">
@@ -1054,7 +1069,7 @@ export default function AdminPage() {
                             minHeight={100}
                           />
                           <div className="field-hint" style={{ marginTop: 6 }}>
-                            Available tags: <code>{"{{first_name}}"}</code> &nbsp;&middot;&nbsp; <code>{"{{club_1_name}}"}</code> <code>{"{{club_2_name}}"}</code> <code>{"{{club_3_name}}"}</code>
+                            Available tags: <code>{"{{first_name}}"}</code> · <code>{"{{club_1_name}}"}</code> <code>{"{{club_2_name}}"}</code> <code>{"{{club_3_name}}"}</code>
                           </div>
                           <span className="field-hint">Leave blank to show the default placeholder text until you're ready</span>
                         </div>
@@ -1131,21 +1146,10 @@ export default function AdminPage() {
                         </div>
                       </div>
                     </div>
-                  </div>
-                )}
-              </div>
-              {/* Login Welcome Messages */}
-              <div className="admin-section" style={{ padding: 0, overflow: 'hidden' }}>
-                <button type="button" className="survey-toggle-btn" style={{ padding: '14px 20px' }} onClick={() => setLoginMsgsOpen(o => !o)}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
-                    <h3 className="admin-section-title" style={{ margin: 0 }}>Login Welcome Messages</h3>
-                  </div>
-                  <svg className={`survey-chevron ${loginMsgsOpen ? 'open' : ''}`} width="14" height="14" viewBox="0 0 16 16" fill="none">
-                    <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </button>
-                {loginMsgsOpen && (
-                  <div style={{ padding: '0 20px 16px' }}>
+
+                <div style={{ borderTop: "0.5px solid #e8ede9", padding: "12px 20px 4px" }}>
+                  <div style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: ".04em", color: "#aaa" }}>Login Welcome Messages</div>
+                </div>
                     <p className="admin-section-desc" style={{ marginBottom: 14 }}>Customize what members see on the screen immediately after logging in. Tags: <code>{'{name}'}</code> first name · <code>{'{club}'}</code> club 1 · <code>{'{club_2}'}</code> club 2 · <code>{'{club_3}'}</code> club 3. Toggle each message on or off independently.</p>
                     {[
                       {
@@ -1209,27 +1213,10 @@ export default function AdminPage() {
                         )}
                       </div>
                     ))}
-                  </div>
-                )}
-              </div>
-                    <div style={{ borderTop: '0.5px solid #e0e8e0', padding: '10px 20px 2px' }}>
-                      <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em', color: '#aaa' }}>Team Creation and Member Approval Settings</div>
-                    </div>
-              {/* Team Creation Settings — collapsible */}
-              <div className="admin-section" style={{ padding: 0, overflow: 'hidden' }}>
-                <button type="button" className="survey-toggle-btn" style={{ padding: '14px 20px' }} onClick={() => setTeamCreationOpen(o => !o)}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
-                    <h3 className="admin-section-title" style={{ margin: 0 }}>Team Creation</h3>
-                    <span className="survey-progress-badge" style={{ background: settings.team_creation_enabled ? '#E1F5EE' : '#FFF3CD', color: settings.team_creation_enabled ? '#0F6E56' : '#854F0B' }}>
-                      {settings.team_creation_enabled ? 'Enabled' : 'Disabled'}
-                    </span>
-                  </div>
-                  <svg className={`survey-chevron ${teamCreationOpen ? 'open' : ''}`} width="14" height="14" viewBox="0 0 16 16" fill="none">
-                    <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </button>
-                {teamCreationOpen && (
-                  <div style={{ padding: '0 20px 20px' }}>
+
+                <div style={{ borderTop: "0.5px solid #e8ede9", padding: "12px 20px 4px" }}>
+                  <div style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: ".04em", color: "#aaa" }}>Team Creation and Member Approval Settings</div>
+                </div>
                     <p className="admin-section-desc" style={{ marginBottom: 14 }}>Control which members can create and manage teams.</p>
                     <div className="admin-toggle-row" style={{ marginBottom: 14 }}>
                       <div>
@@ -1243,16 +1230,16 @@ export default function AdminPage() {
                       <label>Minimum level to create a team</label>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8, opacity: settings.team_creation_enabled ? 1 : 0.4, pointerEvents: settings.team_creation_enabled ? 'auto' : 'none' }}>
                         {[
-                          { val: 'Distributor',       label: 'Distributor',       c: '#e3e3e3', cd: '#555' },
-                          { val: 'Success Builder',   label: 'Success Builder',   c: '#e3e3e3', cd: '#555' },
-                          { val: 'Supervisor',        label: 'Supervisor',        c: '#64ba44', cd: '#2a6b1a' },
-                          { val: 'World Team',        label: 'World Team',        c: '#767678', cd: '#3a3a3a' },
-                          { val: 'Active World Team', label: 'Active World Team', c: '#767678', cd: '#3a3a3a' },
-                          { val: 'Get Team',          label: 'Get Team',          c: '#e02054', cd: '#8a0020' },
-                          { val: 'Get Team 2500',     label: 'Get Team 2500',     c: '#f39519', cd: '#7a4200' },
-                          { val: 'Millionaire Team',  label: 'Millionaire Team',  c: '#3aac77', cd: '#0c5a32' },
+                          { val: 'Distributor',       label: 'DS',  c: '#e3e3e3', cd: '#555' },
+                          { val: 'Success Builder',   label: 'SB',  c: '#e3e3e3', cd: '#555' },
+                          { val: 'Supervisor',        label: 'SP',  c: '#64ba44', cd: '#2a6b1a' },
+                          { val: 'World Team',        label: 'WT',  c: '#767678', cd: '#3a3a3a' },
+                          { val: 'Active World Team', label: 'AWT', c: '#767678', cd: '#3a3a3a' },
+                          { val: 'Get Team',          label: 'GT',  c: '#e02054', cd: '#8a0020' },
+                          { val: 'Get Team 2500',     label: 'GP',  c: '#f39519', cd: '#7a4200' },
+                          { val: 'Millionaire Team',  label: 'MT',  c: '#3aac77', cd: '#0c5a32' },
                           { val: 'Millionaire Team 7500', label: 'Millionaire Team 7500', c: '#84c8d3', cd: '#1a5a60' },
-                          { val: 'Presidents Team',   label: 'Presidents Team',   c: '#fde488', cd: '#7a5200' },
+                          { val: 'Presidents Team',   label: 'PT',  c: '#fde488', cd: '#7a5200' },
                         ].map(({ val, label, c, cd }) => (
                           <button
                             key={val}
@@ -1271,24 +1258,7 @@ export default function AdminPage() {
                       </div>
                       <span className="field-hint" style={{ marginTop: 8, display: 'block' }}>Members below this level will not see the team creation option</span>
                     </div>
-                  </div>
-                )}
-              </div>
-              {/* Member Approval — collapsible */}
-              <div className="admin-section" style={{ padding: 0, overflow: 'hidden' }}>
-                <button type="button" className="survey-toggle-btn" style={{ padding: '14px 20px' }} onClick={() => setMemberApprovalOpen(o => !o)}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
-                    <h3 className="admin-section-title" style={{ margin: 0 }}>Member Approval</h3>
-                    <span className="survey-progress-badge" style={{ background: settings.require_approval ? '#E1F5EE' : '#F5F5F5', color: settings.require_approval ? '#0F6E56' : '#888' }}>
-                      {settings.require_approval ? 'Required' : 'Auto-approve'}
-                    </span>
-                  </div>
-                  <svg className={`survey-chevron ${memberApprovalOpen ? 'open' : ''}`} width="14" height="14" viewBox="0 0 16 16" fill="none">
-                    <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </button>
-                {memberApprovalOpen && (
-                  <div style={{ padding: '0 20px 20px' }}>
+
                     <p className="admin-section-desc" style={{ marginBottom: 14 }}>When enabled, new signups must be approved before appearing on the map.</p>
                     <div className="admin-toggle-row">
                       <div>
@@ -1301,33 +1271,17 @@ export default function AdminPage() {
                   </div>
                 )}
               </div>
-                  </div>
-                )}
-              </div>
 
-              {/* ── Card 2: Public Finder Settings ── */}
-              <div className="admin-section" style={{ padding: 0, overflow: 'hidden' }}>
-                <button type="button" className="survey-toggle-btn" style={{ padding: '14px 20px' }} onClick={() => setCard2Open(o => !o)}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
+              <div className="admin-section" style={{ padding: 0, overflow: "hidden" }}>
+                <button type="button" className="survey-toggle-btn" style={{ padding: "14px 20px" }} onClick={() => setCard2Open(o => !o)}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1 }}>
                     <h3 className="admin-section-title" style={{ margin: 0 }}>Public Finder Settings</h3>
                     <span style={{ fontSize: 12, color: '#888' }}>{settings.search_radius_miles === 0 ? 'Custom' : settings.search_radius_miles + ' mi radius'}</span>
                   </div>
-                  <svg className={`survey-chevron ${card2Open ? 'open' : ''}`} width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  <svg className={`survey-chevron ${card2Open ? "open" : ""}`} width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
                 </button>
                 {card2Open && (
                   <div>
-              {/* Public Finder Messages */}
-              <div className="admin-section" style={{ padding: 0, overflow: 'hidden' }}>
-                <button type="button" className="survey-toggle-btn" style={{ padding: '14px 20px' }} onClick={() => setFinderMsgsOpen(o => !o)}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
-                    <h3 className="admin-section-title" style={{ margin: 0 }}>Public Finder Messages</h3>
-                  </div>
-                  <svg className={`survey-chevron ${finderMsgsOpen ? 'open' : ''}`} width="14" height="14" viewBox="0 0 16 16" fill="none">
-                    <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </button>
-                {finderMsgsOpen && (
-                  <div style={{ padding: '0 20px 16px' }}>
                     <p className="admin-section-desc" style={{ marginBottom: 16 }}>Customize what public visitors see on the club finder page before and during their search. These are the people looking for a club — not club owners.</p>
 
                     {/* Welcome heading */}
@@ -1373,22 +1327,10 @@ export default function AdminPage() {
                         </div>
                       )}
                     </div>
-                  </div>
-                )}
-              </div>
-              {/* Public Search Settings */}
-              <div className="admin-section" style={{ padding: 0, overflow: 'hidden' }}>
-                <button type="button" className="survey-toggle-btn" style={{ padding: '14px 20px' }} onClick={() => setFinderSearchOpen(o => !o)}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
-                    <h3 className="admin-section-title" style={{ margin: 0 }}>Public Search Settings</h3>
-                    <span style={{ fontSize: 12, color: '#888' }}>{settings.search_radius_miles === 0 ? 'Custom' : `${settings.search_radius_miles} mi radius`}</span>
-                  </div>
-                  <svg className={`survey-chevron ${finderSearchOpen ? 'open' : ''}`} width="14" height="14" viewBox="0 0 16 16" fill="none">
-                    <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </button>
-                {finderSearchOpen && (
-                  <div style={{ padding: '0 20px 20px' }}>
+
+                <div style={{ borderTop: "0.5px solid #e8ede9", padding: "12px 20px 4px" }}>
+                  <div style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: ".04em", color: "#aaa" }}>Search Radius</div>
+                </div>
                     <p className="admin-section-desc" style={{ marginBottom: 16 }}>Controls how far from the searched location clubs are returned. Only clubs within this radius will be sent to the browser — locations outside this range are never exposed.</p>
                     <label style={{ fontSize: 13, fontWeight: 500, color: '#333', display: 'block', marginBottom: 10 }}>Search radius</label>
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -1439,14 +1381,10 @@ export default function AdminPage() {
                   </div>
                 )}
               </div>
-                  </div>
-                )}
-              </div>
 
-              {/* ── Card 3: MyClubLocator Themes ── */}
-              <div className="admin-section" style={{ padding: 0, overflow: 'hidden' }}>
-                <button type="button" className="survey-toggle-btn" style={{ padding: '14px 20px' }} onClick={() => setCard3Open(o => !o)}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1 }}>
+              <div className="admin-section" style={{ padding: 0, overflow: "hidden" }}>
+                <button type="button" className="survey-toggle-btn" style={{ padding: "14px 20px" }} onClick={() => setCard3Open(o => !o)}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1 }}>
                     <h3 className="admin-section-title" style={{ margin: 0 }}>MyClubLocator Themes</h3>
                     <div style={{ display: 'flex', gap: 4 }}>
                       {[settings.theme_card_header_bg, settings.landing_hero_panel_color, settings.marker_color_own].map((c, i) => (
@@ -1454,52 +1392,12 @@ export default function AdminPage() {
                       ))}
                     </div>
                   </div>
-                  <svg className={`survey-chevron ${card3Open ? 'open' : ''}`} width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  <svg className={`survey-chevron ${card3Open ? "open" : ""}`} width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
                 </button>
                 {card3Open && (
                   <div>
-              {/* App Theme */}
-              {(() => {
-                function hexToHsl(hex) {
-                  if (!hex || hex.length < 7) return [0, 0, 50]
-                  const r = parseInt(hex.slice(1,3),16)/255, g = parseInt(hex.slice(3,5),16)/255, b = parseInt(hex.slice(5,7),16)/255
-                  const max = Math.max(r,g,b), min = Math.min(r,g,b)
-                  let h, s, l = (max+min)/2
-                  if (max === min) { h = s = 0 } else {
-                    const d = max - min; s = l > 0.5 ? d/(2-max-min) : d/(max+min)
-                    switch(max) {
-                      case r: h = ((g-b)/d + (g<b?6:0))/6; break
-                      case g: h = ((b-r)/d + 2)/6; break
-                      default: h = ((r-g)/d + 4)/6
-                    }
-                  }
-                  return [Math.round(h*360), Math.round(s*100), Math.round(l*100)]
-                }
-                function hslToHex(h,s,l) {
-                  s/=100; l/=100
-                  const a = s*Math.min(l,1-l)
-                  const f = n => { const k=(n+h/30)%12; const c=l-a*Math.max(-1,Math.min(k-3,9-k,1)); return Math.round(255*c).toString(16).padStart(2,'0') }
-                  return `#${f(0)}${f(8)}${f(4)}`
-                }
-                function genShades(hex, count = 8) {
-                  const [h, s] = hexToHsl(hex)
-                  const lightnesses = count === 8 ? [94,82,68,54,40,28,18,10] : [92,78,62,48,35,22,12]
-                  return lightnesses.map(l => hslToHex(h, Math.min(s + 8, 100), l))
-                }
-                const HEADER_TEXT_OPTIONS = [
-                  { value: '#ffffff', label: 'White' },
-                  { value: '#F0EEE8', label: 'Off-white' },
-                  { value: '#C8D4CC', label: 'Soft sage' },
-                  { value: '#1A1A1A', label: 'Near black' },
-                ]
-                const curHeaderTxt = HEADER_TEXT_OPTIONS.find(o => o.value === settings.theme_card_header_text) || HEADER_TEXT_OPTIONS[0]
-                const themeFields = [
-                  { key: 'theme_page_bg',        label: 'Page background',        desc: 'Behind all cards across the app' },
-                  { key: 'theme_card_header_bg',  label: 'Card header background', desc: 'The colored band at the top of each card' },
-                  { key: 'theme_card_body',        label: 'Card body background',   desc: 'The main content area inside each card' },
-                ]
-                return (
-                  <div className="admin-section" style={{ padding: 0, overflow: 'hidden' }}>
+{/* App Theme */}
+                                <div className="admin-section" style={{ padding: 0, overflow: 'hidden' }}>
                     <button type="button" className="survey-toggle-btn" style={{ padding: '14px 20px' }} onClick={() => setAppThemeOpen(o => !o)}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1 }}>
                         <h3 className="admin-section-title" style={{ margin: 0 }}>App Theme</h3>
@@ -1602,38 +1500,12 @@ export default function AdminPage() {
                       </div>
                     )}
                   </div>
-                )
-              })()}
 
-              {/* Landing Page Appearance */}
-              {(() => {
-                function hexToHsl(hex) {
-                  if (!hex || hex.length < 7) return [0, 0, 50]
-                  const r = parseInt(hex.slice(1,3),16)/255, g = parseInt(hex.slice(3,5),16)/255, b = parseInt(hex.slice(5,7),16)/255
-                  const max = Math.max(r,g,b), min = Math.min(r,g,b)
-                  let h, s, l = (max+min)/2
-                  if (max === min) { h = s = 0 } else {
-                    const d = max - min; s = l > 0.5 ? d/(2-max-min) : d/(max+min)
-                    switch(max) {
-                      case r: h = ((g-b)/d + (g<b?6:0))/6; break
-                      case g: h = ((b-r)/d + 2)/6; break
-                      default: h = ((r-g)/d + 4)/6
-                    }
-                  }
-                  return [Math.round(h*360), Math.round(s*100), Math.round(l*100)]
-                }
-                function hslToHex(h,s,l) {
-                  s/=100; l/=100
-                  const a = s*Math.min(l,1-l)
-                  const f = n => { const k=(n+h/30)%12; const c=l-a*Math.max(-1,Math.min(k-3,9-k,1)); return Math.round(255*c).toString(16).padStart(2,'0') }
-                  return `#${f(0)}${f(8)}${f(4)}`
-                }
-                function genShades(hex) {
-                  const [h, s] = hexToHsl(hex)
-                  return [94,82,68,54,40,28,18,10].map(l => hslToHex(h, Math.min(s+8,100), l))
-                }
-                return (
-                  <div className="admin-section" style={{ padding: 0, overflow: 'hidden' }}>
+                <div style={{ borderTop: "0.5px solid #e8ede9", padding: "12px 20px 4px" }}>
+                  <div style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: ".04em", color: "#aaa" }}>Landing Page Appearance</div>
+                </div>
+{/* Landing Page Appearance */}
+                                <div className="admin-section" style={{ padding: 0, overflow: 'hidden' }}>
                     <button type="button" className="survey-toggle-btn" style={{ padding: '14px 20px' }} onClick={() => setLandingOpen(o => !o)}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1 }}>
                         <h3 className="admin-section-title" style={{ margin: 0 }}>Landing Page Appearance</h3>
@@ -1718,26 +1590,10 @@ export default function AdminPage() {
                       </div>
                     )}
                   </div>
-                )
-              })()}
 
-              {/* Marker Colors */}
-              <div className="admin-section" style={{ padding: 0, overflow: 'hidden' }}>
-                <button type="button" className="survey-toggle-btn" style={{ padding: '14px 20px' }} onClick={() => setMarkerColorsOpen(o => !o)}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1 }}>
-                    <h3 className="admin-section-title" style={{ margin: 0 }}>Map Marker Colors</h3>
-                    <div style={{ display: 'flex', gap: 5 }}>
-                      {[settings.marker_color_own, settings.marker_color_other, settings.marker_color_selected, settings.marker_color_team].map((c, i) => (
-                        <span key={i} style={{ width: 14, height: 14, borderRadius: '50%', background: c || '#ccc', border: '1.5px solid rgba(0,0,0,0.1)', display: 'inline-block' }} />
-                      ))}
-                    </div>
-                  </div>
-                  <svg className={`survey-chevron ${markerColorsOpen ? 'open' : ''}`} width="14" height="14" viewBox="0 0 16 16" fill="none">
-                    <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </button>
-                {markerColorsOpen && (
-                  <div style={{ padding: '0 20px 20px' }}>
+                <div style={{ borderTop: "0.5px solid #e8ede9", padding: "12px 20px 4px" }}>
+                  <div style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: ".04em", color: "#aaa" }}>Map Marker Colors</div>
+                </div>
                     <p className="admin-section-desc" style={{ marginBottom: 16 }}>Customize the color of each marker type on the map. Changes take effect immediately after saving.</p>
 
                     {/* Global marker shape picker */}
@@ -1894,10 +1750,6 @@ export default function AdminPage() {
                   </div>
                 )}
               </div>
-                  </div>
-                )}
-              </div>
-
 
               {/* Demographics */}
               {(() => {

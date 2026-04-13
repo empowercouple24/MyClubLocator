@@ -6,26 +6,24 @@ import { useAuth } from '../lib/AuthContext'
 export default function WelcomeModal() {
   const { user } = useAuth()
   const navigate = useNavigate()
-  const [show, setShow]         = useState(false)
-  const [settings, setSettings] = useState(null)
-  const [hasClub, setHasClub]   = useState(false)
-  const [clubs, setClubs]       = useState([])
+  const [show, setShow]           = useState(false)
+  const [settings, setSettings]   = useState(null)
+  const [hasClub, setHasClub]     = useState(false)
+  const [clubs, setClubs]         = useState([])
   const [firstName, setFirstName] = useState('')
 
   useEffect(() => {
     if (!user) return
-    const key = `welcome_seen_${user.id}`
-    if (localStorage.getItem(key)) return
+    if (localStorage.getItem(`welcome_seen_${user.id}`)) return
     async function load() {
-      const [{ data: settingsData }, { data: clubsData }] = await Promise.all([
+      const [{ data: sd }, { data: cd }] = await Promise.all([
         supabase.from('app_settings').select('*').eq('id', 1).single(),
-        supabase.from('locations').select('id, club_name, city, first_name').eq('user_id', user.id).order('created_at'),
+        supabase.from('locations').select('id,club_name,city,first_name').eq('user_id', user.id).order('created_at'),
       ])
-      if (settingsData) {
-        setSettings(settingsData)
-        setClubs(clubsData || [])
-        setHasClub((clubsData || []).length > 0)
-        setFirstName(clubsData?.[0]?.first_name || '')
+      if (sd) {
+        setSettings(sd); setClubs(cd || [])
+        setHasClub((cd||[]).length > 0)
+        setFirstName(cd?.[0]?.first_name || '')
         setShow(true)
       }
     }
@@ -49,7 +47,6 @@ export default function WelcomeModal() {
   }
 
   if (!show || !settings) return null
-
   const videoUrl = settings.welcome_video_url || settings.welcome_video_placeholder || 'https://www.youtube.com/embed/dQw4w9WgXcQ'
   const showVideo = settings.welcome_video_enabled && !hasClub
 
@@ -69,34 +66,22 @@ export default function WelcomeModal() {
         {hasClub ? (
           <>
             <h2 className="modal-title">{firstName ? `Welcome back, ${firstName}!` : 'Welcome back!'}</h2>
-            <div className="modal-message rte-content"
-              dangerouslySetInnerHTML={{ __html: applyTags(settings.welcome_message) || "You're part of the network. Explore the map to see clubs near you." }}
-            />
-            <div className="modal-actions">
-              <button className="modal-btn-primary" onClick={dismiss}>Explore the Map</button>
-            </div>
+            <div className="modal-message rte-content" dangerouslySetInnerHTML={{ __html: applyTags(settings.welcome_message) || "You're part of the network. Explore the map to see clubs near you." }} />
+            <div className="modal-actions"><button className="modal-btn-primary" onClick={dismiss}>Explore the Map</button></div>
           </>
         ) : (
           <>
             <h2 className="modal-title">{settings.welcome_title || 'Welcome to My Club Locator!'}</h2>
-            <div className="modal-message rte-content"
-              dangerouslySetInnerHTML={{ __html: applyTags(settings.welcome_message) || "You're now part of the network. Watch the video below to get started, then add your club to the map." }}
-            />
+            <div className="modal-message rte-content" dangerouslySetInnerHTML={{ __html: applyTags(settings.welcome_message) || "You're now part of the network. Watch the video below to get started, then add your club to the map." }} />
             {showVideo && (
               <div className="modal-video">
-                <iframe src={videoUrl} title="Welcome video" frameBorder="0"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen />
+                <iframe src={videoUrl} title="Welcome video" frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen />
               </div>
             )}
-            <div className="modal-actions">
-              <button className="modal-btn-primary" onClick={goToProfile}>Add My Club</button>
-            </div>
+            <div className="modal-actions"><button className="modal-btn-primary" onClick={goToProfile}>Add My Club</button></div>
           </>
         )}
-        <div className="modal-disclaimer rte-content"
-          dangerouslySetInnerHTML={{ __html: applyTags(settings.welcome_disclaimer) || 'Disclaimer placeholder — edit this text in Admin \u2192 Settings.' }}
-        />
+        <div className="modal-disclaimer rte-content" dangerouslySetInnerHTML={{ __html: applyTags(settings.welcome_disclaimer) || 'Disclaimer placeholder \u2014 edit in Admin \u2192 Settings.' }} />
       </div>
     </div>
   )
