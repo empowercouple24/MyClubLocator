@@ -404,6 +404,38 @@ export default function AdminPage() {
       .select('*')
       .order('created_at', { ascending: false })
     if (data) {
+      // Fill missing person fields from sibling rows (same user_id)
+      // Groups by user_id, finds the row with person data, copies to siblings missing it
+      const byUser = {}
+      data.forEach(m => {
+        if (!byUser[m.user_id]) byUser[m.user_id] = []
+        byUser[m.user_id].push(m)
+      })
+      const PERSON_KEYS = ['first_name', 'last_name', 'owner_email', 'herbalife_level',
+        'owner2_first_name', 'owner2_last_name', 'owner_photo_url', 'owner2_photo_url', 'owner3_photo_url']
+      const idsToFix = []
+      Object.values(byUser).forEach(rows => {
+        if (rows.length < 2) return
+        const source = rows.find(r => r.first_name) || rows[0]
+        rows.forEach(r => {
+          if (!r.first_name && source.first_name) {
+            PERSON_KEYS.forEach(k => { if (source[k] && !r[k]) r[k] = source[k] })
+            if (r.id) idsToFix.push({ id: r.id, first_name: source.first_name, last_name: source.last_name })
+          }
+        })
+      })
+      // Also fix the DB rows so this is permanent
+      for (const fix of idsToFix) {
+        const patch = {}
+        PERSON_KEYS.forEach(k => {
+          const src = byUser[data.find(d => d.id === fix.id)?.user_id]?.find(r => r.first_name)
+          if (src && src[k]) patch[k] = src[k]
+        })
+        if (Object.keys(patch).length > 0) {
+          supabase.from('locations').update(patch).eq('id', fix.id).then(() => {})
+        }
+      }
+
       // Fire pending_approval notifications for any newly pending members not yet notified
       const pending = data.filter(m => m.approved === false)
       for (const m of pending) {
@@ -779,7 +811,7 @@ export default function AdminPage() {
 
           {/* Filters */}
           <div className="admin-member-filters">
-            <input className="search-input" type="text" placeholder="Search name, city, owner…"
+            <input className="search-input" type="text" name="member-search" placeholder="Search name, city, owner…"
               value={searchMember} onChange={e => setSearchMember(e.target.value)}
               style={{ flex: 1, minWidth: 180 }} />
             <select className="dir-sort" value={filterProfile} onChange={e => setFilterProfile(e.target.value)}>

@@ -67,11 +67,11 @@ function ContactModal({ onClose }) {
             <form onSubmit={handleSubmit} className="contact-form">
               <div className="field">
                 <label>Your name</label>
-                <input type="text" placeholder="First and last name" value={name} onChange={e => setName(e.target.value)} required />
+                <input type="text" name="name" id="contact-name" placeholder="First and last name" value={name} onChange={e => setName(e.target.value)} required />
               </div>
               <div className="field">
                 <label>Email address</label>
-                <input type="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} required />
+                <input type="email" name="email" id="contact-email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} required />
               </div>
               <div className="field">
                 <label>Message</label>

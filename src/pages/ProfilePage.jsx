@@ -914,13 +914,13 @@ function ClubEditor({ club, clubIndex, userId, isOnly, allClubs, onSaved, onRemo
         <div className="fgrid">
           <div className="pf" style={{ gridColumn: '1 / -1' }}>
             <label>Club name <span className="req-star">*</span></label>
-            <input type="text" value={form.club_name} onChange={e => setField('club_name', e.target.value)}
+            <input type="text" name="club_name" value={form.club_name} onChange={e => setField('club_name', e.target.value)}
               placeholder="Your Club Name" className={errors.club_name ? 'input-err' : ''} tabIndex={1} />
             {errors.club_name && <span className="field-err">{errors.club_name}</span>}
           </div>
           <div className="pf" style={{ gridColumn: '1 / -1' }}>
             <label>Club email <span className="req-star">*</span></label>
-            <input type="email" value={form.club_email} onChange={e => setField('club_email', e.target.value)}
+            <input type="email" name="club_email" value={form.club_email} onChange={e => setField('club_email', e.target.value)}
               placeholder="hello@yourclub.com" className={errors.club_email ? 'input-err' : ''}
               tabIndex={2}
               readOnly={!form.id && clubIndex === 0 && !!userEmail}
@@ -932,7 +932,7 @@ function ClubEditor({ club, clubIndex, userId, isOnly, allClubs, onSaved, onRemo
           </div>
           <div className="pf" style={{ gridColumn: '1 / -1' }}>
             <label>Club phone <span className="optional-tag">optional</span></label>
-            <input type="tel" value={form.club_phone}
+            <input type="tel" name="club_phone" value={form.club_phone}
               onChange={e => handlePhoneChange(e.target.value)}
               placeholder="(555) 000-0000" tabIndex={3} />
           </div>
@@ -1429,12 +1429,9 @@ export default function ProfilePage() {
 
         setSavedPersonForm({ ...pf, _p1: row0.owner_photo_url || null, _p2: row0.owner2_photo_url || null, _p3: row0.owner3_photo_url || null })
 
-        // Build clubs array — one entry per row
+        // Build clubs array — one entry per row (include ALL DB fields, not just DEFAULT_CLUB keys)
         setClubs(data.map(row => {
-          const c = { ...DEFAULT_CLUB }
-          Object.keys(DEFAULT_CLUB).forEach(k => { if (row[k] != null) c[k] = row[k] })
-          c.id = row.id
-          c.club_index = row.club_index ?? 0
+          const c = { ...DEFAULT_CLUB, ...row }
           return c
         }))
 
@@ -1654,20 +1651,20 @@ export default function ProfilePage() {
               <div className="fgrid">
               <div className="pf">
                 <label>First name <span className="req-star">*</span></label>
-                <input type="text" value={personForm.first_name} onChange={e => setPersonField('first_name', e.target.value)}
+                <input type="text" name="first_name" value={personForm.first_name} onChange={e => setPersonField('first_name', e.target.value)}
                   placeholder="First name" className={personErrors.first_name ? 'input-err' : ''} />
                 {personErrors.first_name && <span className="field-err">{personErrors.first_name}</span>}
               </div>
               <div className="pf">
                 <label>Last name <span className="req-star">*</span></label>
-                <input type="text" value={personForm.last_name} onChange={e => setPersonField('last_name', e.target.value)}
+                <input type="text" name="last_name" value={personForm.last_name} onChange={e => setPersonField('last_name', e.target.value)}
                   placeholder="Last name" className={personErrors.last_name ? 'input-err' : ''} />
                 {personErrors.last_name && <span className="field-err">{personErrors.last_name}</span>}
               </div>
             </div>
             <div className="pf owner-email-full">
               <label>Email <span className="optional-tag">optional</span></label>
-              <input type="email" value={personForm.owner_email} onChange={e => setPersonField('owner_email', e.target.value)}
+              <input type="email" name="owner_email" value={personForm.owner_email} onChange={e => setPersonField('owner_email', e.target.value)}
                 placeholder="your@email.com" />
             </div>
             <OwnerPhotoUpload

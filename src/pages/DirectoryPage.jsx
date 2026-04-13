@@ -389,7 +389,7 @@ export default function DirectoryPage() {
 
       {/* Controls */}
       <div className="dir-controls-bar">
-        <input className="search-input" type="text"
+        <input className="search-input" type="text" name="dir-search"
           placeholder="Search name, city, owner…"
           value={search} onChange={e => handleSearchChange(e.target.value)} />
         <select className="dir-sort" value={sortBy} onChange={e => setSortBy(e.target.value)}>

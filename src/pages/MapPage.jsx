@@ -742,7 +742,7 @@ function ClubDetail({ club, userId, panelWidth, onManage, radiusMiles, setRadius
           ))}
         </div>
         <div className="radius-custom">
-          <input type="number" min="0.5" max="50" step="0.5"
+          <input type="number" name="custom-radius" min="0.5" max="50" step="0.5"
             placeholder="Custom mi" value={customMiles}
             onChange={e => setCustomMiles(e.target.value)} />
           <button className="radius-preset-btn"

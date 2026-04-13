@@ -167,7 +167,7 @@ export default function OnboardingPage() {
               <div className="onb-title">Who is your upline or sponsor?</div>
               <div className="onb-sub">The person who brought you into Herbalife or your direct upline in the network.</div>
               <label className="onb-field-label">Upline / sponsor name</label>
-              <input className="onb-input" type="text" placeholder="Full name"
+              <input className="onb-input" type="text" name="fullname" placeholder="Full name"
                 value={upline} onChange={e => setUpline(e.target.value)} />
               <div className="onb-nav">
                 <button className="onb-btn-back" onClick={handleBack}>← Back</button>

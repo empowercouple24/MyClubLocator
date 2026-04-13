@@ -251,9 +251,9 @@ function AuthModal({ mode: initialMode, settings, onSuccess, onClose }) {
         <p className="pf-modal-desc">{mode === 'signup' ? 'Save your favorite clubs and leave notes.' : 'Welcome back — sign in to see your saved clubs.'}</p>
         {error && <div className="pf-modal-error">{error}</div>}
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {mode === 'signup' && <input className="pf-modal-input" type="text" placeholder="Your name (optional)" value={displayName} onChange={e => setDisplayName(e.target.value)} />}
-          <input className="pf-modal-input" type="email" placeholder="Email address" value={email} onChange={e => setEmail(e.target.value)} required />
-          <input className="pf-modal-input" type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} required minLength={6} />
+          {mode === 'signup' && <input className="pf-modal-input" type="text" name="displayName" id="pf-display-name" placeholder="Your name (optional)" value={displayName} onChange={e => setDisplayName(e.target.value)} />}
+          <input className="pf-modal-input" type="email" name="email" id="pf-email" placeholder="Email address" value={email} onChange={e => setEmail(e.target.value)} required />
+          <input className="pf-modal-input" type="password" name="password" id="pf-password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} required minLength={6} />
           <button className="pf-accept-btn" type="submit" disabled={loading} style={{ marginTop: 4 }}>
             {loading ? 'Please wait…' : mode === 'signup' ? 'Create my account' : 'Sign in'}
           </button>

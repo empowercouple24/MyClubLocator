@@ -170,12 +170,12 @@ export default function SignupPage() {
                 <form onSubmit={handleSubmit}>
                   <div className="field">
                     <label>Email address</label>
-                    <input type="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} required autoFocus />
+                    <input type="email" name="email" id="signup-email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} required autoFocus />
                   </div>
                   <div className="field">
                     <label>Password</label>
                     <div className="input-wrap">
-                      <input type={showPassword ? 'text' : 'password'} placeholder="Create a password (min. 6 characters)" value={password} onChange={e => setPassword(e.target.value)} required minLength={6} />
+                      <input type={showPassword ? 'text' : 'password'} name="password" id="signup-password" placeholder="Create a password (min. 6 characters)" value={password} onChange={e => setPassword(e.target.value)} required minLength={6} />
                       <button type="button" className="eye-btn" onClick={() => setShowPassword(v => !v)} aria-label={showPassword ? 'Hide password' : 'Show password'}>
                         <EyeIcon open={showPassword} />
                       </button>
