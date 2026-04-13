@@ -664,6 +664,7 @@ function ClubEditor({ club, clubIndex, userId, isOnly, onSaved, onRemove, userEm
   const [logoUrl, setLogoUrl]     = useState(club.logo_url || null)
   const [photoUrls, setPhotoUrls] = useState(club.photo_urls || [])
   const [uploadingLogo, setUploadingLogo]   = useState(false)
+  const [uploadError, setUploadError]       = useState(null)
   const [uploadProgress, setUploadProgress] = useState(null) // null | { done, total }
   const logoInputRef  = useRef()
   const photoInputRef = useRef()
@@ -717,11 +718,18 @@ function ClubEditor({ club, clubIndex, userId, isOnly, onSaved, onRemove, userEm
   async function saveCroppedLogo(blob) {
     setCropSrc(null)
     setUploadingLogo(true)
+    setUploadError(null)
     const path = userId + '/logo' + (clubIndex > 0 ? `-${clubIndex}` : '') + '.jpg'
+    console.log('[ClubEditor] Uploading logo to:', path, 'size:', blob.size)
     const { error } = await supabase.storage.from('club-photos').upload(path, blob, { upsert: true, contentType: 'image/jpeg' })
-    if (!error) {
+    if (error) {
+      console.error('[ClubEditor] Logo upload error:', error.message)
+      setUploadError('Upload failed: ' + error.message)
+    } else {
       const { data } = supabase.storage.from('club-photos').getPublicUrl(path)
-      setLogoUrl(data.publicUrl + '?t=' + Date.now())
+      const url = data.publicUrl + '?t=' + Date.now()
+      console.log('[ClubEditor] Logo uploaded:', url)
+      setLogoUrl(url)
     }
     setUploadingLogo(false)
   }
@@ -732,13 +740,17 @@ function ClubEditor({ club, clubIndex, userId, isOnly, onSaved, onRemove, userEm
     const slots = Math.min(files.length, 10 - photoUrls.length)
     if (slots <= 0) return
     setUploadProgress({ done: 0, total: slots })
+    setUploadError(null)
     const newUrls = [...photoUrls]
     for (let i = 0; i < slots; i++) {
       const file = files[i]
       const ext = file.name.split('.').pop()
       const path = userId + '/photos/' + Date.now() + '-' + Math.random().toString(36).slice(2) + '.' + ext
       const { error } = await supabase.storage.from('club-photos').upload(path, file)
-      if (!error) {
+      if (error) {
+        console.error('[ClubEditor] Photo upload error:', error.message)
+        setUploadError('Photo upload failed: ' + error.message)
+      } else {
         const { data } = supabase.storage.from('club-photos').getPublicUrl(path)
         newUrls.push(data.publicUrl)
       }
@@ -776,6 +788,8 @@ function ClubEditor({ club, clubIndex, userId, isOnly, onSaved, onRemove, userEm
     }
     setSaveAction(action); setSaving(true)
 
+    const isNew = !form.id
+
     const record = {
       user_id: userId,
       club_index: clubIndex,
@@ -797,7 +811,6 @@ function ClubEditor({ club, clubIndex, userId, isOnly, onSaved, onRemove, userEm
     delete record.id
 
     let result
-    const isNew = !form.id
     if (isNew) {
       result = await supabase.from('locations').insert(record).select().single()
     } else {
@@ -825,17 +838,20 @@ function ClubEditor({ club, clubIndex, userId, isOnly, onSaved, onRemove, userEm
     }
     onSaved && onSaved(savedRow)
 
-    // Geocode in background — update the row so it appears on the map
+    // Geocode — update the row so it appears on the map
     const fullAddress = [form.address, form.city, form.state, form.zip].filter(Boolean).join(', ')
     if (fullAddress) {
-      geocodeAddress(fullAddress).then(coords => {
+      try {
+        const coords = await geocodeAddress(fullAddress)
         if (coords) {
-          console.log('[ClubEditor] Geocoded:', fullAddress, '→', coords)
-          supabase.from('locations').update({ lat: coords.lat, lng: coords.lng }).eq('id', savedRow.id)
+          console.log('[ClubEditor] Geocoded:', fullAddress, '→', coords.lat, coords.lng)
+          await supabase.from('locations').update({ lat: coords.lat, lng: coords.lng }).eq('id', savedRow.id)
         } else {
-          console.warn('[ClubEditor] Geocode failed for:', fullAddress)
+          console.warn('[ClubEditor] Geocode returned null for:', fullAddress, '— is VITE_MAPBOX_TOKEN set?')
         }
-      })
+      } catch (err) {
+        console.error('[ClubEditor] Geocode error:', err.message)
+      }
     }
 
     if (action === 'map') {
@@ -1175,6 +1191,7 @@ function ClubEditor({ club, clubIndex, userId, isOnly, onSaved, onRemove, userEm
                 {uploadingLogo ? 'Uploading…' : logoUrl ? '↑ Replace Logo' : '↑ Upload Logo'}
               </button>
               <p className="upload-hint">PNG or JPG, square preferred</p>
+              {uploadError && <p className="field-err" style={{ marginTop: 4 }}>{uploadError}</p>}
             </div>
           </div>
           <input ref={logoInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleLogoUpload} />
