@@ -370,6 +370,7 @@ function ClubMarkers({ locations, selectedId, userId, onSelect, navigate, teamFi
         direction: 'top',
         offset: [0, -28],
         className: 'club-tooltip',
+        interactive: true,
         sticky: false,
       }).setContent(tooltipHtml)
 
@@ -395,13 +396,13 @@ function ClubMarkers({ locations, selectedId, userId, onSelect, navigate, teamFi
           onSelect(loc)
         })
         .on('mouseover', openTooltip)
-        .on('mouseout', () => scheduleClose(3000))
+        .on('mouseout', () => scheduleClose(1500))
         .on('tooltipopen', (ev) => {
           setTimeout(() => {
             const tooltipEl = ev.tooltip && ev.tooltip._container
             if (tooltipEl) {
               tooltipEl.onmouseenter = cancelClose
-              tooltipEl.onmouseleave = () => scheduleClose(5000)
+              tooltipEl.onmouseleave = () => scheduleClose(3000)
               const el = tooltipEl.querySelector('.ct-dir-link')
               if (el) {
                 el.onmouseenter = cancelClose

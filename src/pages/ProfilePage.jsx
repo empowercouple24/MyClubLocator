@@ -1348,9 +1348,12 @@ function ClubEditor({ club, clubIndex, userId, isOnly, allClubs, onSaved, onRemo
           </button>
         </div>
         {!isOnly && (
-          <button className="remove-club-link" onClick={() => setShowRemovePrompt(true)}>
-            Remove this club
-          </button>
+          <div className="remove-club-zone">
+            <button className="remove-club-btn" onClick={() => setShowRemovePrompt(true)}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              Remove this club
+            </button>
+          </div>
         )}
       </div>
 
