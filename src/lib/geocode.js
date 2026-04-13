@@ -1,4 +1,5 @@
 const TOKEN = import.meta.env.VITE_MAPBOX_TOKEN
+if (!TOKEN) console.warn('[MyClubLocator] VITE_MAPBOX_TOKEN is not set — map search will not work. Add it to your Vercel environment variables.')
 const BASE  = 'https://api.mapbox.com/geocoding/v5/mapbox.places'
 
 // Parse a Mapbox feature's context array into { city, state, stateAbbr, zip, country }

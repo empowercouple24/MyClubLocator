@@ -1147,7 +1147,7 @@ export default function MapPage() {
         )}
 
         {loading ? <div className="loading">Loading map…</div> : (
-          <MapContainer center={defaultCenter} zoom={locations.length > 0 ? 11 : 5} style={{ height: '100%', width: '100%' }}>
+          <MapContainer center={defaultCenter} zoom={locations.length > 0 ? 11 : 5} zoomControl={false} style={{ height: '100%', width: '100%' }}>
             <MapRefCapture mapRef={mapRef} />
             <MapExtentTracker />
             <ScrollZoomController enabled={scrollZoom} />
@@ -1244,54 +1244,31 @@ export default function MapPage() {
             }
             {geoLocating ? ' Locating…' : geoMarker ? ' My Location ✓' : ' My Location'}
           </button>
-          {!scrollZoom && (
-            <div className="map-manual-zoom">
-              <button className="map-zoom-btn" onClick={() => mapRef.current && mapRef.current.zoomIn()} title="Zoom in">+</button>
-              <button className="map-zoom-btn" onClick={() => mapRef.current && mapRef.current.zoomOut()} title="Zoom out">−</button>
-            </div>
-          )}
         </div>
 
-        {/* Base map + panel position toggles + default view */}
-        {/* ── Map Preferences Panel ── */}
-        <div className="map-prefs-bar">
+        {/* ── Floating Map Preferences ── */}
+        <div className={`map-prefs-float ${prefsOpen ? 'open' : ''}`}>
+          <button className="map-prefs-float-btn" onClick={() => setPrefsOpen(o => !o)} title="Map preferences">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+              <path d="M12 15a3 3 0 100-6 3 3 0 000 6z" stroke="currentColor" strokeWidth="1.6"/>
+              <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" stroke="currentColor" strokeWidth="1.6"/>
+            </svg>
+            {!prefsOpen && teamLocationIds.size > 0 && (
+              <button className={`map-prefs-team-btn ${teamFilter ? 'active' : ''}`}
+                onClick={e => { e.stopPropagation(); setTeamFilter(f => !f) }}
+                title={teamFilter ? 'Showing team clubs — click to clear' : 'Highlight my team clubs'}>
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+                  <circle cx="9" cy="7" r="4" stroke="currentColor" strokeWidth="1.8"/>
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+                </svg>
+                Team
+              </button>
+            )}
+          </button>
 
-          {/* Trigger row */}
-          <div className="map-prefs-trigger" onClick={() => setPrefsOpen(o => !o)}>
-            <div className="map-prefs-trigger-left">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" className="map-prefs-gear">
-                <path d="M12 15a3 3 0 100-6 3 3 0 000 6z" stroke="currentColor" strokeWidth="1.6"/>
-                <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" stroke="currentColor" strokeWidth="1.6"/>
-              </svg>
-              <span className="map-prefs-label">Map preferences</span>
-              <span className="map-prefs-summary">
-                {clickBehavior === 'zoom' ? 'Zoom in' : clickBehavior === 'pan' ? 'Pan only' : 'Stay put'}
-                {' · '}{panelPosition === 'left' ? 'Left panel' : 'Right panel'}
-                {' · '}{scrollZoom ? 'Scroll zoom on' : 'Scroll zoom off'}
-              </span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              {teamLocationIds.size > 0 && (
-                <button className={`map-prefs-team-btn ${teamFilter ? 'active' : ''}`}
-                  onClick={e => { e.stopPropagation(); setTeamFilter(f => !f) }}
-                  title={teamFilter ? 'Showing team clubs — click to clear' : 'Highlight my team clubs'}>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
-                    <circle cx="9" cy="7" r="4" stroke="currentColor" strokeWidth="1.8"/>
-                    <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
-                  </svg>
-                  Team
-                </button>
-              )}
-              <svg className={`map-prefs-chevron ${prefsOpen ? 'open' : ''}`} width="12" height="12" viewBox="0 0 16 16" fill="none">
-                <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </div>
-          </div>
-
-          {/* Expanded preferences */}
           {prefsOpen && (
-            <div className="map-prefs-body">
+            <div className="map-prefs-float-body">
               <div className="map-pref-row">
                 <span className="map-pref-name">On marker click</span>
                 <div className="map-pref-seg">
@@ -1346,6 +1323,28 @@ export default function MapPage() {
                       </div>
                     )
                   })}
+                </div>
+              </div>
+              {teamLocationIds.size > 0 && (
+                <div className="map-pref-row">
+                  <span className="map-pref-name">Team filter</span>
+                  <button className={`map-prefs-team-btn ${teamFilter ? 'active' : ''}`}
+                    onClick={() => setTeamFilter(f => !f)}>
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
+                      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+                      <circle cx="9" cy="7" r="4" stroke="currentColor" strokeWidth="1.8"/>
+                      <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+                    </svg>
+                    {teamFilter ? 'Team on' : 'Team off'}
+                  </button>
+                </div>
+              )}
+              <div className="map-pref-row" style={{ borderBottom: 'none' }}>
+                <span className="map-pref-name">Base map</span>
+                <div className="map-pref-seg">
+                  {BASE_MAPS.map(b => (
+                    <button key={b.id} className={`map-pref-seg-btn ${baseMap===b.id?'active':''}`} onClick={() => setBaseMap(b.id)}>{b.label}</button>
+                  ))}
                 </div>
               </div>
               <div className="map-pref-actions">
@@ -1414,13 +1413,6 @@ export default function MapPage() {
               }
             </div>
           )}
-
-          {/* Basemap always visible at bottom */}
-          <div className="map-basemap-toggle map-basemap-toggle--inline">
-            {BASE_MAPS.map(b => (
-              <button key={b.id} className={`basemap-btn ${baseMap===b.id?'active':''}`} onClick={() => setBaseMap(b.id)}>{b.label}</button>
-            ))}
-          </div>
         </div>
 
         <div className="map-legend">
@@ -1477,12 +1469,6 @@ export default function MapPage() {
               <span>My team</span>
             </div>
           )}
-        </div>
-
-        {/* Club count */}
-        <div className="map-count">
-          <strong>{filteredLocations.length}</strong>
-          {hasFilter ? ` of ${locations.length}` : ''} club{filteredLocations.length !== 1 ? 's' : ''}
         </div>
 
         {/* Save view toast */}

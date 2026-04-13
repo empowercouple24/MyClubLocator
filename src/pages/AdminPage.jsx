@@ -181,7 +181,7 @@ export default function AdminPage() {
   const [tab, setTab] = useState('settings')
 
   // Resizable columns — default widths in px
-  const defaultColWidths = [48, 160, 130, 120, 120, 180, 80, 90, 120, 90, 100]
+  const defaultColWidths = [48, 180, 140, 150, 120, 200, 80, 90, 120, 90, 100]
   const [colWidths, setColWidths] = useState(defaultColWidths)
   const resizingCol = useRef(null)
   const resizeStartX = useRef(0)
@@ -402,7 +402,14 @@ export default function AdminPage() {
       setSettings(merged)
       savedSettingsRef.current = merged
       if (data.col_widths) {
-        try { setColWidths(JSON.parse(data.col_widths)) } catch {}
+        try {
+          const parsed = JSON.parse(data.col_widths)
+          // Reset if saved widths have wrong column count or match old narrow defaults
+          const oldDefaults = [48, 160, 130, 120, 120, 180, 80, 90, 120, 90, 100]
+          if (parsed.length === defaultColWidths.length && JSON.stringify(parsed) !== JSON.stringify(oldDefaults)) {
+            setColWidths(parsed)
+          }
+        } catch {}
       }
     }
     setLoadingSettings(false)

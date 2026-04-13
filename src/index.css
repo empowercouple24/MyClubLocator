@@ -546,6 +546,20 @@ body {
 body:has(.admin-page-wrap) {
   background: #f0ede6 !important;
 }
+/* Lock all admin cards/headers to fixed colors — theme vars must not leak into admin */
+.admin-page-wrap .admin-section {
+  background: #fff;
+}
+.admin-page-wrap .survey-toggle-btn {
+  background: #1A3C2E;
+}
+.admin-page-wrap .admin-section-title {
+  color: #fff;
+  font-weight: 500;
+}
+.admin-page-wrap .survey-chevron {
+  color: rgba(255,255,255,0.6);
+}
 
 .profile-head {
   display: flex;
@@ -9054,24 +9068,39 @@ input.input-ok {
 }
 
 /* ── Map Preferences Panel ────────────────────────────────── */
-.map-prefs-bar {
+/* ── Floating Map Preferences ── */
+.map-prefs-float {
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
+  z-index: 600;
+  pointer-events: auto;
+}
+.map-prefs-float-btn {
+  display: flex; align-items: center; gap: 6px;
+  background: #fff; border: 1px solid #e0e8e0;
+  border-radius: 10px; padding: 8px 10px;
+  cursor: pointer; color: #555;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.10);
+  transition: all 0.15s;
+}
+.map-prefs-float-btn:hover { background: #f8faf8; color: #1A3C2E; }
+.map-prefs-float.open .map-prefs-float-btn {
+  border-radius: 10px 10px 0 0;
+  border-bottom-color: transparent;
   background: #fff;
-  border-top: 0.5px solid #e0e8e0;
-  position: relative;
-  z-index: 501;
+  color: #1A3C2E;
 }
-.map-prefs-trigger {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 8px 14px; cursor: pointer; user-select: none;
-  gap: 10px;
+.map-prefs-float-body {
+  background: #fff;
+  border: 1px solid #e0e8e0;
+  border-top: none;
+  border-radius: 10px 0 10px 10px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+  min-width: 340px;
+  max-height: 420px;
+  overflow-y: auto;
 }
-.map-prefs-trigger:hover { background: #f8faf8; }
-.map-prefs-trigger-left { display: flex; align-items: center; gap: 7px; min-width: 0; }
-.map-prefs-gear { color: #888; flex-shrink: 0; }
-.map-prefs-label { font-size: 12px; font-weight: 500; color: #1a1a1a; white-space: nowrap; }
-.map-prefs-summary { font-size: 11px; color: #aaa; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.map-prefs-chevron { color: #bbb; transition: transform 0.2s; flex-shrink: 0; }
-.map-prefs-chevron.open { transform: rotate(180deg); }
 .map-prefs-team-btn {
   display: flex; align-items: center; gap: 4px;
   padding: 3px 8px; border-radius: 5px; font-size: 11px; cursor: pointer;
@@ -9080,20 +9109,18 @@ input.input-ok {
 .map-prefs-team-btn:hover { background: #f5faf7; }
 .map-prefs-team-btn.active { background: #1A3C2E; color: #fff; border-color: #1A3C2E; }
 
-/* Expanded body */
-.map-prefs-body { border-top: 0.5px solid #e8ede9; }
+/* Pref rows */
 .map-pref-row {
   display: flex; align-items: center; gap: 12px;
   padding: 8px 14px;
   border-bottom: 0.5px solid #f0f4f1;
 }
-.map-pref-row:last-child { border-bottom: none; }
-.map-pref-name { font-size: 11px; color: #888; width: 110px; flex-shrink: 0; }
-.map-pref-seg { display: flex; gap: 3px; }
+.map-pref-name { font-size: 11px; color: #888; width: 100px; flex-shrink: 0; }
+.map-pref-seg { display: flex; gap: 3px; flex-wrap: wrap; }
 .map-pref-seg-btn {
   padding: 3px 9px; font-size: 11px; border-radius: 4px; cursor: pointer;
   border: 0.5px solid #d0d9d4; background: #fff; color: #666;
-  transition: all 0.1s;
+  transition: all 0.1s; white-space: nowrap;
 }
 .map-pref-seg-btn:hover { background: #f5faf7; }
 .map-pref-seg-btn.active { background: #1A3C2E; color: #fff; border-color: #1A3C2E; }
@@ -9137,12 +9164,12 @@ input.input-ok {
   padding: 0 5px; font-size: 10px;
 }
 
-/* Views panel */
-.map-views-panel {
-  position: absolute; bottom: 100%; left: 0; right: 0;
-  background: #fff; border-top: 0.5px solid #e0e8e0;
-  box-shadow: 0 -4px 16px rgba(0,0,0,0.1);
-  z-index: 500; max-height: 320px; overflow-y: auto;
+/* Views panel — now inside floating container */
+.map-prefs-float .map-views-panel {
+  background: #fff; border: 1px solid #e0e8e0; border-top: none;
+  border-radius: 0 0 10px 10px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+  min-width: 340px; max-height: 280px; overflow-y: auto;
 }
 .map-views-header {
   display: flex; align-items: center; justify-content: space-between;
@@ -9167,8 +9194,5 @@ input.input-ok {
 }
 .map-views-set-btn:hover { background: #f0f7f3; }
 
-/* Basemap stays outside panel, inline at bottom */
-.map-basemap-toggle--inline {
-  display: flex; gap: 0; padding: 5px 14px;
-  border-top: 0.5px solid #f0f4f1;
-}
+/* Hide Leaflet default zoom control */
+.leaflet-control-zoom { display: none !important; }
