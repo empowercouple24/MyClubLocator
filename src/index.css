@@ -10154,3 +10154,33 @@ input.input-ok {
   .review-modal-footer { padding: 16px; flex-direction: column; }
   .review-btn { width: 100%; justify-content: center; }
 }
+
+/* ── Survey warning pill (draws attention to incomplete) ── */
+.survey-progress-warn {
+  background: #FFF3E0 !important;
+  color: #E65100 !important;
+  border-color: #FFCC80 !important;
+}
+
+/* ── Unfilled survey field soft highlight ─────────────── */
+.survey-unfilled {
+  position: relative;
+}
+.survey-unfilled::before {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 10px;
+  border: 1.5px dashed #FFCC80;
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+/* ── Onboarding: dim already-filled fields ────────────── */
+.onb-filled {
+  opacity: 0.55;
+  transition: opacity 0.2s;
+}
+.onb-filled:focus, .onb-filled:hover {
+  opacity: 1;
+}

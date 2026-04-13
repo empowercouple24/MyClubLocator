@@ -388,11 +388,8 @@ export default function AuthPage() {
             </p>
             <p style={{ fontSize: 15, fontWeight: 600, color: '#1A3C2E', marginBottom: 16 }}>{email}</p>
             <p style={{ fontSize: 13, color: '#999', lineHeight: 1.5, marginBottom: 24 }}>
-              Click the link in your email to verify your account, then come back here and sign in. Once confirmed, we'll walk you through a quick onboarding to get your club on the map.
+              Click the link in your email to verify your account. Once confirmed, we'll walk you through a quick onboarding to get your club on the map.
             </p>
-            <button className="auth-btn auth-btn--forest" onClick={() => { setSignupDone(false); switchTab('signin') }}>
-              I've confirmed — Sign in
-            </button>
             <p style={{ fontSize: 12, color: '#bbb', marginTop: 16 }}>
               Didn't get the email? Check your spam folder or <a style={{ color: '#4CAF82', cursor: 'pointer', textDecoration: 'none', fontWeight: 600 }} onClick={async () => {
                 await supabase.auth.resend({ type: 'signup', email })

@@ -3,6 +3,11 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 import { geocodeSingle, geocodeZip } from '../lib/geocode'
+import {
+  MONTHS as SURVEY_MONTHS, YEARS as SURVEY_YEARS,
+  TRAINING_OPTIONS, HEAR_HOW_OPTIONS, GOAL_OPTIONS,
+  toggleTrainingValue, countAnswered,
+} from '../lib/surveyConfig'
 import TimePicker from '../components/TimePicker'
 import AddressAutocomplete from '../components/AddressAutocomplete'
 import CropModal from '../components/CropModal'
@@ -405,6 +410,7 @@ const DEFAULT_PERSON = {
   survey_upline: '', survey_hl_month: '', survey_hl_year: '',
   survey_active_club: null, survey_club_month: '', survey_club_year: '',
   survey_trainings: '', survey_hear_how: '', survey_hear_detail: '', survey_goal: '',
+  survey_goal_detail: '', survey_open_response: '',
 }
 
 async function geocodeAddress(address) {
@@ -828,6 +834,7 @@ function ClubEditor({ club, clubIndex, userId, isOnly, allClubs, onSaved, onRemo
           'survey_upline', 'survey_hl_month', 'survey_hl_year',
           'survey_active_club', 'survey_club_month', 'survey_club_year',
           'survey_trainings', 'survey_hear_how', 'survey_hear_detail', 'survey_goal',
+          'survey_goal_detail', 'survey_open_response',
           'survey_completed_at',
         ]
         PERSON_KEYS.forEach(k => { if (src[k]) fields[k] = src[k] })
@@ -1495,6 +1502,7 @@ export default function ProfilePage() {
               'survey_upline', 'survey_hl_month', 'survey_hl_year',
               'survey_active_club', 'survey_club_month', 'survey_club_year',
               'survey_trainings', 'survey_hear_how', 'survey_hear_detail', 'survey_goal',
+              'survey_goal_detail', 'survey_open_response',
             ]
             SYNC_KEYS.forEach(k => { if (row0[k] != null) syncFields[k] = row0[k] })
             await supabase.from('locations').update(syncFields).eq('user_id', user.id)
@@ -2068,32 +2076,15 @@ export default function ProfilePage() {
 
       {/* CARD: Member Survey */}
       {(() => {
-        const MONTHS_S = ['January','February','March','April','May','June','July','August','September','October','November','December']
-        const YEARS_S  = Array.from({length: new Date().getFullYear() - 1979}, (_,i) => String(new Date().getFullYear()-i))
         const isActiveClub = personForm.survey_active_club === true || personForm.survey_active_club === 'true'
-        const surveyComplete = !!(
-          personForm.survey_upline && personForm.survey_hl_year &&
-          personForm.survey_active_club !== null && personForm.survey_active_club !== '' &&
-          (personForm.survey_active_club === false || personForm.survey_active_club === 'false' || personForm.survey_club_year) &&
-          personForm.survey_trainings && personForm.survey_hear_how && personForm.survey_goal
-        )
-        const SURVEY_FIELDS = [
-          personForm.survey_upline,
-          personForm.survey_hl_year,
-          personForm.survey_active_club !== null && personForm.survey_active_club !== '',
-          isActiveClub ? personForm.survey_club_year : true,
-          personForm.survey_trainings,
-          personForm.survey_hear_how,
-          personForm.survey_goal,
-        ]
-        const answeredCount = SURVEY_FIELDS.filter(Boolean).length
+        const { answered: answeredCount, total: surveyTotal } = countAnswered(personForm)
+        const surveyComplete = answeredCount === surveyTotal
         const tSet = new Set((personForm.survey_trainings || '').split(',').filter(Boolean))
         const toggleSurveyTraining = (val) => {
-          const set = new Set(tSet)
-          if (val === 'all') { if (set.has('all')) set.clear(); else { set.clear(); set.add('all') } }
-          else { set.delete('all'); if (set.has(val)) set.delete(val); else set.add(val) }
-          setPersonField('survey_trainings', [...set].join(','))
+          const newCsv = toggleTrainingValue(personForm.survey_trainings || '', val)
+          setPersonField('survey_trainings', newCsv)
         }
+        const unfilled = (val) => !val ? 'survey-unfilled' : ''
         return (
           <div className="sec-card survey-card" style={{ padding: 0, overflow: 'hidden' }}>
             <button type="button" className="survey-toggle-btn" onClick={() => setSurveyOpen(o => !o)}>
@@ -2101,10 +2092,10 @@ export default function ProfilePage() {
                 <span className="sec-label" style={{ margin: 0 }}>Member Survey</span>
                 {surveyComplete
                   ? <span className="survey-complete-badge">Complete</span>
-                  : <span className="survey-progress-badge">{answeredCount} of 7 answered</span>
+                  : <span className="survey-progress-badge survey-progress-warn">{answeredCount} of {surveyTotal} answered</span>
                 }
               </div>
-              <svg className={'survey-chevron' + (surveyOpen ? ' open' : '')} width="14" height="14" viewBox="0 0 16 16" fill="none">
+              <svg className={'survey-chevron' + (surveyOpen ? ' open' : '')} width="18" height="18" viewBox="0 0 16 16" fill="none">
                 <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </button>
@@ -2114,28 +2105,31 @@ export default function ProfilePage() {
                   Help us get to know you better. All questions are optional but appreciated.
                 </p>
 
-                <div className="pf story-field">
+                {/* Q1: Upline */}
+                <div className={`pf story-field ${unfilled(personForm.survey_upline)}`}>
                   <label>Who is your upline or sponsor?</label>
                   <input type="text" value={personForm.survey_upline || ''} onChange={e => setPersonField('survey_upline', e.target.value)} placeholder="Full name" />
                 </div>
 
-                <div className="pf story-field">
-                  <label>How long have you been a Herbalife member?</label>
+                {/* Q2: When did you join */}
+                <div className={`pf story-field ${unfilled(personForm.survey_hl_year)}`}>
+                  <label>When did you join Herbalife?</label>
                   <div style={{ display: 'flex', gap: 8 }}>
                     <select value={personForm.survey_hl_month || ''} onChange={e => setPersonField('survey_hl_month', e.target.value)}
                       style={{ flex: 1, padding: '8px 10px', border: '1px solid #c8d4cc', borderRadius: 8, fontSize: 14 }}>
                       <option value="">Month (optional)</option>
-                      {MONTHS_S.map((m,i) => <option key={i} value={i+1}>{m}</option>)}
+                      {SURVEY_MONTHS.map((m,i) => <option key={i} value={i+1}>{m}</option>)}
                     </select>
                     <select value={personForm.survey_hl_year || ''} onChange={e => setPersonField('survey_hl_year', e.target.value)}
                       style={{ flex: 1, padding: '8px 10px', border: '1px solid #c8d4cc', borderRadius: 8, fontSize: 14 }}>
                       <option value="">Year</option>
-                      {YEARS_S.map(y => <option key={y} value={y}>{y}</option>)}
+                      {SURVEY_YEARS.map(y => <option key={y} value={y}>{y}</option>)}
                     </select>
                   </div>
                 </div>
 
-                <div className="pf story-field">
+                {/* Q3: Active club */}
+                <div className={`pf story-field ${personForm.survey_active_club === null || personForm.survey_active_club === '' || personForm.survey_active_club === undefined ? 'survey-unfilled' : ''}`}>
                   <label>Are you actively operating a nutrition club?</label>
                   <div style={{ display: 'flex', gap: 8 }}>
                     <button type="button"
@@ -2152,83 +2146,73 @@ export default function ProfilePage() {
                   </div>
                 </div>
 
+                {/* Q3 follow-up: When did you open */}
                 {isActiveClub && (
-                  <div className="pf story-field">
-                    <label>How long have you been operating your club?</label>
+                  <div className={`pf story-field ${unfilled(personForm.survey_club_year)}`}>
+                    <label>When did you open your club?</label>
                     <div style={{ display: 'flex', gap: 8 }}>
                       <select value={personForm.survey_club_month || ''} onChange={e => setPersonField('survey_club_month', e.target.value)}
                         style={{ flex: 1, padding: '8px 10px', border: '1px solid #c8d4cc', borderRadius: 8, fontSize: 14 }}>
-                        <option value="">Month (optional)</option>
-                        {MONTHS_S.map((m,i) => <option key={i} value={i+1}>{m}</option>)}
+                        <option value="">Month</option>
+                        {SURVEY_MONTHS.map((m,i) => <option key={i} value={m}>{m}</option>)}
                       </select>
                       <select value={personForm.survey_club_year || ''} onChange={e => setPersonField('survey_club_year', e.target.value)}
                         style={{ flex: 1, padding: '8px 10px', border: '1px solid #c8d4cc', borderRadius: 8, fontSize: 14 }}>
                         <option value="">Year</option>
-                        {YEARS_S.map(y => <option key={y} value={y}>{y}</option>)}
+                        {SURVEY_YEARS.map(y => <option key={y} value={y}>{y}</option>)}
                       </select>
                     </div>
                   </div>
                 )}
 
-                <div className="pf story-field">
+                {/* Q4: Trainings */}
+                <div className={`pf story-field ${unfilled(personForm.survey_trainings)}`}>
                   <label>Do you actively attend trainings and events?</label>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-                    {[
-                      ['local',    'Local events and trainings (quickstarts, distributor workshops, etc.)'],
-                      ['zoom',     'Team Zoom calls'],
-                      ['sts',      'STS (Success Training Seminar)'],
-                      ['regional', 'Regional quarterly events (LDW/FSL, BAE, Amplify/Elevate, etc.)'],
-                      ['extrav',   'Extravaganza'],
-                      ['all',      'All of the above'],
-                    ].map(([val, lbl]) => (
-                      <div key={val}
-                        onClick={() => toggleSurveyTraining(val)}
+                    {TRAINING_OPTIONS.map(({ value, label }) => (
+                      <div key={value}
+                        onClick={() => toggleSurveyTraining(value)}
                         style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '9px 12px',
-                          border: '1px solid ' + (tSet.has(val) ? '#4CAF82' : '#c8d4cc'),
+                          border: '1px solid ' + (tSet.has(value) ? '#4CAF82' : '#c8d4cc'),
                           borderRadius: 8, cursor: 'pointer',
-                          background: tSet.has(val) ? '#f5fdf8' : 'transparent' }}>
-                        <div style={{ width: 16, height: 16, border: '1.5px solid ' + (tSet.has(val) ? '#4CAF82' : '#c8d4cc'),
+                          background: tSet.has(value) ? '#f5fdf8' : 'transparent' }}>
+                        <div style={{ width: 16, height: 16, border: '1.5px solid ' + (tSet.has(value) ? '#4CAF82' : '#c8d4cc'),
                           borderRadius: 4, flexShrink: 0, marginTop: 1,
-                          background: tSet.has(val) ? '#4CAF82' : 'transparent',
+                          background: tSet.has(value) ? '#4CAF82' : 'transparent',
                           display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          {tSet.has(val) && (
+                          {tSet.has(value) && (
                             <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
                               <path d="M1.5 5l2.5 2.5 4.5-5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                             </svg>
                           )}
                         </div>
-                        <span style={{ fontSize: 13, lineHeight: 1.4 }}>{lbl}</span>
+                        <span style={{ fontSize: 13, lineHeight: 1.4 }}>{label}</span>
                       </div>
                     ))}
                   </div>
                 </div>
 
-                <div className="pf story-field">
+                {/* Q5: How did you hear */}
+                <div className={`pf story-field ${unfilled(personForm.survey_hear_how)}`}>
                   <label>How did you hear about this platform?</label>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-                    {[
-                      ['upline',    'A team member or my upline told me',  false],
-                      ['clubowner', 'A fellow club owner shared it',        false],
-                      ['zoom',      'Heard about it on a Zoom call',        false],
-                      ['event',     'Heard about it at an event',           false],
-                      ['other',     'Other',                                true],
-                    ].map(([val, lbl, hasInput]) => (
-                      <div key={val}>
-                        <div onClick={() => { setPersonField('survey_hear_how', val); setPersonField('survey_hear_detail', '') }}
+                    {HEAR_HOW_OPTIONS.map(({ value, label, hasInput }) => (
+                      <div key={value}>
+                        <div onClick={() => { setPersonField('survey_hear_how', value); if (!hasInput) setPersonField('survey_hear_detail', '') }}
                           style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px',
-                            border: '1px solid ' + (personForm.survey_hear_how === val ? '#4CAF82' : '#c8d4cc'),
-                            borderRadius: personForm.survey_hear_how === val && hasInput ? '8px 8px 0 0' : '8px',
-                            cursor: 'pointer', background: personForm.survey_hear_how === val ? '#f5fdf8' : 'transparent' }}>
-                          <div style={{ width: 16, height: 16, border: '1.5px solid ' + (personForm.survey_hear_how === val ? '#4CAF82' : '#c8d4cc'),
+                            border: '1px solid ' + (personForm.survey_hear_how === value ? '#4CAF82' : '#c8d4cc'),
+                            borderRadius: personForm.survey_hear_how === value && hasInput ? '8px 8px 0 0' : '8px',
+                            cursor: 'pointer', background: personForm.survey_hear_how === value ? '#f5fdf8' : 'transparent' }}>
+                          <div style={{ width: 16, height: 16, border: '1.5px solid ' + (personForm.survey_hear_how === value ? '#4CAF82' : '#c8d4cc'),
                             borderRadius: '50%', flexShrink: 0,
                             display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            {personForm.survey_hear_how === val && (
+                            {personForm.survey_hear_how === value && (
                               <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#4CAF82' }} />
                             )}
                           </div>
-                          <span style={{ fontSize: 13 }}>{lbl}</span>
+                          <span style={{ fontSize: 13 }}>{label}</span>
                         </div>
-                        {hasInput && personForm.survey_hear_how === val && (
+                        {hasInput && personForm.survey_hear_how === value && (
                           <div style={{ border: '1px solid #4CAF82', borderTop: 'none', borderRadius: '0 0 8px 8px',
                             background: '#f5fdf8', padding: '8px 12px' }}>
                             <input type="text" value={personForm.survey_hear_detail || ''}
@@ -2243,10 +2227,46 @@ export default function ProfilePage() {
                   </div>
                 </div>
 
-                <div className="pf story-field">
+                {/* Q6: Primary goal — multiple choice */}
+                <div className={`pf story-field ${unfilled(personForm.survey_goal)}`}>
                   <label>What is your primary goal for joining this platform?</label>
-                  <textarea rows={3} value={personForm.survey_goal || ''} onChange={e => setPersonField('survey_goal', e.target.value)}
-                    placeholder="Share your thoughts..." />
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                    {GOAL_OPTIONS.map(({ value, label }) => (
+                      <div key={value}>
+                        <div onClick={() => { setPersonField('survey_goal', value); if (value !== 'other') setPersonField('survey_goal_detail', '') }}
+                          style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px',
+                            border: '1px solid ' + (personForm.survey_goal === value ? '#4CAF82' : '#c8d4cc'),
+                            borderRadius: personForm.survey_goal === value && value === 'other' ? '8px 8px 0 0' : '8px',
+                            cursor: 'pointer', background: personForm.survey_goal === value ? '#f5fdf8' : 'transparent' }}>
+                          <div style={{ width: 16, height: 16, border: '1.5px solid ' + (personForm.survey_goal === value ? '#4CAF82' : '#c8d4cc'),
+                            borderRadius: '50%', flexShrink: 0,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            {personForm.survey_goal === value && (
+                              <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#4CAF82' }} />
+                            )}
+                          </div>
+                          <span style={{ fontSize: 13 }}>{label}</span>
+                        </div>
+                        {value === 'other' && personForm.survey_goal === 'other' && (
+                          <div style={{ border: '1px solid #4CAF82', borderTop: 'none', borderRadius: '0 0 8px 8px',
+                            background: '#f5fdf8', padding: '8px 12px' }}>
+                            <input type="text" value={personForm.survey_goal_detail || ''}
+                              onChange={e => setPersonField('survey_goal_detail', e.target.value)}
+                              placeholder="Tell us more…"
+                              style={{ width: '100%', padding: '7px 10px', border: '1px solid #c8d4cc',
+                                borderRadius: 6, fontSize: 13 }} />
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Q7: Open response */}
+                <div className={`pf story-field ${unfilled(personForm.survey_open_response)}`}>
+                  <label>Anything else you'd like to share?</label>
+                  <textarea rows={3} value={personForm.survey_open_response || ''} onChange={e => setPersonField('survey_open_response', e.target.value)}
+                    placeholder="Your Herbalife journey, hopes for this platform, anything on your mind…" />
                 </div>
                 <div className="next-card-row">
                   {meetsTeamLevel ? (
