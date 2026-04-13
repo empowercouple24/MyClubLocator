@@ -2213,6 +2213,8 @@ body:has(.admin-page-wrap) {
   padding: 0 0 12px 0 !important; /* bottom padding bridges gap to marker so mouseout doesn't fire in transit */
   box-shadow: 0 6px 20px rgba(0,0,0,0.13) !important;
   min-width: 180px !important;
+  pointer-events: auto !important;
+  z-index: 1000 !important;
 }
 
 .club-tooltip::before {

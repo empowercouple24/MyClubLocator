@@ -389,9 +389,16 @@ function ClubMarkers({ locations, selectedId, userId, onSelect, navigate, teamFi
       const marker = leafletMarker([loc.lat, loc.lng], { icon })
         .addTo(map)
         .bindTooltip(tooltip)
-        .on('click', () => onSelect(loc))
+        .on('click', () => {
+          cancelClose()
+          onSelect(loc)
+        })
         .on('mouseover', openTooltip)
-        .on('mouseout', scheduleClose)
+        .on('mouseout', () => {
+          // If this marker is selected, use a much longer delay so user can interact with tooltip
+          const isCurrentlySelected = loc.id === selectedId
+          scheduleClose(isCurrentlySelected ? 8000 : 2500)
+        })
         .on('tooltipopen', (ev) => {
           setTimeout(() => {
             const tooltipEl = ev.tooltip && ev.tooltip._container
@@ -414,6 +421,14 @@ function ClubMarkers({ locations, selectedId, userId, onSelect, navigate, teamFi
 
       markersRef.current[loc.id] = marker
     })
+
+    // Auto-open tooltip for the selected/clicked marker after recreation
+    if (selectedId && markersRef.current[selectedId]) {
+      setTimeout(() => {
+        const m = markersRef.current[selectedId]
+        if (m) m.openTooltip()
+      }, 50)
+    }
 
     return () => { Object.values(markersRef.current).forEach(m => m.remove()); markersRef.current = {} }
   }, [locations, selectedId, userId, teamFilter, teamLocationIds, markerColors, markerShapes])
