@@ -2,6 +2,31 @@ const TOKEN = import.meta.env.VITE_MAPBOX_TOKEN
 if (!TOKEN) console.warn('[MyClubLocator] VITE_MAPBOX_TOKEN is not set — map search will not work. Add it to your Vercel environment variables.')
 const BASE  = 'https://api.mapbox.com/geocoding/v5/mapbox.places'
 
+// US state full name → 2-letter abbreviation
+const STATE_ABBR = {
+  'alabama':'AL','alaska':'AK','arizona':'AZ','arkansas':'AR','california':'CA',
+  'colorado':'CO','connecticut':'CT','delaware':'DE','florida':'FL','georgia':'GA',
+  'hawaii':'HI','idaho':'ID','illinois':'IL','indiana':'IN','iowa':'IA',
+  'kansas':'KS','kentucky':'KY','louisiana':'LA','maine':'ME','maryland':'MD',
+  'massachusetts':'MA','michigan':'MI','minnesota':'MN','mississippi':'MS','missouri':'MO',
+  'montana':'MT','nebraska':'NE','nevada':'NV','new hampshire':'NH','new jersey':'NJ',
+  'new mexico':'NM','new york':'NY','north carolina':'NC','north dakota':'ND','ohio':'OH',
+  'oklahoma':'OK','oregon':'OR','pennsylvania':'PA','rhode island':'RI','south carolina':'SC',
+  'south dakota':'SD','tennessee':'TN','texas':'TX','utah':'UT','vermont':'VT',
+  'virginia':'VA','washington':'WA','west virginia':'WV','wisconsin':'WI','wyoming':'WY',
+  'district of columbia':'DC','puerto rico':'PR','guam':'GU','virgin islands':'VI',
+}
+
+function normalizeState(s) {
+  if (!s) return ''
+  const trimmed = s.trim()
+  // Already 2-letter abbr
+  if (/^[A-Z]{2}$/.test(trimmed)) return trimmed
+  // Look up full name
+  const abbr = STATE_ABBR[trimmed.toLowerCase()]
+  return abbr || trimmed.toUpperCase().slice(0, 2)
+}
+
 // Parse a Mapbox feature's context array into { city, state, stateAbbr, zip, country }
 function parseContext(feature) {
   const ctx = feature.context || []
@@ -49,7 +74,7 @@ export async function geocodeAutocomplete(query, { types = 'address,place,postco
         displaySecondary: secondary,
         label:            f.place_name,
         street, city,
-        state:            stateAbbr || state,
+        state:            normalizeState(stateAbbr || state),
         zip,
         lat, lng,
       }
@@ -92,7 +117,7 @@ export async function geocodeZip(zip) {
     const { city, state, stateAbbr } = parseContext(f)
     // For postcodes, city is sometimes the feature text itself
     const resolvedCity = city || f.text || ''
-    return { city: resolvedCity, state: stateAbbr || state }
+    return { city: resolvedCity, state: normalizeState(stateAbbr || state) }
   } catch {
     return null
   }
