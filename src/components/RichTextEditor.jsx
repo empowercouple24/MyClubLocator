@@ -1,15 +1,6 @@
 import { useEffect, useRef } from 'react'
 import Quill from 'quill'
-
-let cssInjected = false
-function ensureCss() {
-  if (cssInjected) return
-  cssInjected = true
-  const link = document.createElement('link')
-  link.rel  = 'stylesheet'
-  link.href = 'https://cdnjs.cloudflare.com/ajax/libs/quill/2.0.3/quill.snow.min.css'
-  document.head.appendChild(link)
-}
+import 'quill/dist/quill.snow.css'
 
 const TOOLBAR = [
   [{ header: [1, 2, 3, false] }],
@@ -21,14 +12,13 @@ const TOOLBAR = [
 ]
 
 export default function RichTextEditor({ value, onChange, placeholder, minHeight = 140 }) {
-  const wrapRef     = useRef(null)
-  const quillRef    = useRef(null)
-  const skipRef     = useRef(false)
-  const cbRef       = useRef(onChange)
+  const wrapRef  = useRef(null)
+  const quillRef = useRef(null)
+  const skipRef  = useRef(false)
+  const cbRef    = useRef(onChange)
   useEffect(() => { cbRef.current = onChange }, [onChange])
 
   useEffect(() => {
-    ensureCss()
     if (!wrapRef.current || quillRef.current) return
     const q = new Quill(wrapRef.current, {
       theme: 'snow',

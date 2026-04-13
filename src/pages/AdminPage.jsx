@@ -1399,23 +1399,10 @@ export default function AdminPage() {
                 </button>
                 {card3Open && (
                   <div>
-{/* App Theme */}
-                                <div className="admin-section" style={{ padding: 0, overflow: 'hidden' }}>
-                    <button type="button" className="survey-toggle-btn" style={{ padding: '14px 20px' }} onClick={() => setAppThemeOpen(o => !o)}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1 }}>
-                        <h3 className="admin-section-title" style={{ margin: 0 }}>App Theme</h3>
-                        <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-                          {[settings.theme_page_bg, settings.theme_card_header_bg, settings.theme_card_body].map((c, i) => (
-                            <span key={i} style={{ width: 13, height: 13, borderRadius: 3, background: c || '#888', border: '1.5px solid rgba(255,255,255,0.3)', display: 'inline-block', flexShrink: 0 }} />
-                          ))}
-                        </div>
-                      </div>
-                      <svg className={`survey-chevron ${appThemeOpen ? 'open' : ''}`} width="14" height="14" viewBox="0 0 16 16" fill="none">
-                        <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                    </button>
-                    {appThemeOpen && (
-                      <div style={{ padding: '0 20px 20px' }}>
+                {/* App Theme */}
+                <div style={{ borderTop: "0.5px solid #e8ede9", padding: "12px 20px 4px" }}>
+                  <div style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: ".04em", color: "#aaa", marginBottom: 12 }}>App Theme</div>
+                </div>
                         <p className="admin-section-desc" style={{ marginBottom: 18 }}>Customize the page background and card colors across the entire app. Changes preview live as you click.</p>
 
                         {/* Live mini-preview */}
@@ -1500,30 +1487,15 @@ export default function AdminPage() {
                             </div>
                           </div>
                         </div>
-                      </div>
-                    )}
-                  </div>
+
 
                 <div style={{ borderTop: "0.5px solid #e8ede9", padding: "12px 20px 4px" }}>
                   <div style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: ".04em", color: "#aaa" }}>Landing Page Appearance</div>
                 </div>
-{/* Landing Page Appearance */}
-                                <div className="admin-section" style={{ padding: 0, overflow: 'hidden' }}>
-                    <button type="button" className="survey-toggle-btn" style={{ padding: '14px 20px' }} onClick={() => setLandingOpen(o => !o)}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1 }}>
-                        <h3 className="admin-section-title" style={{ margin: 0 }}>Landing Page Appearance</h3>
-                        <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
-                          <span style={{ width: 14, height: 14, borderRadius: 3, background: settings.landing_eyebrow_color || '#F1EFE8', border: '1.5px solid rgba(0,0,0,0.1)', display: 'inline-block' }} />
-                          <span style={{ fontSize: 11, color: '#aaa' }}>+</span>
-                          <span style={{ width: 14, height: 14, borderRadius: 3, background: settings.landing_hero_panel_color || '#1A3C2E', border: '1.5px solid rgba(0,0,0,0.1)', display: 'inline-block' }} />
-                        </div>
-                      </div>
-                      <svg className={`survey-chevron ${landingOpen ? 'open' : ''}`} width="14" height="14" viewBox="0 0 16 16" fill="none">
-                        <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                    </button>
-                    {landingOpen && (
-                      <div style={{ padding: '0 20px 20px' }}>
+                {/* Landing Page Appearance */}
+                <div style={{ borderTop: "0.5px solid #e8ede9", padding: "12px 20px 4px" }}>
+                  <div style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: ".04em", color: "#aaa", marginBottom: 12 }}>Landing Page Appearance</div>
+                </div>
                         <p className="admin-section-desc" style={{ marginBottom: 18 }}>Customize the color scheme of the public-facing landing page.</p>
                         <div style={{ marginBottom: 20 }}>
                           <div className="mc-preview-label" style={{ marginBottom: 8 }}>Preview</div>
@@ -1590,9 +1562,7 @@ export default function AdminPage() {
                             </div>
                           </div>
                         </div>
-                      </div>
-                    )}
-                  </div>
+
 
                 <div style={{ borderTop: "0.5px solid #e8ede9", padding: "12px 20px 4px" }}>
                   <div style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: ".04em", color: "#aaa" }}>Map Marker Colors</div>

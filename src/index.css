@@ -1347,12 +1347,14 @@ body {
 
 /* Right (default) */
 .map-pos-right { flex-direction: row; }
-.map-pos-right .map-area { flex: 1; min-width: 0; position: relative; overflow: hidden; }
+.map-pos-right .map-area { flex: 1; min-width: 0; position: relative; display: flex; flex-direction: column; }
+.map-pos-right .map-area .leaflet-container { flex: 1; height: auto; overflow: hidden; }
 .map-pos-right .club-panel { width: 340px; border-left: 1px solid #e0e8e0; }
 
 /* Left */
 .map-pos-left { flex-direction: row-reverse; }
-.map-pos-left .map-area { flex: 1; min-width: 0; position: relative; overflow: hidden; }
+.map-pos-left .map-area  { flex: 1; min-width: 0; position: relative; display: flex; flex-direction: column; }
+.map-pos-left .map-area  .leaflet-container { flex: 1; height: auto; overflow: hidden; }
 .map-pos-left .club-panel { width: 340px; border-right: 1px solid #e0e8e0; border-left: none; }
 
 /* Bottom — removed */
@@ -1371,8 +1373,8 @@ body {
 
 .map-pos-right .club-panel--wide  { width: 440px !important; }
 .map-pos-left  .club-panel--wide  { width: 440px !important; }
-.map-pos-right .club-panel--collapsed { width: 18px !important; overflow: visible; box-shadow: none; border-left: 1px solid #e0e8e0; background: transparent; }
-.map-pos-left  .club-panel--collapsed { width: 18px !important; overflow: visible; box-shadow: none; border-right: 1px solid #e0e8e0; background: transparent; }
+.map-pos-right .club-panel--collapsed { width: 18px !important; overflow: visible; box-shadow: none; border-left: 1px solid #e0e8e0; background: #fff; }
+.map-pos-left  .club-panel--collapsed { width: 18px !important; overflow: visible; box-shadow: none; border-right: 1px solid #e0e8e0; background: #fff; }
 
 /* Collapse tab — sits flush on the map-facing edge */
 .panel-collapse-tab {
