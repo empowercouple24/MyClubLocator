@@ -213,6 +213,7 @@ export default function AdminPage() {
     public_finder_welcome: 'Find a nutrition club near you',
     public_finder_disclaimer_enabled: true,
     public_finder_disclaimer: 'This directory is provided for informational purposes only. My Club Locator is not affiliated with or endorsed by Herbalife International. Club hours and availability may vary — contact the club directly to confirm.',
+    search_radius_miles: 20,
     team_creation_enabled: true,
     team_creation_min_level: 'Active World Team',
     marker_color_own:      '#D94F4F',
@@ -250,6 +251,7 @@ export default function AdminPage() {
   const [welcomeModalOpen, setWelcomeModalOpen] = useState(false)
   const [loginMsgsOpen, setLoginMsgsOpen]       = useState(false)
   const [finderMsgsOpen, setFinderMsgsOpen]     = useState(false)
+  const [finderSearchOpen, setFinderSearchOpen] = useState(false)
   const [markerColorsOpen, setMarkerColorsOpen] = useState(false)
   const [landingOpen, setLandingOpen] = useState(false)
   const [appThemeOpen, setAppThemeOpen] = useState(false)
@@ -532,6 +534,7 @@ export default function AdminPage() {
       public_finder_welcome:             settings.public_finder_welcome,
       public_finder_disclaimer_enabled:  settings.public_finder_disclaimer_enabled,
       public_finder_disclaimer:          settings.public_finder_disclaimer,
+      search_radius_miles:               settings.search_radius_miles,
       team_creation_enabled:             settings.team_creation_enabled,
       team_creation_min_level:           settings.team_creation_min_level,
       marker_color_own:                  settings.marker_color_own,
@@ -1167,6 +1170,70 @@ export default function AdminPage() {
                         )}
                       </div>
                     ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Public Search Settings */}
+              <div className="admin-section" style={{ padding: 0, overflow: 'hidden' }}>
+                <button type="button" className="survey-toggle-btn" style={{ padding: '14px 20px' }} onClick={() => setFinderSearchOpen(o => !o)}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
+                    <h3 className="admin-section-title" style={{ margin: 0 }}>Public Search Settings</h3>
+                    <span style={{ fontSize: 12, color: '#888' }}>{settings.search_radius_miles === 0 ? 'Custom' : `${settings.search_radius_miles} mi radius`}</span>
+                  </div>
+                  <svg className={`survey-chevron ${finderSearchOpen ? 'open' : ''}`} width="14" height="14" viewBox="0 0 16 16" fill="none">
+                    <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+                {finderSearchOpen && (
+                  <div style={{ padding: '0 20px 20px' }}>
+                    <p className="admin-section-desc" style={{ marginBottom: 16 }}>Controls how far from the searched location clubs are returned. Only clubs within this radius will be sent to the browser — locations outside this range are never exposed.</p>
+                    <label style={{ fontSize: 13, fontWeight: 500, color: '#333', display: 'block', marginBottom: 10 }}>Search radius</label>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      {[10, 20, 30, 40, 50].map(r => (
+                        <button
+                          key={r}
+                          type="button"
+                          onClick={() => setSettings(s => ({ ...s, search_radius_miles: r }))}
+                          style={{
+                            padding: '6px 16px', borderRadius: 20, fontSize: 13, cursor: 'pointer', border: '1px solid',
+                            background: settings.search_radius_miles === r ? '#1A3C2E' : '#fff',
+                            color: settings.search_radius_miles === r ? '#fff' : '#444',
+                            borderColor: settings.search_radius_miles === r ? '#1A3C2E' : '#d0d0d0',
+                            fontWeight: settings.search_radius_miles === r ? 500 : 400,
+                          }}
+                        >{r} mi</button>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => setSettings(s => ({ ...s, search_radius_miles: 0 }))}
+                        style={{
+                          padding: '6px 16px', borderRadius: 20, fontSize: 13, cursor: 'pointer', border: '1px solid',
+                          background: settings.search_radius_miles === 0 ? '#1A3C2E' : '#fff',
+                          color: settings.search_radius_miles === 0 ? '#fff' : '#444',
+                          borderColor: settings.search_radius_miles === 0 ? '#1A3C2E' : '#d0d0d0',
+                          fontWeight: settings.search_radius_miles === 0 ? 500 : 400,
+                        }}
+                      >Custom</button>
+                    </div>
+                    {settings.search_radius_miles === 0 && (
+                      <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <input
+                          type="number"
+                          min={1} max={500}
+                          placeholder="Enter miles"
+                          style={{ width: 120, padding: '6px 10px', fontSize: 13, border: '1px solid #d0d0d0', borderRadius: 8 }}
+                          onChange={e => {
+                            const v = parseInt(e.target.value)
+                            if (v > 0) setSettings(s => ({ ...s, search_radius_miles: -v }))
+                          }}
+                        />
+                        <span style={{ fontSize: 12, color: '#888' }}>miles</span>
+                      </div>
+                    )}
+                    <p style={{ fontSize: 12, color: '#888', marginTop: 12 }}>
+                      If no clubs are found within this radius, the nearest 5 will be shown regardless of distance, with a notice to the user.
+                    </p>
                   </div>
                 )}
               </div>

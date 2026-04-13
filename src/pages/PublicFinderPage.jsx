@@ -493,6 +493,7 @@ export default function PublicFinderPage() {
   const [geoLocating, setGeoLocating]   = useState(false)
   const [geoError, setGeoError]         = useState('')
   const [results, setResults]           = useState(null)
+  const [resultsFallback, setResultsFallback] = useState(false)
   const [expandedId, setExpandedId]     = useState(null)
 
   // Auth state
@@ -509,7 +510,7 @@ export default function PublicFinderPage() {
   useEffect(() => {
     async function load() {
       const [{ data: s }, session] = await Promise.all([
-        supabase.from('app_settings').select('public_search_enabled,public_accounts_enabled,public_login_enabled,public_finder_welcome,public_finder_disclaimer_enabled,public_finder_disclaimer').eq('id', 1).single(),
+        supabase.from('app_settings').select('public_search_enabled,public_accounts_enabled,public_login_enabled,public_finder_welcome,public_finder_disclaimer_enabled,public_finder_disclaimer,search_radius_miles').eq('id', 1).single(),
         supabase.auth.getSession(),
       ])
       setSettings(s)
@@ -578,18 +579,22 @@ export default function PublicFinderPage() {
   async function doSearch(lat, lng) {
     setSearching(true)
     setExpandedId(null)
-    const { data } = await supabase
-      .from('locations')
-      .select('id,club_name,address,city,state,zip,lat,lng,club_phone,club_email,first_name,last_name,owner2_first_name,owner2_last_name,owner3_first_name,owner3_last_name,photo_urls,logo_url,club_website,instagram_url,facebook_url,hours_monday_open,hours_monday_close,hours_tuesday_open,hours_tuesday_close,hours_wednesday_open,hours_wednesday_close,hours_thursday_open,hours_thursday_close,hours_friday_open,hours_friday_close,hours_saturday_open,hours_saturday_close,hours_sunday_open,hours_sunday_close')
-      .eq('approved', true)
-      .eq('club_index', 0)
-    if (!data) { setSearching(false); return }
-    const withDist = data
-      .filter(loc => loc.lat && loc.lng)
-      .map(loc => ({ ...loc, distanceMiles: getDistanceMiles(lat, lng, loc.lat, loc.lng) }))
-      .sort((a, b) => a.distanceMiles - b.distanceMiles)
-      .slice(0, 25)
-    setResults(withDist)
+    const radius = Math.abs(settings?.search_radius_miles ?? 20)
+    const mapDist = rows => (rows || []).map(r => ({ ...r, distanceMiles: r.distance_miles }))
+    const { data: nearby, error } = await supabase.rpc('nearby_clubs', {
+      search_lat: lat, search_lng: lng, radius_miles: radius,
+    })
+    if (error) { console.error('nearby_clubs error:', error); setSearching(false); return }
+    if (nearby && nearby.length > 0) {
+      setResults(mapDist(nearby).slice(0, 25))
+      setResultsFallback(false)
+    } else {
+      const { data: fallback } = await supabase.rpc('nearby_clubs', {
+        search_lat: lat, search_lng: lng, radius_miles: 99999,
+      })
+      setResults(mapDist(fallback).slice(0, 5))
+      setResultsFallback(true)
+    }
     setSearching(false)
   }
 
@@ -729,7 +734,12 @@ export default function PublicFinderPage() {
         )}
         {results !== null && !searching && results.length > 0 && (
           <>
-            <div className="pf-results-header">{results.length} club{results.length !== 1 ? 's' : ''} found nearby</div>
+            <div className="pf-results-header">
+              {resultsFallback
+                ? <><span className="pf-results-fallback">No clubs found within {Math.abs(settings?.search_radius_miles ?? 20)} miles. Showing nearest results.</span></>
+                : <>{results.length} club{results.length !== 1 ? 's' : ''} found nearby</>
+              }
+            </div>
             {results.map(club => (
               <ClubCard
                 key={club.id}

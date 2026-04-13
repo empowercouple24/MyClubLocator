@@ -8505,3 +8505,5 @@ input.input-ok {
   .pf-map-tile { min-height: 160px; }
   .pf-photo-strip { height: 60px; }
 }
+
+.pf-results-fallback { font-size: 13px; color: #856404; }
