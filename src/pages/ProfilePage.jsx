@@ -825,6 +825,10 @@ function ClubEditor({ club, clubIndex, userId, isOnly, allClubs, onSaved, onRemo
           'owner2_first_name', 'owner2_last_name', 'owner2_email', 'owner2_herbalife_level',
           'owner3_first_name', 'owner3_last_name', 'owner3_email', 'owner3_herbalife_level',
           'owner_photo_url', 'owner2_photo_url', 'owner3_photo_url',
+          'survey_upline', 'survey_hl_month', 'survey_hl_year',
+          'survey_active_club', 'survey_club_month', 'survey_club_year',
+          'survey_trainings', 'survey_hear_how', 'survey_hear_detail', 'survey_goal',
+          'survey_completed_at',
         ]
         PERSON_KEYS.forEach(k => { if (src[k]) fields[k] = src[k] })
         return fields
@@ -1511,7 +1515,16 @@ export default function ProfilePage() {
         if (uta?.pending_survey) {
           try {
             const survey = JSON.parse(uta.pending_survey)
+            // Merge survey fields into person form
             setPersonForm(f => ({ ...f, ...survey }))
+            // Also prefill club opened date from onboarding survey
+            if (survey.survey_club_month || survey.survey_club_year) {
+              setClubs(prev => prev.map((c, i) => i === 0 ? {
+                ...c,
+                opened_month: survey.survey_club_month || c.opened_month,
+                opened_year: survey.survey_club_year || c.opened_year,
+              } : c))
+            }
           } catch {}
         }
       }
@@ -2292,7 +2305,8 @@ export default function ProfilePage() {
         }).filter(Boolean)
 
         async function handleApproveAndGo() {
-          // Save person fields + mark as approved on all clubs
+          // Build full record from person form + first club
+          const club0 = clubs[0] || {}
           const personRecord = {
             ...personForm,
             approved: true,
@@ -2300,7 +2314,31 @@ export default function ProfilePage() {
             owner2_photo_url: owner2PhotoUrl,
             owner3_photo_url: owner3PhotoUrl,
           }
-          await supabase.from('locations').update(personRecord).eq('user_id', user.id)
+
+          // Check if locations row exists
+          const { data: existingLocs } = await supabase.from('locations').select('id').eq('user_id', user.id)
+
+          if (existingLocs && existingLocs.length > 0) {
+            // Update all existing location rows with person + approval
+            await supabase.from('locations').update(personRecord).eq('user_id', user.id)
+          } else if (club0.club_name && club0.address) {
+            // No location row yet — create one with club + person data
+            const { data: appSettings } = await supabase.from('app_settings').select('require_approval').eq('id', 1).single()
+            const newRecord = {
+              user_id: user.id,
+              club_index: 0,
+              ...club0,
+              ...personRecord,
+              approved: appSettings?.require_approval ? false : true,
+              state_zip: ((club0.state || '') + ' ' + (club0.zip || '')).trim(),
+            }
+            delete newRecord.id
+            await supabase.from('locations').insert(newRecord)
+          }
+
+          // Clear pending_survey
+          await supabase.from('user_terms_acceptance').update({ pending_survey: null }).eq('user_id', user.id)
+
           setSavedPersonForm({ ...personForm, _p1: ownerPhotoUrl, _p2: owner2PhotoUrl, _p3: owner3PhotoUrl })
           setShowReviewModal(false)
           navigate('/app/map')

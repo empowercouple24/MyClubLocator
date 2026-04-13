@@ -73,19 +73,19 @@ export default function OnboardingPage() {
     const { data: loc } = await supabase.from('locations').select('id').eq('user_id', user.id).single()
     if (loc) {
       await supabase.from('locations').update(record).eq('user_id', user.id)
-    } else {
-      // Store temporarily in user_terms_acceptance pending_survey column
+      // Mark onboarding done
       await supabase.from('user_terms_acceptance').upsert({
         user_id: user.id,
-        pending_survey: JSON.stringify(record)
+        onboarding_done: true
+      }, { onConflict: 'user_id' })
+    } else {
+      // Store survey + mark onboarding done in ONE upsert so pending_survey isn't wiped
+      await supabase.from('user_terms_acceptance').upsert({
+        user_id: user.id,
+        pending_survey: JSON.stringify(record),
+        onboarding_done: true
       }, { onConflict: 'user_id' })
     }
-
-    // Mark onboarding done
-    await supabase.from('user_terms_acceptance').upsert({
-      user_id: user.id,
-      onboarding_done: true
-    }, { onConflict: 'user_id' })
     setSaving(false)
   }
 
