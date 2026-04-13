@@ -38,6 +38,24 @@ function genShades(hex, count = 8) {
   return stops.map(l => hslToHex(h, Math.min(s + 8, 100), l))
 }
 
+// App Theme picker field definitions
+const themeFields = [
+  { key: 'theme_page_bg',        label: 'Page background',     desc: 'Background color behind all cards' },
+  { key: 'theme_card_header_bg', label: 'Card header',         desc: 'The green band at the top of each card' },
+  { key: 'theme_card_body',      label: 'Card body background', desc: 'Inside content area of each card' },
+]
+
+// Header text color swatches
+const HEADER_TEXT_OPTIONS = [
+  { value: '#ffffff',             label: 'White' },
+  { value: '#f0f0f0',             label: 'Soft white' },
+  { value: '#d4d4d4',             label: 'Light gray' },
+  { value: '#a0a0a0',             label: 'Mid gray' },
+  { value: '#1a1a1a',             label: 'Near black' },
+  { value: '#F5E6C8',             label: 'Warm cream' },
+  { value: '#C8F5E6',             label: 'Mint' },
+]
+
 function ContactCard({ submission: c, onReplySent, expanded, onToggle }) {
   const [replyBody, setReplyBody] = useState('')
   const [sending, setSending]     = useState(false)
@@ -181,7 +199,7 @@ export default function AdminPage() {
   const [tab, setTab] = useState('settings')
 
   // Resizable columns — default widths in px
-  const defaultColWidths = [48, 180, 140, 150, 120, 200, 80, 90, 120, 90, 100]
+  const defaultColWidths = [48, 190, 150, 170, 130, 210, 80, 90, 120, 90, 110]
   const [colWidths, setColWidths] = useState(defaultColWidths)
   const resizingCol = useRef(null)
   const resizeStartX = useRef(0)
@@ -306,6 +324,7 @@ export default function AdminPage() {
   const [memberApprovalOpen, setMemberApprovalOpen] = useState(false)
   const [teamCreationOpen, setTeamCreationOpen] = useState(false)
   const [previewBasemap, setPreviewBasemap] = useState('streets')
+  const curHeaderTxt = HEADER_TEXT_OPTIONS.find(o => o.value === settings.theme_card_header_text) || { value: settings.theme_card_header_text || '#ffffff', label: 'Custom' }
 
   // Contacts state
   const [contacts, setContacts]             = useState([])
@@ -355,15 +374,23 @@ export default function AdminPage() {
     loadSettings()
   }, [isAdmin])
 
-  // Live-apply theme vars as admin changes pickers
+  // Live-apply theme vars ONLY when Themes card is open (for preview within admin)
   useEffect(() => {
+    if (!card3Open) return
     const root = document.documentElement
     if (settings.theme_page_bg)          root.style.setProperty('--theme-page-bg',          settings.theme_page_bg)
     if (settings.theme_card_header_bg)   root.style.setProperty('--theme-card-header-bg',   settings.theme_card_header_bg)
     if (settings.theme_card_header_text) root.style.setProperty('--theme-card-header-text', settings.theme_card_header_text)
     root.style.setProperty('--theme-card-header-weight', settings.theme_card_header_bold === false ? '400' : '500')
     if (settings.theme_card_body)        root.style.setProperty('--theme-card-body',         settings.theme_card_body)
-  }, [settings.theme_page_bg, settings.theme_card_header_bg, settings.theme_card_header_text, settings.theme_card_header_bold, settings.theme_card_body])
+    return () => {
+      root.style.removeProperty('--theme-page-bg')
+      root.style.removeProperty('--theme-card-header-bg')
+      root.style.removeProperty('--theme-card-header-text')
+      root.style.removeProperty('--theme-card-header-weight')
+      root.style.removeProperty('--theme-card-body')
+    }
+  }, [card3Open, settings.theme_page_bg, settings.theme_card_header_bg, settings.theme_card_header_text, settings.theme_card_header_bold, settings.theme_card_body])
 
   async function loadMembers() {
     setLoadingMembers(true)
@@ -405,8 +432,10 @@ export default function AdminPage() {
         try {
           const parsed = JSON.parse(data.col_widths)
           // Reset if saved widths have wrong column count or match old narrow defaults
-          const oldDefaults = [48, 160, 130, 120, 120, 180, 80, 90, 120, 90, 100]
-          if (parsed.length === defaultColWidths.length && JSON.stringify(parsed) !== JSON.stringify(oldDefaults)) {
+          const oldDefaults1 = [48, 160, 130, 120, 120, 180, 80, 90, 120, 90, 100]
+          const oldDefaults2 = [48, 180, 140, 150, 120, 200, 80, 90, 120, 90, 100]
+          const str = JSON.stringify(parsed)
+          if (parsed.length === defaultColWidths.length && str !== JSON.stringify(oldDefaults1) && str !== JSON.stringify(oldDefaults2)) {
             setColWidths(parsed)
           }
         } catch {}
@@ -1773,7 +1802,7 @@ export default function AdminPage() {
                       </svg>
                     </button>
                     {demoOpen && (
-                      <div style={{ padding: '0 20px 16px' }}>
+                      <div style={{ padding: '14px 20px 16px' }}>
                         <p className="admin-section-desc" style={{ marginBottom: 14 }}>Control which data categories are visible to members. Members can further customize their own view within what you enable here.</p>
                         {[
                           { key: 'demo_population',  label: 'Population',            hint: 'Total population, household count, and average household size for the ZIP code. Higher population means more potential customers walking past your door.' },

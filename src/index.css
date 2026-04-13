@@ -548,17 +548,20 @@ body:has(.admin-page-wrap) {
 }
 /* Lock all admin cards/headers to fixed colors — theme vars must not leak into admin */
 .admin-page-wrap .admin-section {
-  background: #fff;
+  background: #fff !important;
 }
 .admin-page-wrap .survey-toggle-btn {
-  background: #1A3C2E;
+  background: #1A3C2E !important;
 }
 .admin-page-wrap .admin-section-title {
-  color: #fff;
-  font-weight: 500;
+  color: #fff !important;
+  font-weight: 500 !important;
 }
 .admin-page-wrap .survey-chevron {
-  color: rgba(255,255,255,0.6);
+  color: rgba(255,255,255,0.6) !important;
+}
+.admin-page-wrap .admin-section-desc {
+  color: #888 !important;
 }
 
 .profile-head {
