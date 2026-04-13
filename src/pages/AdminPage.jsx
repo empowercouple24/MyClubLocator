@@ -286,9 +286,12 @@ export default function AdminPage() {
   const [savingSettings, setSavingSettings]   = useState(false)
   const [savedSettings, setSavedSettings]     = useState(false)
   const savedSettingsRef = useRef(null)
-  const isSettingsDirty = savedSettingsRef.current !== null
-    ? JSON.stringify(settings) !== JSON.stringify(savedSettingsRef.current)
-    : false
+  const isSettingsDirty = (() => {
+    if (!savedSettingsRef.current) return false
+    const saved = savedSettingsRef.current
+    const keys = Object.keys(saved)
+    return keys.some(k => JSON.stringify(settings[k]) !== JSON.stringify(saved[k]))
+  })()
   const [demoOpen, setDemoOpen]               = useState(false)
   const [welcomeModalOpen, setWelcomeModalOpen] = useState(false)
   const [loginMsgsOpen, setLoginMsgsOpen]       = useState(false)
@@ -1295,7 +1298,7 @@ export default function AdminPage() {
                 <button type="button" className="survey-toggle-btn" style={{ padding: "14px 20px" }} onClick={() => setCard2Open(o => !o)}>
                   <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1 }}>
                     <h3 className="admin-section-title" style={{ margin: 0 }}>Public Finder Settings</h3>
-                    <span style={{ fontSize: 12, color: '#888' }}>{settings.search_radius_miles === 0 ? 'Custom' : settings.search_radius_miles + ' mi radius'}</span>
+                    <span style={{ fontSize: 12, color: 'var(--theme-card-header-text, #888)', opacity: 0.75 }}>{settings.search_radius_miles === 0 ? 'Custom' : settings.search_radius_miles + ' mi radius'}</span>
                   </div>
                   <svg className={`survey-chevron ${card2Open ? "open" : ""}`} width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
                 </button>

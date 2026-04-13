@@ -542,6 +542,11 @@ body {
   width: 100%;
 }
 
+/* Admin needs a stable background independent of the member-facing theme color */
+body:has(.admin-page-wrap) {
+  background: #f0ede6 !important;
+}
+
 .profile-head {
   display: flex;
   align-items: center;
@@ -6674,7 +6679,8 @@ body {
   border-bottom: none;
 }
 .survey-chevron {
-  color: rgba(255,255,255,0.45);
+  color: var(--theme-card-header-text, rgba(255,255,255,0.6));
+  opacity: 0.7;
   flex-shrink: 0;
   transition: transform 0.2s;
 }
