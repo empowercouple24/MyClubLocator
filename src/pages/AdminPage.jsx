@@ -1637,11 +1637,11 @@ export default function AdminPage() {
                         ].map(({ label, color, x, y, size, pulse, ring }, i) => {
                           const shape = settings.global_marker_shape || 'dot'
                           const r = size / 2
-                          const pinH = Math.round(size * 1.45)
+                          const pinH = Math.round(size * 1.33)
                           const markerSvg = shape === 'pin'
-                            ? <svg width={size} height={pinH} viewBox={`0 0 ${size} ${pinH}`} style={{ display: 'block' }}>
-                                <path d={`M${r} ${pinH-1} C${r} ${pinH-1} ${r-r*0.4} ${pinH*0.7} ${r-r*0.7} ${r*1.4} A${r-1.5} ${r-1.5} 0 1 1 ${r+r*0.7} ${r*1.4} C${r+r*0.4} ${pinH*0.7} ${r} ${pinH-1} ${r} ${pinH-1}Z`} fill={color} stroke="white" strokeWidth="1.5"/>
-                                <circle cx={r} cy={r+1.5} r={r*0.38} fill="white" opacity="0.88"/>
+                            ? <svg width={size} height={pinH} viewBox="0 0 24 32" style={{ display: 'block', filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))' }}>
+                                <path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 20 12 20s12-11 12-20C24 5.4 18.6 0 12 0z" fill={color} stroke="white" strokeWidth="1.5"/>
+                                <circle cx="12" cy="12" r="4.5" fill="white" opacity="0.92"/>
                               </svg>
                             : shape === 'diamond'
                             ? <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ display: 'block' }}>
@@ -1651,10 +1651,11 @@ export default function AdminPage() {
                                 <circle cx={r} cy={r} r={r-1.5} fill={color} stroke="white" strokeWidth="1.5"/>
                               </svg>
                           const anchorY = shape === 'pin' ? pinH : r
+                          const showPulse = pulse && shape === 'dot'
                           return (
                             <div key={i} className="mc-marker-wrap" style={{ left: x, top: y }}>
-                              {ring && <div className="mc-marker-ring" style={{ width: size+14, height: size+14, borderColor: color, marginLeft: -(size+14)/2, marginTop: -(size+14)/2 }} />}
-                              {pulse && <div className="mc-marker-pulse" style={{ width: size+10, height: size+10, borderColor: color, marginLeft: -(size+10)/2, marginTop: -(size+10)/2 }} />}
+                              {ring && shape === 'dot' && <div className="mc-marker-ring" style={{ width: size+14, height: size+14, borderColor: color, marginLeft: -(size+14)/2, marginTop: -(size+14)/2 }} />}
+                              {showPulse && <div className="mc-marker-pulse" style={{ width: size+10, height: size+10, borderColor: color, marginLeft: -(size+10)/2, marginTop: -(size+10)/2 }} />}
                               <div style={{ marginLeft: -r, marginTop: -anchorY }}>{markerSvg}</div>
                               <div className="mc-marker-tooltip">{label}</div>
                             </div>
@@ -1703,8 +1704,8 @@ export default function AdminPage() {
                                 const shape = settings.global_marker_shape || 'dot'
                                 const c = settings[key] || '#ccc'
                                 const sz = 20, r = 10
-                                const pinH = 29
-                                if (shape === 'pin') return <svg width={sz} height={pinH} viewBox={`0 0 ${sz} ${pinH}`} style={{flexShrink:0}}><path d={`M${r} ${pinH-1} C${r} ${pinH-1} ${r-r*0.4} ${pinH*0.7} ${r-r*0.7} ${r*1.4} A${r-1.5} ${r-1.5} 0 1 1 ${r+r*0.7} ${r*1.4} C${r+r*0.4} ${pinH*0.7} ${r} ${pinH-1} ${r} ${pinH-1}Z`} fill={c} stroke="white" strokeWidth="1.5"/><circle cx={r} cy={r+1.5} r={r*0.38} fill="white" opacity="0.88"/></svg>
+                                const pinH = 27
+                                if (shape === 'pin') return <svg width={sz} height={pinH} viewBox="0 0 24 32" style={{flexShrink:0, filter:'drop-shadow(0 1px 1px rgba(0,0,0,0.2))'}}><path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 20 12 20s12-11 12-20C24 5.4 18.6 0 12 0z" fill={c} stroke="white" strokeWidth="1.5"/><circle cx="12" cy="12" r="4.5" fill="white" opacity="0.92"/></svg>
                                 if (shape === 'diamond') return <svg width={sz} height={sz} viewBox={`0 0 ${sz} ${sz}`} style={{flexShrink:0}}><rect x={r*0.22} y={r*0.22} width={sz-r*0.44} height={sz-r*0.44} rx="2" fill={c} stroke="white" strokeWidth="1.5" transform={`rotate(45 ${r} ${r})`}/></svg>
                                 return <svg width={sz} height={sz} viewBox={`0 0 ${sz} ${sz}`} style={{flexShrink:0}}><circle cx={r} cy={r} r={r-1.5} fill={c} stroke="white" strokeWidth="1.5"/></svg>
                               })()}

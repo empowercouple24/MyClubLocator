@@ -26,7 +26,10 @@ export default function RichTextEditor({ value, onChange, placeholder, minHeight
     })
     quillRef.current = q
     if (value) q.clipboard.dangerouslyPasteHTML(value)
+    let mounted = false
+    requestAnimationFrame(() => { mounted = true })
     q.on('text-change', () => {
+      if (!mounted) return
       skipRef.current = true
       const html = q.root.innerHTML
       cbRef.current(html === '<p><br></p>' ? '' : html)

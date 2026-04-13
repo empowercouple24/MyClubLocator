@@ -22,7 +22,7 @@ function darken(hex) {
 function makeMarkerHtml(type, shape, fill, size) {
   const r = size / 2
 
-  // ── Pulse wrappers ─────────────────────────────────────
+  // ── Pulse wrappers (dots only) ────────────────────────
   const selectedPulse = `
     <div class="marker-pulse-ring marker-pulse-ring--1" style="--pulse-color:${fill};"></div>
     <div class="marker-pulse-ring marker-pulse-ring--2" style="--pulse-color:${fill};"></div>`
@@ -42,24 +42,17 @@ function makeMarkerHtml(type, shape, fill, size) {
 
   // ── PIN ───────────────────────────────────────────────
   if (shape === 'pin') {
-    const w = size, h = Math.round(size * 1.45)
-    const cx = w / 2, headR = w / 2 - 1.5
-    const neckY = h - Math.round(h * 0.15)
-    const innerR = Math.round(headR * 0.38)
-    const svg = `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg" style="position:relative;z-index:2;">
-      <path d="M${cx} ${h - 1} C${cx} ${h - 1} ${cx - headR * 0.4} ${neckY} ${cx - headR * 0.7} ${headR * 1.4}
-        A${headR} ${headR} 0 1 1 ${cx + headR * 0.7} ${headR * 1.4}
-        C${cx + headR * 0.4} ${neckY} ${cx} ${h - 1} ${cx} ${h - 1}Z"
-        fill="${fill}" stroke="white" stroke-width="${type === 'selected' ? 2 : 1.5}" stroke-linejoin="round"/>
-      <circle cx="${cx}" cy="${headR + 1.5}" r="${innerR}" fill="white" opacity="0.88"/>
+    // Canonical Google-Maps-style pin: 24×32 viewBox scaled to marker size
+    const w = size
+    const h = Math.round(size * 1.33)
+    const sw = type === 'selected' ? 2 : 1.5
+    const svg = `<svg width="${w}" height="${h}" viewBox="0 0 24 32" xmlns="http://www.w3.org/2000/svg" style="display:block;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.3));">
+      <path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 20 12 20s12-11 12-20C24 5.4 18.6 0 12 0z"
+        fill="${fill}" stroke="white" stroke-width="${sw}"/>
+      <circle cx="12" cy="12" r="4.5" fill="white" opacity="0.92"/>
     </svg>`
-    // pulse rings centered on pin head
-    const pulseWrap = hasSelectedPulse
-      ? `<div class="marker-pulse-ring marker-pulse-ring--1" style="--pulse-color:${fill};top:0;left:0;position:absolute;"></div>
-         <div class="marker-pulse-ring marker-pulse-ring--2" style="--pulse-color:${fill};top:0;left:0;position:absolute;"></div>`
-      : hasPulse ? `<div class="marker-own-pulse" style="--pulse-color:${fill};top:0;left:0;position:absolute;"></div>` : ''
-    return `<div style="position:relative;width:${w}px;height:${h}px;cursor:pointer;transform:translate(-50%,-${h - r}px);">
-      ${pulseWrap}${svg}
+    return `<div style="position:relative;width:${w}px;height:${h}px;cursor:pointer;transform:translate(-50%,-100%);">
+      ${svg}
     </div>`
   }
 
@@ -71,7 +64,7 @@ function makeMarkerHtml(type, shape, fill, size) {
         transform="rotate(45 ${r} ${r})"/>
     </svg>`
     return `<div style="position:relative;width:${size}px;height:${size}px;cursor:pointer;transform:translate(-50%,-50%);">
-      ${hasSelectedPulse ? selectedPulse : hasPulse ? ownPulse : ''}${svg}
+      ${svg}
     </div>`
   }
 
@@ -94,9 +87,9 @@ function makeCircleIcon(type, colors = {}, shapes = {}) {
   if (!html) return divIcon({ className: '', html: '', iconSize: [0, 0] })
 
   const isPinShape = shape === 'pin'
-  const pinH = Math.round(size * 1.45)
-  const iconSize   = isPinShape ? [size, pinH]      : [size, size]
-  const iconAnchor = isPinShape ? [r, pinH - r]     : [r, r]
+  const pinH = Math.round(size * 1.33)
+  const iconSize   = isPinShape ? [size, pinH]  : [size, size]
+  const iconAnchor = isPinShape ? [r, pinH]     : [r, r]
 
   return divIcon({ className: '', html, iconSize, iconAnchor, popupAnchor: [0, isPinShape ? -pinH : -r] })
 }
