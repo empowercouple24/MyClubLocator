@@ -1008,7 +1008,7 @@ export default function AdminPage() {
                   <svg className={`survey-chevron ${card1Open ? "open" : ""}`} width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
                 </button>
                 {card1Open && (
-                  <div>
+                  <div className="admin-card-body">
                     <p className="admin-section-desc" style={{ marginBottom: 16 }}>Controls the modal shown to members on first login.</p>
 
                     {/* Two-column layout: fields left, live preview right */}
@@ -1231,33 +1231,49 @@ export default function AdminPage() {
                     </div>
                     <div className="field">
                       <label>Minimum level to create a team</label>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8, opacity: settings.team_creation_enabled ? 1 : 0.4, pointerEvents: settings.team_creation_enabled ? 'auto' : 'none' }}>
-                        {[
-                          { val: 'Distributor',       label: 'DS',  c: '#e3e3e3', cd: '#555' },
-                          { val: 'Success Builder',   label: 'SB',  c: '#e3e3e3', cd: '#555' },
-                          { val: 'Supervisor',        label: 'SP',  c: '#64ba44', cd: '#2a6b1a' },
-                          { val: 'World Team',        label: 'WT',  c: '#767678', cd: '#3a3a3a' },
-                          { val: 'Active World Team', label: 'AWT', c: '#767678', cd: '#3a3a3a' },
-                          { val: 'Get Team',          label: 'GT',  c: '#e02054', cd: '#8a0020' },
-                          { val: 'Get Team 2500',     label: 'GP',  c: '#f39519', cd: '#7a4200' },
-                          { val: 'Millionaire Team',  label: 'MT',  c: '#3aac77', cd: '#0c5a32' },
-                          { val: 'Millionaire Team 7500', label: 'Millionaire Team 7500', c: '#84c8d3', cd: '#1a5a60' },
-                          { val: 'Presidents Team',   label: 'PT',  c: '#fde488', cd: '#7a5200' },
-                        ].map(({ val, label, c, cd }) => (
-                          <button
-                            key={val}
-                            type="button"
-                            onClick={() => setSettings(s => ({ ...s, team_creation_min_level: val }))}
-                            style={{
-                              padding: '5px 12px', borderRadius: 20, fontSize: 12, cursor: 'pointer',
-                              background: settings.team_creation_min_level === val ? c : '#f4f4f4',
-                              color: settings.team_creation_min_level === val ? cd : '#777',
-                              border: settings.team_creation_min_level === val ? `1.5px solid ${cd}` : '1.5px solid #ddd',
-                              fontWeight: settings.team_creation_min_level === val ? 600 : 400,
-                              transition: 'all 0.12s',
-                            }}
-                          >{label}</button>
-                        ))}
+                      <div style={{ marginTop: 10, opacity: settings.team_creation_enabled ? 1 : 0.4, pointerEvents: settings.team_creation_enabled ? 'auto' : 'none' }}>
+                        <div className="lvl-group-label">Tab Team</div>
+                        <div className="lvl-btn-row">
+                          {[
+                            { val: 'Distributor',       label: 'DS',  c: '#e3e3e3', cd: '#555' },
+                            { val: 'Success Builder',   label: 'SB',  c: '#e3e3e3', cd: '#555' },
+                            { val: 'Supervisor',        label: 'SP',  c: '#64ba44', cd: '#2a6b1a' },
+                            { val: 'World Team',        label: 'WT',  c: '#767678', cd: '#3a3a3a' },
+                            { val: 'Active World Team', label: 'AWT', c: '#767678', cd: '#3a3a3a' },
+                          ].map(({ val, label, c, cd }) => (
+                            <button key={val} type="button"
+                              className={`lvl-btn ${settings.team_creation_min_level === val ? 'on' : ''}`}
+                              style={{ '--lvlc': c, '--lvlcd': cd }}
+                              onClick={() => setSettings(s => ({ ...s, team_creation_min_level: val }))}>
+                              {label}
+                            </button>
+                          ))}
+                        </div>
+                        <div className="lvl-group-label" style={{ marginTop: 10 }}>Future Pres Team 🚀</div>
+                        <div className="lvl-btn-row">
+                          {[
+                            { val: 'Get Team',              label: 'GT', c: '#e02054', cd: '#8a0020' },
+                            { val: 'Get Team 2500',         label: 'GP', c: '#f39519', cd: '#7a4200' },
+                            { val: 'Millionaire Team',      label: 'MT', c: '#3aac77', cd: '#0c5a32' },
+                            { val: 'Millionaire Team 7500', label: 'MP', c: '#84c8d3', cd: '#1a5a60' },
+                          ].map(({ val, label, c, cd }) => (
+                            <button key={val} type="button"
+                              className={`lvl-btn ${settings.team_creation_min_level === val ? 'on' : ''}`}
+                              style={{ '--lvlc': c, '--lvlcd': cd }}
+                              onClick={() => setSettings(s => ({ ...s, team_creation_min_level: val }))}>
+                              {label}
+                            </button>
+                          ))}
+                        </div>
+                        <div className="lvl-group-label" style={{ marginTop: 10 }}>Pres Team 💎</div>
+                        <div className="lvl-btn-row">
+                          <button type="button"
+                            className={`lvl-btn ${settings.team_creation_min_level === 'Presidents Team' ? 'on' : ''}`}
+                            style={{ '--lvlc': '#fde488', '--lvlcd': '#7a5200' }}
+                            onClick={() => setSettings(s => ({ ...s, team_creation_min_level: 'Presidents Team' }))}>
+                            PT
+                          </button>
+                        </div>
                       </div>
                       <span className="field-hint" style={{ marginTop: 8, display: 'block' }}>Members below this level will not see the team creation option</span>
                     </div>
@@ -1284,7 +1300,7 @@ export default function AdminPage() {
                   <svg className={`survey-chevron ${card2Open ? "open" : ""}`} width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
                 </button>
                 {card2Open && (
-                  <div>
+                  <div className="admin-card-body">
                     <p className="admin-section-desc" style={{ marginBottom: 16 }}>Customize what public visitors see on the club finder page before and during their search. These are the people looking for a club — not club owners.</p>
 
                     {/* Welcome heading */}
@@ -1398,7 +1414,7 @@ export default function AdminPage() {
                   <svg className={`survey-chevron ${card3Open ? "open" : ""}`} width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
                 </button>
                 {card3Open && (
-                  <div>
+                  <div className="admin-card-body">
                 {/* App Theme */}
                 <div style={{ borderTop: "0.5px solid #e8ede9", padding: "12px 20px 4px" }}>
                   <div style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: ".04em", color: "#aaa", marginBottom: 12 }}>App Theme</div>
