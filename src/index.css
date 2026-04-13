@@ -8752,3 +8752,93 @@ input.input-ok {
   display: flex; align-items: center; gap: 5px;
   padding: 5px 12px; font-size: 12px;
 }
+
+/* ── Demographics view mode toggle ─────────────────────── */
+.demo-view-toggle {
+  display: flex; gap: 2px; margin-left: auto;
+  background: #f0f0f0; border-radius: 6px; padding: 2px;
+}
+.demo-view-btn {
+  width: 26px; height: 22px; border: none; border-radius: 4px;
+  background: transparent; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  color: #888; transition: all 0.15s;
+}
+.demo-view-btn.active {
+  background: #fff; color: #1A3C2E;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+}
+.demo-view-btn:hover:not(.active) { color: #555; }
+
+/* ── Widget view ─────────────────────────────────────────── */
+.demo-widget-view { padding-bottom: 8px; }
+
+.demo-wv-grade {
+  display: flex; align-items: center; gap: 12px;
+  margin: 8px 0 10px; padding: 10px 12px;
+  border: 2px solid; border-radius: 10px;
+  background: #fafafa;
+}
+.demo-wv-grade-letter {
+  font-size: 36px; font-weight: 700; line-height: 1;
+  letter-spacing: -1px; flex-shrink: 0;
+}
+.demo-wv-grade-info { flex: 1; }
+.demo-wv-grade-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: #888; }
+.demo-wv-grade-score { font-size: 16px; font-weight: 600; color: #222; margin-top: 1px; }
+.demo-wv-tags { display: flex; flex-direction: column; gap: 3px; align-items: flex-end; }
+
+.demo-wv-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.demo-wv-card {
+  background: #fff;
+  border: 0.5px solid #e0e8e4;
+  border-radius: 10px;
+  padding: 10px 10px 8px;
+  display: flex; flex-direction: column; gap: 2px;
+  position: relative; overflow: hidden;
+}
+.demo-wv-card::before {
+  content: ''; position: absolute;
+  top: 0; left: 0; right: 0; height: 3px;
+  border-radius: 10px 10px 0 0;
+}
+.demo-wv-card-icon {
+  width: 28px; height: 28px; border-radius: 7px;
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 4px; flex-shrink: 0;
+}
+.demo-wv-card-val {
+  font-size: 18px; font-weight: 700; color: #1a1a1a;
+  line-height: 1; letter-spacing: -0.3px;
+}
+.demo-wv-card-label { font-size: 11px; font-weight: 500; color: #444; }
+.demo-wv-card-sub { font-size: 10px; color: #aaa; }
+
+/* Icon color themes */
+.demo-wv-icon--pop      { background: #E6F1FB; color: #185FA5; }
+.demo-wv-icon--income   { background: #dcf5e7; color: #0F6E56; }
+.demo-wv-icon--age      { background: #EEF0FD; color: #534AB7; }
+.demo-wv-icon--health   { background: #FDECEA; color: #A32D2D; }
+.demo-wv-icon--poverty  { background: #FEF3C7; color: #854F0B; }
+.demo-wv-icon--clubs    { background: #f0f7f3; color: #1A3C2E; }
+.demo-wv-icon--growth   { background: #dcf5e7; color: #0F6E56; }
+.demo-wv-icon--spending { background: #E6F1FB; color: #185FA5; }
+.demo-wv-icon--competitors { background: #FAECE7; color: #993C1D; }
+.demo-wv-icon--commute  { background: #FEF3C7; color: #854F0B; }
+
+/* card top accent bars */
+.demo-wv-card:has(.demo-wv-icon--pop)::before         { background: #185FA5; }
+.demo-wv-card:has(.demo-wv-icon--income)::before      { background: #0F6E56; }
+.demo-wv-card:has(.demo-wv-icon--age)::before         { background: #534AB7; }
+.demo-wv-card:has(.demo-wv-icon--health)::before      { background: #A32D2D; }
+.demo-wv-card:has(.demo-wv-icon--poverty)::before     { background: #854F0B; }
+.demo-wv-card:has(.demo-wv-icon--clubs)::before       { background: #1A3C2E; }
+.demo-wv-card:has(.demo-wv-icon--growth)::before      { background: #0F6E56; }
+.demo-wv-card:has(.demo-wv-icon--spending)::before    { background: #185FA5; }
+.demo-wv-card:has(.demo-wv-icon--competitors)::before { background: #993C1D; }
+.demo-wv-card:has(.demo-wv-icon--commute)::before     { background: #854F0B; }

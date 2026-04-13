@@ -338,9 +338,9 @@ function ClubMarkers({ locations, selectedId, userId, onSelect, navigate, teamFi
         if (closeTimer) { clearTimeout(closeTimer); closeTimer = null }
         marker.openTooltip()
       }
-      const scheduleClose = () => {
+      const scheduleClose = (delay = 2500) => {
         if (closeTimer) clearTimeout(closeTimer)
-        closeTimer = setTimeout(() => { marker.closeTooltip() }, 3000)
+        closeTimer = setTimeout(() => { marker.closeTooltip() }, delay)
       }
       const cancelClose = () => {
         if (closeTimer) { clearTimeout(closeTimer); closeTimer = null }
@@ -353,24 +353,23 @@ function ClubMarkers({ locations, selectedId, userId, onSelect, navigate, teamFi
         .on('mouseover', openTooltip)
         .on('mouseout', scheduleClose)
         .on('tooltipopen', (ev) => {
-          // Attach hover + click listeners to the whole tooltip container
           setTimeout(() => {
-            // ev.tooltip._container is the actual .leaflet-tooltip DOM node
             const tooltipEl = ev.tooltip && ev.tooltip._container
             if (tooltipEl) {
               tooltipEl.addEventListener('mouseenter', cancelClose)
-              tooltipEl.addEventListener('mouseleave', scheduleClose)
-              // Directory link click
+              tooltipEl.addEventListener('mouseleave', () => scheduleClose(2500))
               const el = tooltipEl.querySelector('.ct-dir-link')
               if (el) {
+                el.addEventListener('mouseenter', cancelClose)
                 el.addEventListener('click', (e) => {
                   e.stopPropagation()
+                  cancelClose()
                   const name = decodeURIComponent(el.dataset.clubname || '')
                   navigate(`/app/directory?search=${encodeURIComponent(name)}`)
                 })
               }
             }
-          }, 50)
+          }, 20)
         })
 
       markersRef.current[loc.id] = marker
@@ -712,6 +711,7 @@ export default function MapPage() {
   const [panelWidth,     setPanelWidth]     = useState('normal')   // 'normal' | 'wide'
   const [panelCollapsed, setPanelCollapsed] = useState(false)
   const [clickBehavior,  setClickBehavior]  = useState('zoom')     // 'zoom' | 'pan' | 'stay'
+  const [demoViewMode,   setDemoViewMode]   = useState('table')    // 'table' | 'widget'
   const [teamFilter, setTeamFilter]           = useState(false)      // show my team clubs highlighted
   const [teamLocationIds, setTeamLocationIds] = useState(new Set()) // location IDs in my teams (owned)
   const [memberTeamLocationIds, setMemberTeamLocationIds] = useState(new Set()) // location IDs in teams I belong to
@@ -739,6 +739,7 @@ export default function MapPage() {
       if (data?.preferences?.panelWidth)     setPanelWidth(data.preferences.panelWidth)
       if (data?.preferences?.panelCollapsed !== undefined) setPanelCollapsed(data.preferences.panelCollapsed)
       if (data?.preferences?.clickBehavior)  setClickBehavior(data.preferences.clickBehavior)
+      if (data?.preferences?.demoViewMode)   setDemoViewMode(data.preferences.demoViewMode)
     }
     loadPanelPrefs()
   }, [user])
@@ -816,6 +817,19 @@ export default function MapPage() {
       .eq('user_id', user.id)
       .single()
     const merged = { ...(existing?.preferences || {}), clickBehavior: behavior }
+    await supabase.from('user_demo_preferences')
+      .upsert({ user_id: user.id, preferences: merged }, { onConflict: 'user_id' })
+  }
+
+  async function saveDemoViewMode(mode) {
+    setDemoViewMode(mode)
+    if (!user) return
+    const { data: existing } = await supabase
+      .from('user_demo_preferences')
+      .select('preferences')
+      .eq('user_id', user.id)
+      .single()
+    const merged = { ...(existing?.preferences || {}), demoViewMode: mode }
     await supabase.from('user_demo_preferences')
       .upsert({ user_id: user.id, preferences: merged }, { onConflict: 'user_id' })
   }
@@ -1410,6 +1424,8 @@ export default function MapPage() {
                 locations={locations}
                 enabledFactors={enabledFactors}
                 active={demoActive}
+                viewMode={demoViewMode}
+                onViewModeChange={saveDemoViewMode}
               />
             </div>
           )}

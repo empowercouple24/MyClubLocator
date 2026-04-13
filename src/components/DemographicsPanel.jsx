@@ -110,7 +110,7 @@ function PrefsPanel({ userPrefs, adminEnabled, onSave, onReset, onClose }) {
   )
 }
 
-export default function DemographicsPanel({ lat, lng, locations, enabledFactors, active }) {
+export default function DemographicsPanel({ lat, lng, locations, enabledFactors, active, viewMode = 'table', onViewModeChange }) {
   const { user } = useAuth()
   const [loading, setLoading]         = useState(false)
   const [geoInfo, setGeoInfo]         = useState(null)
@@ -360,7 +360,185 @@ export default function DemographicsPanel({ lat, lng, locations, enabledFactors,
           <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="2.5" stroke="currentColor" strokeWidth="1.2"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.05 3.05l1.41 1.41M11.54 11.54l1.41 1.41M3.05 12.95l1.41-1.41M11.54 4.46l1.41-1.41" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>
           Customize
         </button>
+        {/* View mode toggle */}
+        <div className="demo-view-toggle">
+          <button
+            className={`demo-view-btn ${viewMode === 'table' ? 'active' : ''}`}
+            onClick={() => onViewModeChange?.('table')}
+            title="Table view"
+          >
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+              <rect x="1" y="1" width="14" height="3" rx="1" stroke="currentColor" strokeWidth="1.2"/>
+              <rect x="1" y="6" width="14" height="3" rx="1" stroke="currentColor" strokeWidth="1.2"/>
+              <rect x="1" y="11" width="14" height="3" rx="1" stroke="currentColor" strokeWidth="1.2"/>
+            </svg>
+          </button>
+          <button
+            className={`demo-view-btn ${viewMode === 'widget' ? 'active' : ''}`}
+            onClick={() => onViewModeChange?.('widget')}
+            title="Widget view"
+          >
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+              <rect x="1" y="1" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.2"/>
+              <rect x="9" y="1" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.2"/>
+              <rect x="1" y="9" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.2"/>
+              <rect x="9" y="9" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.2"/>
+            </svg>
+          </button>
+        </div>
       </div>
+
+      {/* ── WIDGET VIEW ── */}
+      {viewMode === 'widget' && (
+        <div className="demo-widget-view">
+          {/* Grade widget */}
+          {marketScore && (
+            <div className="demo-wv-grade" style={{ borderColor: gradeColor }}>
+              <div className="demo-wv-grade-letter" style={{ color: gradeColor }}>{marketScore.grade}</div>
+              <div className="demo-wv-grade-info">
+                <div className="demo-wv-grade-label">Market Score</div>
+                <div className="demo-wv-grade-score">{marketScore.score}/100</div>
+              </div>
+              <div className="demo-wv-tags">
+                {tags.slice(0, 2).map((t, i) => <SignalTag key={i} label={t.label} type={t.type} />)}
+              </div>
+            </div>
+          )}
+
+          {/* Stat grid */}
+          <div className="demo-wv-grid">
+            {effectiveFactors.population && (zipData?.population || countyData?.totalPop) && (
+              <div className="demo-wv-card">
+                <div className="demo-wv-card-icon demo-wv-icon--pop">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="currentColor" strokeWidth="1.5"/><circle cx="9" cy="7" r="4" stroke="currentColor" strokeWidth="1.5"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                </div>
+                <div className="demo-wv-card-val">{formatNum(zipData?.population || countyData?.totalPop)}</div>
+                <div className="demo-wv-card-label">Population</div>
+                {geoInfo?.zip && <div className="demo-wv-card-sub">ZIP {geoInfo.zip}</div>}
+              </div>
+            )}
+
+            {effectiveFactors.income && (zipData?.medianIncome || countyData?.medianIncome) && (
+              <div className="demo-wv-card">
+                <div className="demo-wv-card-icon demo-wv-icon--income">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><line x1="12" y1="1" x2="12" y2="23" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                </div>
+                <div className="demo-wv-card-val">{formatCurrency(zipData?.medianIncome || countyData?.medianIncome)}</div>
+                <div className="demo-wv-card-label">Median Income</div>
+                <div className="demo-wv-card-sub">household</div>
+              </div>
+            )}
+
+            {effectiveFactors.ageFit && countyData?.ageFitPct != null && (
+              <div className="demo-wv-card">
+                <div className="demo-wv-card-icon demo-wv-icon--age">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="1.5"/><path d="M5 20c0-4 3-6 7-6s7 2 7 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                </div>
+                <div className="demo-wv-card-val">{countyData.ageFitPct.toFixed(0)}%</div>
+                <div className="demo-wv-card-label">Ages 18–49</div>
+                <div className="demo-wv-card-sub">target demo</div>
+              </div>
+            )}
+
+            {effectiveFactors.health && healthData?.obesity != null && (
+              <div className="demo-wv-card">
+                <div className="demo-wv-card-icon demo-wv-icon--health">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" stroke="currentColor" strokeWidth="1.5"/></svg>
+                </div>
+                <div className="demo-wv-card-val">{formatPct(healthData.obesity)}</div>
+                <div className="demo-wv-card-label">Obesity Rate</div>
+                <div className="demo-wv-card-sub">higher = more need</div>
+              </div>
+            )}
+
+            {effectiveFactors.poverty && (zipData?.povertyRate || countyData?.povertyRate) && (
+              <div className="demo-wv-card">
+                <div className="demo-wv-card-icon demo-wv-icon--poverty">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="currentColor" strokeWidth="1.5"/></svg>
+                </div>
+                <div className="demo-wv-card-val">{formatPct(zipData?.povertyRate || countyData?.povertyRate)}</div>
+                <div className="demo-wv-card-label">Poverty Rate</div>
+                <div className="demo-wv-card-sub">lower is better</div>
+              </div>
+            )}
+
+            {effectiveFactors.competition && (
+              <div className="demo-wv-card">
+                <div className="demo-wv-card-icon demo-wv-icon--clubs">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="currentColor"/></svg>
+                </div>
+                <div className="demo-wv-card-val">{nearbyClubs.length}</div>
+                <div className="demo-wv-card-label">Nearby Clubs</div>
+                <div className="demo-wv-card-sub">within 10 mi</div>
+              </div>
+            )}
+
+            {effectiveFactors.growth && growthData && (
+              <div className="demo-wv-card">
+                <div className="demo-wv-card-icon demo-wv-icon--growth">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><polyline points="17 6 23 6 23 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                </div>
+                <div className="demo-wv-card-val" style={{ color: growthData.growthPct >= 0 ? '#0F6E56' : '#c0392b' }}>
+                  {growthData.growthPct > 0 ? '+' : ''}{growthData.growthPct}%
+                </div>
+                <div className="demo-wv-card-label">Pop. Growth</div>
+                <div className="demo-wv-card-sub">2019–2022</div>
+              </div>
+            )}
+
+            {effectiveFactors.spending && spendingData?.spendingIndex != null && (
+              <div className="demo-wv-card">
+                <div className="demo-wv-card-icon demo-wv-icon--spending">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="1" y="4" width="22" height="16" rx="2" ry="2" stroke="currentColor" strokeWidth="1.5"/><line x1="1" y1="10" x2="23" y2="10" stroke="currentColor" strokeWidth="1.5"/></svg>
+                </div>
+                <div className="demo-wv-card-val">{spendingData.spendingIndex}/100</div>
+                <div className="demo-wv-card-label">Spending Index</div>
+                <div className="demo-wv-card-sub">consumer power</div>
+              </div>
+            )}
+
+            {effectiveFactors.competitors && competitors && (
+              <div className="demo-wv-card">
+                <div className="demo-wv-card-icon demo-wv-icon--competitors">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M18 8h1a4 4 0 0 1 0 8h-1M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8zM6 1v3M10 1v3M14 1v3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                </div>
+                <div className="demo-wv-card-val">{competitors.count}</div>
+                <div className="demo-wv-card-label">Competitors</div>
+                <div className="demo-wv-card-sub">within 5 mi</div>
+              </div>
+            )}
+
+            {effectiveFactors.medianAge && (countyData?.medianAge || zipData?.medianAge) != null && (
+              <div className="demo-wv-card">
+                <div className="demo-wv-card-icon demo-wv-icon--age">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.5"/><path d="M12 7v5l3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                </div>
+                <div className="demo-wv-card-val">{countyData?.medianAge || zipData?.medianAge}</div>
+                <div className="demo-wv-card-label">Median Age</div>
+                <div className="demo-wv-card-sub">years</div>
+              </div>
+            )}
+
+            {effectiveFactors.commute && commuteData?.longCommutePct != null && (
+              <div className="demo-wv-card">
+                <div className="demo-wv-card-icon demo-wv-icon--commute">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="1" y="3" width="15" height="13" rx="2" stroke="currentColor" strokeWidth="1.5"/><path d="M16 8h2l3 3v5h-5V8z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><circle cx="5.5" cy="18.5" r="2.5" stroke="currentColor" strokeWidth="1.5"/><circle cx="18.5" cy="18.5" r="2.5" stroke="currentColor" strokeWidth="1.5"/></svg>
+                </div>
+                <div className="demo-wv-card-val">{commuteData.longCommutePct}%</div>
+                <div className="demo-wv-card-label">Long Commute</div>
+                <div className="demo-wv-card-sub">60+ min</div>
+              </div>
+            )}
+          </div>
+
+          <div className="demo-source-note">
+            Data: US Census ACS 2022 · CDC PLACES · OpenStreetMap
+          </div>
+        </div>
+      )}
+
+      {/* ── TABLE VIEW ── */}
+      {viewMode === 'table' && (<>
 
       {/* Market grade */}
       {marketScore && (
@@ -527,6 +705,7 @@ export default function DemographicsPanel({ lat, lng, locations, enabledFactors,
       <div className="demo-source-note">
         Data: US Census ACS 2022 · CDC PLACES · OpenStreetMap · ZIP & county level
       </div>
+      </>)}
     </div>
   )
 }
