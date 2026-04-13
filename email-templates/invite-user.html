@@ -1,0 +1,56 @@
+<!-- 
+  MyClubLocator — Invite User Email Template
+  Supabase: Authentication → Email Templates → "Invite user"
+  Subject: You're invited to My Club Locator!
+  Token: {{ .ConfirmationURL }}
+-->
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f7f5;padding:40px 20px;font-family:'DM Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <tr><td align="center">
+    <table width="480" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.06);">
+      <tr><td style="background:#1A3C2E;padding:32px 32px 28px;text-align:center;">
+        <table cellpadding="0" cellspacing="0" style="margin:0 auto 14px;"><tr>
+          <td style="width:44px;height:44px;background:rgba(76,175,130,0.15);border-radius:12px;text-align:center;vertical-align:middle;">
+            <img src="https://myclublocator.com/icon-48.png" width="28" height="28" alt="" style="display:block;margin:0 auto;" />
+          </td>
+        </tr></table>
+        <div style="font-size:22px;font-weight:700;color:#ffffff;letter-spacing:-0.3px;">My<span style="color:#4CAF82;">Club</span>Locator</div>
+      </td></tr>
+      <tr><td style="padding:32px 32px 8px;">
+        <h1 style="font-size:22px;font-weight:700;color:#1A3C2E;margin:0 0 8px;">You're invited!</h1>
+        <p style="font-size:15px;color:#555;line-height:1.6;margin:0 0 24px;">Someone in your network invited you to join My Club Locator — the community-powered map where Nutrition Club owners get discovered, connect, and grow.</p>
+        <table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:0 0 24px;">
+          <a href="{{ .ConfirmationURL }}" target="_blank" style="display:inline-block;background:#4CAF82;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;padding:14px 36px;border-radius:10px;">Accept invitation &rarr;</a>
+        </td></tr></table>
+      </td></tr>
+      <tr><td style="padding:0 32px 28px;">
+        <div style="background:#f8faf9;border:1px solid #e8ede8;border-radius:10px;padding:18px 20px;">
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:#999;font-weight:600;margin-bottom:12px;">What you'll get</div>
+          <table cellpadding="0" cellspacing="0" width="100%">
+            <tr><td style="padding:0 0 10px;"><table cellpadding="0" cellspacing="0"><tr>
+              <td style="width:24px;height:24px;background:#E8F5EE;border-radius:50%;text-align:center;vertical-align:middle;font-size:12px;font-weight:700;color:#4CAF82;">1</td>
+              <td style="padding-left:10px;font-size:14px;color:#333;">Your club on the interactive map</td>
+            </tr></table></td></tr>
+            <tr><td style="padding:0 0 10px;"><table cellpadding="0" cellspacing="0"><tr>
+              <td style="width:24px;height:24px;background:#E8F5EE;border-radius:50%;text-align:center;vertical-align:middle;font-size:12px;font-weight:700;color:#4CAF82;">2</td>
+              <td style="padding-left:10px;font-size:14px;color:#333;">Connection with club owners nationwide</td>
+            </tr></table></td></tr>
+            <tr><td><table cellpadding="0" cellspacing="0"><tr>
+              <td style="width:24px;height:24px;background:#E8F5EE;border-radius:50%;text-align:center;vertical-align:middle;font-size:12px;font-weight:700;color:#4CAF82;">3</td>
+              <td style="padding-left:10px;font-size:14px;color:#333;">Market data and team management tools</td>
+            </tr></table></td></tr>
+          </table>
+        </div>
+      </td></tr>
+      <tr><td style="padding:0 32px 24px;">
+        <div style="border-top:1px solid #f0f0f0;padding-top:16px;">
+          <p style="font-size:12px;color:#bbb;line-height:1.5;margin:0;">Button not working? Copy and paste this link:</p>
+          <p style="font-size:11px;color:#4CAF82;word-break:break-all;margin:6px 0 0;">{{ .ConfirmationURL }}</p>
+        </div>
+      </td></tr>
+      <tr><td style="background:#f8faf9;padding:18px 32px;border-top:1px solid #f0f0f0;">
+        <p style="font-size:12px;color:#aaa;margin:0;"><strong style="color:#888;">My Club Locator</strong> &middot; You were invited to join</p>
+        <p style="font-size:11px;color:#ccc;margin:4px 0 0;">If you don't know who sent this, you can safely ignore it.</p>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
