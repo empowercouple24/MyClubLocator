@@ -616,13 +616,15 @@ function OwnerPhotoUpload({ label, photoUrl, onUpload, uploading }) {
 }
 
 // ── Add Club Confirmation Modal ───────────────────────────────
-function AddClubPrompt({ onConfirm, onCancel }) {
+function AddClubPrompt({ clubCount, onConfirm, onCancel }) {
+  const ordinal = clubCount === 1 ? 'Second' : 'Third'
   return (
     <div className="modal-overlay" onClick={onCancel}>
       <div className="modal-box add-club-modal" onClick={e => e.stopPropagation()}>
         <div className="add-club-modal-icon">🏪</div>
-        <h3>Add a Second Club Location?</h3>
+        <h3>Add a {ordinal} Club Location?</h3>
         <p>You're adding another club profile. Each club has its own address, hours, and photos — but shares your owner info and story.</p>
+        {clubCount === 2 && <p style={{ fontSize: 13, color: '#888', marginTop: 4 }}>This will be your last — 3 clubs maximum per account.</p>}
         <div className="add-club-modal-btns">
           <button className="btn-save" onClick={onConfirm}>Yes, Add Club</button>
           <button className="add-club-cancel-btn" onClick={onCancel}>Cancel</button>
@@ -1405,9 +1407,15 @@ export default function ProfilePage() {
       !== JSON.stringify({ ...savedPersonForm, _p1: savedPersonForm._p1, _p2: savedPersonForm._p2, _p3: savedPersonForm._p3 })
     : false
 
+  const hasLoadedRef = useRef(false)
+
   useEffect(() => {
     async function load() {
       if (!user) return
+      // Only do the full load once — tab switches / auth refreshes should not wipe unsaved state
+      if (hasLoadedRef.current) return
+      hasLoadedRef.current = true
+
       const { data } = await supabase
         .from('locations')
         .select('*')
@@ -1901,9 +1909,11 @@ export default function ProfilePage() {
               {club.id && <span className="club-tab-dot" />}
             </button>
           ))}
-          <button className="club-tab club-tab--add" tabIndex={-1} onClick={handleAddClub}>
-            + Add Club
-          </button>
+          {clubs.length < 3 && (
+            <button className="club-tab club-tab--add" tabIndex={-1} onClick={handleAddClub}>
+              + Add Club
+            </button>
+          )}
         </div>
 
         {/* Active club editor */}
@@ -1927,6 +1937,7 @@ export default function ProfilePage() {
       {/* Add Club confirmation modal */}
       {showAddClubPrompt && (
         <AddClubPrompt
+          clubCount={clubs.length}
           onConfirm={confirmAddClub}
           onCancel={() => setShowAddClubPrompt(false)}
         />
