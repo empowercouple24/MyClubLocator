@@ -1157,396 +1157,245 @@ export default function AdminPage() {
                   <svg className={`survey-chevron ${card1Open ? "open" : ""}`} width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
                 </button>
                 {card1Open && (
-                  <div className="admin-card-body">
-                    <p className="admin-section-desc" style={{ marginBottom: 16 }}>Controls the modal shown to members on first login.</p>
+                  <div className="admin-card-body" style={{ padding: '12px 0 0' }}>
 
-                    {/* Two-column layout: fields left, live preview right */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, alignItems: 'start' }}>
-
-                      {/* Left: fields */}
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-                        <div className="admin-toggle-row" style={{ marginBottom: 16, paddingBottom: 16 }}>
+                    {/* ═══ 1. Returning Member Welcome ═══ */}
+                    <div className="au-card">
+                      <div className="au-card-hdr">
+                        <div className="au-card-hdr-left">
+                          <div className="au-card-icon" style={{ background: '#E1F5EE' }}>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9z" stroke="#0F6E56" strokeWidth="1.5"/></svg>
+                          </div>
                           <div>
-                            <div className="admin-toggle-label">Show welcome video</div>
-                            <div className="admin-toggle-hint">When off, modal shows without a video</div>
-                          </div>
-                          <ToggleSwitch on={settings.welcome_video_enabled}
-                            onChange={v => setSettings(s => ({ ...s, welcome_video_enabled: v }))} />
-                        </div>
-
-                        <div className="field">
-                          <label>Modal title <span className="field-optional">shown to new users without a club</span></label>
-                          <input type="text" value={settings.welcome_title}
-                            onChange={e => setSettings(s => ({ ...s, welcome_title: e.target.value }))}
-                            placeholder="Welcome to My Club Locator!" />
-                        </div>
-
-                        <div className="field">
-                          <label>Returning member title <span className="field-optional">shown to users who already have a club</span></label>
-                          <input type="text" name="welcome_returning_title" value={settings.welcome_returning_title}
-                            onChange={e => setSettings(s => ({ ...s, welcome_returning_title: e.target.value }))}
-                            placeholder="Welcome back, {{first_name}}!" />
-                          <div className="field-hint" style={{ marginTop: 4 }}>
-                            Use <code>{"{{first_name}}"}</code> for the owner's name
+                            <div className="au-card-title">Returning member welcome</div>
+                            <div className="au-card-where">Modal shown on login to members with a club</div>
                           </div>
                         </div>
-
-                        <div className="field">
-                          <label>Welcome message</label>
-                          <RichTextEditor
-                            value={settings.welcome_message}
-                            onChange={v => setSettings(s => ({ ...s, welcome_message: v }))}
-                            placeholder="You're now part of the network…"
-                            minHeight={120}
-                          />
-                          <div className="field-hint" style={{ marginTop: 6 }}>
-                            Available tags: <code>{"{{first_name}}"}</code> first name · <code>{"{{club_1_name}}"}</code> <code>{"{{club_2_name}}"}</code> <code>{"{{club_3_name}}"}</code> club names · <code>{"{{club_1_city}}"}</code> <code>{"{{club_2_city}}"}</code> <code>{"{{club_3_city}}"}</code> cities
-                          </div>
-
-                        </div>
-
-                        <div className="field">
-                          <label>Video embed URL</label>
-                          <input type="url" value={settings.welcome_video_url}
-                            onChange={e => setSettings(s => ({ ...s, welcome_video_url: e.target.value }))}
-                            placeholder="https://www.youtube.com/embed/VIDEO_ID"
-                            disabled={!settings.welcome_video_enabled} />
-                          <span className="field-hint">YouTube embed format: youtube.com/embed/VIDEO_ID</span>
-                        </div>
-
-                        <div className="field">
-                          <label>Video placeholder URL <span className="field-optional">shown until you set a real video</span></label>
-                          <input type="url" value={settings.welcome_video_placeholder}
-                            onChange={e => setSettings(s => ({ ...s, welcome_video_placeholder: e.target.value }))}
-                            placeholder="https://www.youtube.com/embed/VIDEO_ID" />
-                          <span className="field-hint">Shown to new users when no video URL is set above</span>
-                        </div>
-
-                        <div className="admin-toggle-row" style={{ marginTop: 16, marginBottom: 8, paddingTop: 16, borderTop: '1px solid #eee' }}>
-                          <div>
-                            <div className="admin-toggle-label">Show disclaimer</div>
-                            <div className="admin-toggle-hint">Display a disclaimer at the bottom of the welcome modal</div>
-                          </div>
-                          <ToggleSwitch on={settings.welcome_disclaimer_enabled}
-                            onChange={v => setSettings(s => ({ ...s, welcome_disclaimer_enabled: v }))} />
-                        </div>
-
-                        {settings.welcome_disclaimer_enabled && (
-                        <div className="field">
-                          <label>Disclaimer text <span className="field-optional">shown at bottom of modal</span></label>
-                          <RichTextEditor
-                            value={settings.welcome_disclaimer}
-                            onChange={v => setSettings(s => ({ ...s, welcome_disclaimer: v }))}
-                            placeholder="Enter your disclaimer here — e.g. terms of use, membership rules, etc."
-                            minHeight={100}
-                          />
-                          <div className="field-hint" style={{ marginTop: 6 }}>
-                            Available tags: <code>{"{{first_name}}"}</code> · <code>{"{{club_1_name}}"}</code> <code>{"{{club_2_name}}"}</code> <code>{"{{club_3_name}}"}</code>
-                          </div>
-                          <span className="field-hint">Leave blank to show the default placeholder text until you're ready</span>
-                        </div>
-                        )}
                       </div>
-
-                      {/* Right: live modal preview */}
-                      <div>
-                        <div className="mc-preview-label" style={{ marginBottom: 8 }}>Live preview</div>
-                        <div style={{
-                          background: 'rgba(0,0,0,0.35)',
-                          borderRadius: 12,
-                          padding: 16,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                        }}>
-                          <div style={{
-                            background: '#fff',
-                            borderRadius: 16,
-                            padding: '24px 22px 20px',
-                            width: '100%',
-                            boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
-                          }}>
-                            {/* Logo mark */}
-                            <div style={{
-                              width: 40, height: 40, borderRadius: 10,
-                              background: '#EBF5EF',
-                              display: 'flex', alignItems: 'center', justifyContent: 'center',
-                              marginBottom: 14,
-                            }}>
-                              <svg width="22" height="22" viewBox="0 0 18 18" fill="none">
-                                <circle cx="9" cy="9" r="3.5" fill="#4CAF82"/>
-                                <circle cx="9" cy="9" r="7" stroke="#4CAF82" strokeWidth="1.5" fill="none"/>
-                                <line x1="9" y1="2" x2="9" y2="0.5" stroke="#4CAF82" strokeWidth="1.5" strokeLinecap="round"/>
-                                <line x1="9" y1="16" x2="9" y2="17.5" stroke="#4CAF82" strokeWidth="1.5" strokeLinecap="round"/>
-                                <line x1="2" y1="9" x2="0.5" y2="9" stroke="#4CAF82" strokeWidth="1.5" strokeLinecap="round"/>
-                                <line x1="16" y1="9" x2="17.5" y2="9" stroke="#4CAF82" strokeWidth="1.5" strokeLinecap="round"/>
-                              </svg>
+                      <div className="au-card-body-grid">
+                        <div className="au-card-edit">
+                          <div className="au-field"><label>New member title</label>
+                            <input type="text" value={settings.welcome_title} onChange={e => setSettings(s => ({ ...s, welcome_title: e.target.value }))} placeholder="Welcome to My Club Locator!" /></div>
+                          <div className="au-field"><label>Returning member title <span className="field-optional">for users who already have a club</span></label>
+                            <input type="text" value={settings.welcome_returning_title} onChange={e => setSettings(s => ({ ...s, welcome_returning_title: e.target.value }))} placeholder="Welcome back, {{first_name}}!" /></div>
+                          <div className="au-field"><label>Message (rich text)</label>
+                            <RichTextEditor value={settings.welcome_message} onChange={v => setSettings(s => ({ ...s, welcome_message: v }))} placeholder="Welcome message body…" /></div>
+                          <div className="au-toggle-row">
+                            <span className="au-toggle-label">Video embed</span>
+                            <ToggleSwitch on={settings.welcome_video_enabled} onChange={v => setSettings(s => ({ ...s, welcome_video_enabled: v }))} />
+                          </div>
+                          {settings.welcome_video_enabled && (
+                            <>
+                              <div className="au-field"><label>Video URL</label>
+                                <input type="url" value={settings.welcome_video_url} onChange={e => setSettings(s => ({ ...s, welcome_video_url: e.target.value }))} placeholder="https://youtube.com/embed/..." /></div>
+                              <div className="au-field"><label>Placeholder image URL <span className="field-optional">shown before video loads</span></label>
+                                <input type="url" value={settings.welcome_video_placeholder} onChange={e => setSettings(s => ({ ...s, welcome_video_placeholder: e.target.value }))} placeholder="https://..." /></div>
+                            </>
+                          )}
+                          <div className="au-toggle-row">
+                            <span className="au-toggle-label">Disclaimer</span>
+                            <ToggleSwitch on={settings.welcome_disclaimer_enabled} onChange={v => setSettings(s => ({ ...s, welcome_disclaimer_enabled: v }))} />
+                          </div>
+                          {settings.welcome_disclaimer_enabled && (
+                            <div className="au-field"><label>Disclaimer text (rich text)</label>
+                              <RichTextEditor value={settings.welcome_disclaimer} onChange={v => setSettings(s => ({ ...s, welcome_disclaimer: v }))} placeholder="Disclaimer text…" /></div>
+                          )}
+                        </div>
+                        <div className="au-card-preview">
+                          <div className="au-preview-label">Live preview</div>
+                          <div className="au-preview-modal">
+                            <div className="au-preview-logo">
+                              <svg width="20" height="20" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="3.5" fill="#4CAF82"/><circle cx="9" cy="9" r="7" stroke="#4CAF82" strokeWidth="1.5" fill="none"/><line x1="9" y1="2" x2="9" y2="0.5" stroke="#4CAF82" strokeWidth="1.5" strokeLinecap="round"/><line x1="9" y1="16" x2="9" y2="17.5" stroke="#4CAF82" strokeWidth="1.5" strokeLinecap="round"/><line x1="2" y1="9" x2="0.5" y2="9" stroke="#4CAF82" strokeWidth="1.5" strokeLinecap="round"/><line x1="16" y1="9" x2="17.5" y2="9" stroke="#4CAF82" strokeWidth="1.5" strokeLinecap="round"/></svg>
                             </div>
-                            {/* Title */}
-                            <div style={{ fontSize: 16, fontWeight: 700, color: '#1A1A1A', marginBottom: 8, lineHeight: 1.3 }}>
-                              {settings.welcome_title || 'Welcome to My Club Locator!'}
-                            </div>
-                            {/* Message */}
-                            <div className="rte-content" style={{ fontSize: 12, color: '#555', lineHeight: 1.65, marginBottom: 12 }}
-                              dangerouslySetInnerHTML={{ __html: settings.welcome_message || 'Your welcome message will appear here.' }}
-                            />
-                            {/* Video placeholder */}
+                            <div className="au-preview-title">{settings.welcome_returning_title?.replace('{{first_name}}', 'Jeffrey') || 'Welcome back!'}</div>
+                            <div className="au-preview-msg rte-content" dangerouslySetInnerHTML={{ __html: settings.welcome_message || 'Your welcome message here.' }} />
                             {settings.welcome_video_enabled && (
-                              <div style={{
-                                background: '#111', borderRadius: 7,
-                                height: 72, display: 'flex', alignItems: 'center',
-                                justifyContent: 'center', marginBottom: 12,
-                              }}>
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                                  <circle cx="12" cy="12" r="10" stroke="#555" strokeWidth="1.5"/>
-                                  <path d="M10 8.5l6 3.5-6 3.5V8.5z" fill="#555"/>
-                                </svg>
-                              </div>
+                              <div className="au-preview-video"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M5 3l14 9-14 9V3z" fill="#ccc"/></svg></div>
                             )}
-                            {/* CTA button */}
-                            <div style={{ background: '#1A3C2E', color: '#fff', borderRadius: 8, padding: '10px 14px', fontSize: 12, fontWeight: 600, textAlign: 'center', marginBottom: 10 }}>
-                              Add My Club
-                            </div>
-                            {/* Disclaimer */}
-                            <div className="rte-content" style={{
-                              fontSize: 10, color: '#888', lineHeight: 1.6,
-                              background: '#f8f8f6', borderRadius: 6, padding: '8px 10px',
-                              border: '1px solid #e8e8e4',
-                            }}
-                              dangerouslySetInnerHTML={{ __html: settings.welcome_disclaimer || 'Disclaimer placeholder — edit this text in Admin → Settings.' }}
-                            />
+                            <div className="au-preview-btn">Explore the Map</div>
+                            {settings.welcome_disclaimer_enabled && (
+                              <div className="au-preview-disc rte-content" dangerouslySetInnerHTML={{ __html: settings.welcome_disclaimer || 'Disclaimer text here.' }} />
+                            )}
                           </div>
                         </div>
                       </div>
                     </div>
 
-                {/* New User Confirmation Welcome Screen */}
-                <div style={{ borderTop: "0.5px solid #e8ede9", padding: "12px 20px 4px" }}>
-                  <div style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: ".04em", color: "#aaa" }}>New User Welcome Screen</div>
-                </div>
-                    <p className="admin-section-desc" style={{ marginBottom: 14 }}>Controls the screen shown to new users after they confirm their email, before onboarding begins.</p>
-
-                    <div className="admin-toggle-row" style={{ marginBottom: 12 }}>
-                      <div>
-                        <div className="admin-toggle-label">Show welcome video</div>
-                        <div className="admin-toggle-hint">When off, screen shows without a video</div>
-                      </div>
-                      <ToggleSwitch on={settings.welcome_new_video_enabled}
-                        onChange={v => setSettings(s => ({ ...s, welcome_new_video_enabled: v }))} />
-                    </div>
-
-                    <div className="field" style={{ marginBottom: 14 }}>
-                      <label>Welcome title</label>
-                      <input type="text" value={settings.welcome_new_title}
-                        onChange={e => setSettings(s => ({ ...s, welcome_new_title: e.target.value }))}
-                        placeholder="Welcome to My Club Locator!" />
-                    </div>
-
-                    <div className="field" style={{ marginBottom: 14 }}>
-                      <label>Welcome message</label>
-                      <textarea rows={3} value={settings.welcome_new_message}
-                        onChange={e => setSettings(s => ({ ...s, welcome_new_message: e.target.value }))}
-                        placeholder="Your email is confirmed and your account is active."
-                        style={{ width: '100%', padding: '10px 12px', border: '1px solid #c8d4cc', borderRadius: 8, fontSize: 14, resize: 'vertical' }} />
-                    </div>
-
-                    {settings.welcome_new_video_enabled && (
-                      <div className="field" style={{ marginBottom: 14 }}>
-                        <label>Video embed URL</label>
-                        <input type="url" value={settings.welcome_new_video_url}
-                          onChange={e => setSettings(s => ({ ...s, welcome_new_video_url: e.target.value }))}
-                          placeholder="https://www.youtube.com/embed/VIDEO_ID" />
-                        <span className="field-hint">YouTube embed format: youtube.com/embed/VIDEO_ID</span>
-                      </div>
-                    )}
-
-                    <div className="field" style={{ marginBottom: 20 }}>
-                      <label>Button text</label>
-                      <input type="text" value={settings.welcome_new_button_text}
-                        onChange={e => setSettings(s => ({ ...s, welcome_new_button_text: e.target.value }))}
-                        placeholder="Let's get started →" />
-                    </div>
-
-                <div style={{ borderTop: "0.5px solid #e8ede9", padding: "12px 20px 4px" }}>
-                  <div style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: ".04em", color: "#aaa" }}>Login Welcome Messages</div>
-                </div>
-                    <p className="admin-section-desc" style={{ marginBottom: 14 }}>Customize what members see on the screen immediately after logging in. Tags: <code>{'{name}'}</code> first name · <code>{'{club}'}</code> club 1 · <code>{'{club_2}'}</code> club 2 · <code>{'{club_3}'}</code> club 3. Toggle each message on or off independently.</p>
-                    {[
-                      {
-                        enabledKey: 'login_msg_approved_enabled',
-                        textKey:    'login_msg_approved',
-                        label:      'Approved member message',
-                        audience:   'Shown to members whose club profile is complete and has been approved by you. These are your fully active club owners — the ones already live on the map. This is the most common login scenario.',
-                        placeholder: 'Welcome back, {name}! {club} is live on the map.',
-                        color:      '#0F6E56',
-                        bg:         '#E1F5EE',
-                      },
-                      {
-                        enabledKey: 'login_msg_pending_enabled',
-                        textKey:    'login_msg_pending',
-                        label:      'Pending approval message',
-                        audience:   'Shown to members who have set up their club profile but are still waiting for your approval. They can log in and use the app but won\'t appear on the map yet. Use this to set expectations while you review.',
-                        placeholder: "Welcome back, {name}! {club} is pending approval. You'll appear on the map once approved.",
-                        color:      '#854F0B',
-                        bg:         '#FEF3C7',
-                      },
-                      {
-                        enabledKey: 'login_msg_no_profile_enabled',
-                        textKey:    'login_msg_no_profile',
-                        label:      'No profile yet message',
-                        audience:   "Shown to members who completed the onboarding survey but haven't filled in their club profile yet. They signed up and answered the intro questions but stopped before adding their club's address, hours, and details.",
-                        placeholder: "Welcome back! Your club profile isn't set up yet. Finish setting it up to appear on the map.",
-                        color:      '#185FA5',
-                        bg:         '#EFF6FF',
-                      },
-                    ].map(({ enabledKey, textKey, label, audience, placeholder, color, bg }) => (
-                      <div key={textKey} className="login-msg-block">
-                        <div className="login-msg-header">
-                          <div className="login-msg-label-wrap">
-                            <span className="login-msg-dot" style={{ background: color }} />
-                            <span className="admin-toggle-label">{label}</span>
+                    {/* ═══ 2. New User Welcome Screen ═══ */}
+                    <div className="au-card">
+                      <div className="au-card-hdr">
+                        <div className="au-card-hdr-left">
+                          <div className="au-card-icon" style={{ background: '#E6F1FB' }}>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" stroke="#185FA5" strokeWidth="1.5"/><circle cx="8.5" cy="7" r="4" stroke="#185FA5" strokeWidth="1.5"/><path d="M20 8v6M23 11h-6" stroke="#185FA5" strokeWidth="1.5" strokeLinecap="round"/></svg>
                           </div>
-                          <ToggleSwitch
-                            on={settings[enabledKey]}
-                            onChange={v => setSettings(s => ({ ...s, [enabledKey]: v }))}
-                          />
-                        </div>
-                        <div className="login-msg-audience" style={{ borderLeftColor: color, background: bg }}>
-                          <svg width="13" height="13" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0, marginTop: 1 }}>
-                            <circle cx="8" cy="8" r="6.5" stroke={color} strokeWidth="1.2"/>
-                            <circle cx="8" cy="5.5" r="1" fill={color}/>
-                            <line x1="8" y1="8" x2="8" y2="11.5" stroke={color} strokeWidth="1.2" strokeLinecap="round"/>
-                          </svg>
-                          <span style={{ color }}>{audience}</span>
-                        </div>
-                        {settings[enabledKey] && (
-                          <div style={{ marginTop: 8 }}>
-                            <textarea
-                              rows={3}
-                              className="admin-tall-textarea"
-                              value={settings[textKey]}
-                              onChange={e => setSettings(s => ({ ...s, [textKey]: e.target.value }))}
-                              placeholder={placeholder}
-                            />
-                            <span className="field-hint">Tags: <code style={{ fontSize: 11 }}>{'{name}'}</code> first name · <code style={{ fontSize: 11 }}>{'{club}'}</code> club 1 · <code style={{ fontSize: 11 }}>{'{club_2}'}</code> club 2 · <code style={{ fontSize: 11 }}>{'{club_3}'}</code> club 3</span>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-
-                <div style={{ borderTop: "0.5px solid #e8ede9", padding: "12px 20px 4px" }}>
-                  <div style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: ".04em", color: "#aaa" }}>Team Creation and Member Approval Settings</div>
-                </div>
-                    <p className="admin-section-desc" style={{ marginBottom: 14 }}>Control which members can create and manage teams.</p>
-                    <div className="admin-toggle-row" style={{ marginBottom: 14 }}>
-                      <div>
-                        <div className="admin-toggle-label">Allow team creation</div>
-                        <div className="admin-toggle-hint">When off, no member can create new teams</div>
-                      </div>
-                      <ToggleSwitch on={settings.team_creation_enabled}
-                        onChange={v => setSettings(s => ({ ...s, team_creation_enabled: v }))} />
-                    </div>
-                    <div className="field">
-                      <label>Minimum level to create a team</label>
-                      <div style={{ marginTop: 10, opacity: settings.team_creation_enabled ? 1 : 0.4, pointerEvents: settings.team_creation_enabled ? 'auto' : 'none' }}>
-                        <div className="lvl-group-label">Tab Team</div>
-                        <div className="lvl-btn-row">
-                          {[
-                            { val: 'Distributor',       label: 'DS',  c: '#e3e3e3', cd: '#555' },
-                            { val: 'Success Builder',   label: 'SB',  c: '#e3e3e3', cd: '#555' },
-                            { val: 'Supervisor',        label: 'SP',  c: '#64ba44', cd: '#2a6b1a' },
-                            { val: 'World Team',        label: 'WT',  c: '#767678', cd: '#3a3a3a' },
-                            { val: 'Active World Team', label: 'AWT', c: '#767678', cd: '#3a3a3a' },
-                          ].map(({ val, label, c, cd }) => (
-                            <button key={val} type="button"
-                              className={`lvl-btn ${settings.team_creation_min_level === val ? 'on' : ''}`}
-                              style={{ '--lvlc': c, '--lvlcd': cd }}
-                              onClick={() => setSettings(s => ({ ...s, team_creation_min_level: val }))}>
-                              {label}
-                            </button>
-                          ))}
-                        </div>
-                        <div className="lvl-group-label" style={{ marginTop: 10 }}>Future Pres Team 🚀</div>
-                        <div className="lvl-btn-row">
-                          {[
-                            { val: 'Get Team',              label: 'GT', c: '#e02054', cd: '#8a0020' },
-                            { val: 'Get Team 2500',         label: 'GP', c: '#f39519', cd: '#7a4200' },
-                            { val: 'Millionaire Team',      label: 'MT', c: '#3aac77', cd: '#0c5a32' },
-                            { val: 'Millionaire Team 7500', label: 'MP', c: '#84c8d3', cd: '#1a5a60' },
-                          ].map(({ val, label, c, cd }) => (
-                            <button key={val} type="button"
-                              className={`lvl-btn ${settings.team_creation_min_level === val ? 'on' : ''}`}
-                              style={{ '--lvlc': c, '--lvlcd': cd }}
-                              onClick={() => setSettings(s => ({ ...s, team_creation_min_level: val }))}>
-                              {label}
-                            </button>
-                          ))}
-                        </div>
-                        <div className="lvl-group-label" style={{ marginTop: 10 }}>Pres Team 💎</div>
-                        <div className="lvl-btn-row">
-                          <button type="button"
-                            className={`lvl-btn ${settings.team_creation_min_level === 'Presidents Team' ? 'on' : ''}`}
-                            style={{ '--lvlc': '#fde488', '--lvlcd': '#7a5200' }}
-                            onClick={() => setSettings(s => ({ ...s, team_creation_min_level: 'Presidents Team' }))}>
-                            PT
-                          </button>
-                        </div>
-                      </div>
-                      <span className="field-hint" style={{ marginTop: 8, display: 'block' }}>Members below this level will not see the team creation option</span>
-                    </div>
-
-                    {/* Team Info Modal */}
-                    <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: 16, marginTop: 16 }}>
-                      <div className="admin-toggle-row" style={{ marginBottom: 12 }}>
-                        <div>
-                          <div className="admin-toggle-label">Team info popup</div>
-                          <div className="admin-toggle-hint">Show an introductory popup explaining Teams when users reach the My Team section</div>
-                        </div>
-                        <ToggleSwitch on={settings.team_info_modal_enabled}
-                          onChange={v => setSettings(s => ({ ...s, team_info_modal_enabled: v }))} />
-                      </div>
-
-                      {settings.team_info_modal_enabled && (<>
-                        <div className="field">
-                          <label>Team info message</label>
-                          <RichTextEditor
-                            value={settings.team_info_message}
-                            onChange={v => setSettings(s => ({ ...s, team_info_message: v }))}
-                            placeholder="Explain what Teams are and how they work…"
-                            minHeight={120}
-                          />
-                        </div>
-
-                        <div className="admin-toggle-row" style={{ marginBottom: 12 }}>
                           <div>
-                            <div className="admin-toggle-label">Show video in team info popup</div>
-                            <div className="admin-toggle-hint">Embed a video explaining Teams</div>
+                            <div className="au-card-title">New user welcome screen</div>
+                            <div className="au-card-where">Shown after email confirmation</div>
                           </div>
-                          <ToggleSwitch on={settings.team_info_video_enabled}
-                            onChange={v => setSettings(s => ({ ...s, team_info_video_enabled: v }))} />
                         </div>
+                      </div>
+                      <div className="au-card-body-grid">
+                        <div className="au-card-edit">
+                          <div className="au-field"><label>Title</label>
+                            <input type="text" value={settings.welcome_new_title} onChange={e => setSettings(s => ({ ...s, welcome_new_title: e.target.value }))} placeholder="Welcome to My Club Locator!" /></div>
+                          <div className="au-field"><label>Message</label>
+                            <textarea rows={3} value={settings.welcome_new_message} onChange={e => setSettings(s => ({ ...s, welcome_new_message: e.target.value }))} placeholder="Your account is active…" /></div>
+                          <div className="au-toggle-row">
+                            <span className="au-toggle-label">Video embed</span>
+                            <ToggleSwitch on={settings.welcome_new_video_enabled} onChange={v => setSettings(s => ({ ...s, welcome_new_video_enabled: v }))} />
+                          </div>
+                          {settings.welcome_new_video_enabled && (
+                            <div className="au-field"><label>Video URL</label>
+                              <input type="url" value={settings.welcome_new_video_url} onChange={e => setSettings(s => ({ ...s, welcome_new_video_url: e.target.value }))} placeholder="https://youtube.com/embed/..." /></div>
+                          )}
+                          <div className="au-field"><label>Button text</label>
+                            <input type="text" value={settings.welcome_new_button_text} onChange={e => setSettings(s => ({ ...s, welcome_new_button_text: e.target.value }))} placeholder="Let's get started →" /></div>
+                        </div>
+                        <div className="au-card-preview">
+                          <div className="au-preview-label">Live preview</div>
+                          <div className="au-preview-modal">
+                            <div className="au-preview-logo">
+                              <svg width="20" height="20" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="3.5" fill="#4CAF82"/><circle cx="9" cy="9" r="7" stroke="#4CAF82" strokeWidth="1.5" fill="none"/><line x1="9" y1="2" x2="9" y2="0.5" stroke="#4CAF82" strokeWidth="1.5" strokeLinecap="round"/><line x1="9" y1="16" x2="9" y2="17.5" stroke="#4CAF82" strokeWidth="1.5" strokeLinecap="round"/><line x1="2" y1="9" x2="0.5" y2="9" stroke="#4CAF82" strokeWidth="1.5" strokeLinecap="round"/><line x1="16" y1="9" x2="17.5" y2="9" stroke="#4CAF82" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                            </div>
+                            <div className="au-preview-title">{settings.welcome_new_title || 'Welcome!'}</div>
+                            <div className="au-preview-msg">{settings.welcome_new_message || 'Your account is active.'}</div>
+                            {settings.welcome_new_video_enabled && (
+                              <div className="au-preview-video"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M5 3l14 9-14 9V3z" fill="#ccc"/></svg></div>
+                            )}
+                            <div className="au-preview-btn">{settings.welcome_new_button_text || "Let's get started →"}</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
 
-                        {settings.team_info_video_enabled && (
-                          <div className="field">
-                            <label>Video embed URL</label>
-                            <input type="url" value={settings.team_info_video_url}
-                              onChange={e => setSettings(s => ({ ...s, team_info_video_url: e.target.value }))}
-                              placeholder="https://www.youtube.com/embed/VIDEO_ID" />
-                            <span className="field-hint">YouTube embed format: youtube.com/embed/VIDEO_ID</span>
+                    {/* ═══ 3. Login Messages ═══ */}
+                    <div className="au-card">
+                      <div className="au-card-hdr">
+                        <div className="au-card-hdr-left">
+                          <div className="au-card-icon" style={{ background: '#FAEEDA' }}>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M15 3h6v6M10 14L21 3M9 7H3v14h14v-6" stroke="#854F0B" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                          </div>
+                          <div>
+                            <div className="au-card-title">Login messages</div>
+                            <div className="au-card-where">Flash message shown after sign-in</div>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="au-card-body-grid">
+                        <div className="au-card-edit">
+                          <div className="au-login-msg-row">
+                            <div className="au-login-msg-hdr"><label>Approved members</label><ToggleSwitch on={settings.login_msg_approved_enabled} onChange={v => setSettings(s => ({ ...s, login_msg_approved_enabled: v }))} /></div>
+                            {settings.login_msg_approved_enabled && <input type="text" value={settings.login_msg_approved} onChange={e => setSettings(s => ({ ...s, login_msg_approved: e.target.value }))} />}
+                          </div>
+                          <div className="au-login-msg-row">
+                            <div className="au-login-msg-hdr"><label>Pending members</label><ToggleSwitch on={settings.login_msg_pending_enabled} onChange={v => setSettings(s => ({ ...s, login_msg_pending_enabled: v }))} /></div>
+                            {settings.login_msg_pending_enabled && <input type="text" value={settings.login_msg_pending} onChange={e => setSettings(s => ({ ...s, login_msg_pending: e.target.value }))} />}
+                          </div>
+                          <div className="au-login-msg-row" style={{ borderBottom: 'none' }}>
+                            <div className="au-login-msg-hdr"><label>No profile yet</label><ToggleSwitch on={settings.login_msg_no_profile_enabled} onChange={v => setSettings(s => ({ ...s, login_msg_no_profile_enabled: v }))} /></div>
+                            {settings.login_msg_no_profile_enabled && <input type="text" value={settings.login_msg_no_profile} onChange={e => setSettings(s => ({ ...s, login_msg_no_profile: e.target.value }))} />}
+                          </div>
+                        </div>
+                        <div className="au-card-preview">
+                          <div className="au-preview-label">Live preview (approved)</div>
+                          <div className="au-preview-modal" style={{ textAlign: 'left' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                              <div style={{ width: 24, height: 24, borderRadius: '50%', background: '#E1F5EE', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M9 11l3 3L22 4" stroke="#4CAF82" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                              </div>
+                              <div className="au-preview-msg" style={{ margin: 0 }}>{(settings.login_msg_approved || '').replace('{name}', 'Jeffrey').replace('{club}', 'Test Club')}</div>
+                            </div>
+                            <div className="au-preview-btn" style={{ display: 'inline-block' }}>Go to map</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* ═══ 4. Team Info Modal ═══ */}
+                    <div className="au-card">
+                      <div className="au-card-hdr">
+                        <div className="au-card-hdr-left">
+                          <div className="au-card-icon" style={{ background: '#EEEDFE' }}>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" stroke="#534AB7" strokeWidth="1.5"/><circle cx="9" cy="7" r="4" stroke="#534AB7" strokeWidth="1.5"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" stroke="#534AB7" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                          </div>
+                          <div>
+                            <div className="au-card-title">Team info modal</div>
+                            <div className="au-card-where">Shown when user opens teams section</div>
+                          </div>
+                        </div>
+                        <ToggleSwitch on={settings.team_info_modal_enabled} onChange={v => setSettings(s => ({ ...s, team_info_modal_enabled: v }))} />
+                      </div>
+                      {settings.team_info_modal_enabled && (
+                        <div className="au-card-body-grid">
+                          <div className="au-card-edit">
+                            <div className="au-field"><label>Message (rich text)</label>
+                              <RichTextEditor value={settings.team_info_message} onChange={v => setSettings(s => ({ ...s, team_info_message: v }))} placeholder="Explain what teams are…" /></div>
+                            <div className="au-toggle-row">
+                              <span className="au-toggle-label">Video embed</span>
+                              <ToggleSwitch on={settings.team_info_video_enabled} onChange={v => setSettings(s => ({ ...s, team_info_video_enabled: v }))} />
+                            </div>
+                            {settings.team_info_video_enabled && (
+                              <div className="au-field"><label>Video URL</label>
+                                <input type="url" value={settings.team_info_video_url} onChange={e => setSettings(s => ({ ...s, team_info_video_url: e.target.value }))} placeholder="https://youtube.com/embed/..." /></div>
+                            )}
+                          </div>
+                          <div className="au-card-preview">
+                            <div className="au-preview-label">Live preview</div>
+                            <div className="au-preview-modal">
+                              <div className="au-preview-title">About teams</div>
+                              <div className="au-preview-msg rte-content" dangerouslySetInnerHTML={{ __html: settings.team_info_message || 'Team info message here.' }} />
+                              {settings.team_info_video_enabled && (
+                                <div className="au-preview-video"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M5 3l14 9-14 9V3z" fill="#ccc"/></svg></div>
+                              )}
+                              <div className="au-preview-btn">Got it</div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* ═══ 5. Teams & Approval Settings ═══ */}
+                    <div className="au-card">
+                      <div className="au-card-hdr">
+                        <div className="au-card-hdr-left">
+                          <div className="au-card-icon" style={{ background: '#F1EFE8' }}>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="#5F5E5A" strokeWidth="1.5"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" stroke="#5F5E5A" strokeWidth="1.5"/></svg>
+                          </div>
+                          <div>
+                            <div className="au-card-title">Teams & approval</div>
+                            <div className="au-card-where">Team creation rules and member approval</div>
+                          </div>
+                        </div>
+                      </div>
+                      <div style={{ padding: '12px 16px' }}>
+                        <div className="au-toggle-row">
+                          <span className="au-toggle-label">Enable team creation</span>
+                          <ToggleSwitch on={settings.team_creation_enabled} onChange={v => setSettings(s => ({ ...s, team_creation_enabled: v }))} />
+                        </div>
+                        {settings.team_creation_enabled && (
+                          <div className="au-field" style={{ marginTop: 8 }}><label>Minimum level to create a team</label>
+                            <select value={settings.team_creation_min_level} onChange={e => setSettings(s => ({ ...s, team_creation_min_level: e.target.value }))}>
+                              {['Distributor','Success Builder','Supervisor','World Team','Active World Team','Get Team','Millionaire Team','Presidents Team','Chairmans Club','Founders Circle'].map(l => (
+                                <option key={l} value={l}>{l}</option>
+                              ))}
+                            </select>
                           </div>
                         )}
-                      </>)}
+                        <div className="au-toggle-row" style={{ marginTop: 12, paddingTop: 12, borderTop: '0.5px solid #f0f0f0' }}>
+                          <span className="au-toggle-label">Require approval for new members</span>
+                          <ToggleSwitch on={settings.require_approval} onChange={v => setSettings(s => ({ ...s, require_approval: v }))} />
+                        </div>
+                        <div className="au-toggle-row" style={{ marginTop: 12, paddingTop: 12, borderTop: '0.5px solid #f0f0f0' }}>
+                          <span className="au-toggle-label">Enable member signups</span>
+                          <ToggleSwitch on={settings.member_signups_enabled !== false} onChange={v => setSettings(s => ({ ...s, member_signups_enabled: v }))} />
+                        </div>
+                        <div className="au-toggle-row" style={{ marginTop: 8 }}>
+                          <span className="au-toggle-label">Enable member login</span>
+                          <ToggleSwitch on={settings.member_login_enabled !== false} onChange={v => setSettings(s => ({ ...s, member_login_enabled: v }))} />
+                        </div>
+                      </div>
                     </div>
 
-                    <p className="admin-section-desc" style={{ marginBottom: 14, marginTop: 16 }}>When enabled, new signups must be approved before appearing on the map.</p>
-                    <div className="admin-toggle-row">
-                      <div>
-                        <div className="admin-toggle-label">Require approval for new members</div>
-                        <div className="admin-toggle-hint">New clubs will be hidden until you approve them</div>
-                      </div>
-                      <ToggleSwitch on={settings.require_approval}
-                        onChange={v => setSettings(s => ({ ...s, require_approval: v }))} />
-                    </div>
                   </div>
                 )}
               </div>
