@@ -851,6 +851,8 @@ export default function MapPage() {
   const [myClubCollapsed, setMyClubCollapsed] = useState(true)
   const [savedViews, setSavedViews]       = useState([])
   const [showSavedViews, setShowSavedViews] = useState(false)
+  const [showClubFilter, setShowClubFilter] = useState(false)
+  const [showBasemapPicker, setShowBasemapPicker] = useState(false)
   const [newViewName, setNewViewName]     = useState('')
   const [savingView, setSavingView]       = useState(false)
   const [prefsOpen, setPrefsOpen]         = useState(false)
@@ -1196,6 +1198,17 @@ export default function MapPage() {
     setSavedViews(v => v.filter(x => x.id !== id))
   }
 
+  function closeAllToolbarDropdowns() { setShowSavedViews(false); setShowClubFilter(false); setShowBasemapPicker(false); setPrefsOpen(false) }
+  function toggleToolbarDropdown(setter) {
+    return () => {
+      setter(v => {
+        const opening = !v
+        if (opening) { setShowSavedViews(false); setShowClubFilter(false); setShowBasemapPicker(false); setPrefsOpen(false) }
+        return opening
+      })
+    }
+  }
+
   function flyToSavedView(view) {
     setMapCenter([view.lat, view.lng])
     setMapZoom(view.zoom)
@@ -1423,309 +1436,234 @@ export default function MapPage() {
           </MapContainer>
         )}
 
-        {/* Search toolbar */}
-        <div className="map-toolbar">
-          <form className="map-search-form" onSubmit={handleCitySearch}>
+        {/* ═══ Unified Map Toolbar ═══ */}
+        <div className="map-toolbar-v2">
+          {/* My Location */}
+          <button
+            className={`tb2-btn${geoMarker ? ' active' : ''}${geoLocating ? ' loading' : ''}`}
+            onClick={handleGeoLocate}
+            disabled={geoLocating}
+            title={geoLocating ? 'Locating…' : geoMarker ? 'Clear my location' : 'Show my location on the map'}>
+            {geoLocating ? <span className="geo-spinner" /> : (
+              <svg width="14" height="14" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="3.5" fill="currentColor"/><circle cx="9" cy="9" r="7" stroke="currentColor" strokeWidth="1.5" fill="none"/><line x1="9" y1="2" x2="9" y2="0.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><line x1="9" y1="16" x2="9" y2="17.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><line x1="2" y1="9" x2="0.5" y2="9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><line x1="16" y1="9" x2="17.5" y2="9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+            )}
+            <span className="tb2-tip">My location</span>
+          </button>
+
+          <div className="tb2-sep" />
+
+          {/* Search */}
+          <form className="tb2-search" onSubmit={handleCitySearch}>
             <MapSearchAutocomplete
               value={citySearch}
               onChange={setCitySearch}
               geocoding={geocoding}
-              onSelect={({ lat, lng, label }) => {
-                setMapCenter([lat, lng])
-                setMapZoom(11)
-                setCityFilter(label)
-              }}
+              onSelect={({ lat, lng, label }) => { setMapCenter([lat, lng]); setMapZoom(11); setCityFilter(label) }}
               onClear={clearFilters}
             />
           </form>
-          {hasFilter && <button className="map-clear-btn" onClick={clearFilters}>✕ Clear</button>}
-          <button
-            className={`map-demo-btn ${demoActive ? 'active' : ''}`}
+          {hasFilter && <button className="tb2-clear" onClick={clearFilters}>✕</button>}
+
+          <div className="tb2-sep" />
+
+          {/* Home */}
+          {hasDefaultView && (
+            <>
+              <button className="tb2-btn" onClick={flyToDefaultView} title="Go to default view">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><path d="M9 22V12h6v10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                <span className="tb2-tip">Home view</span>
+              </button>
+              <div className="tb2-sep" />
+            </>
+          )}
+
+          {/* Zoom */}
+          <button className="tb2-btn" onClick={() => mapRef.current && mapRef.current.zoomIn()} title="Zoom in">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
+            <span className="tb2-tip">Zoom in</span>
+          </button>
+          <div className="tb2-sep" />
+          <button className="tb2-btn" onClick={() => mapRef.current && mapRef.current.zoomOut()} title="Zoom out">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
+            <span className="tb2-tip">Zoom out</span>
+          </button>
+
+          <div className="tb2-sep" />
+
+          {/* Show clubs (marker pin) */}
+          <div className="tb2-dropdown-wrap">
+            <button className={`tb2-btn${showClubFilter ? ' active' : ''}`} onClick={toggleToolbarDropdown(setShowClubFilter)}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="10" r="3.5" fill="currentColor"/><path d="M12 2C7.58 2 4 5.58 4 10c0 5.5 8 12 8 12s8-6.5 8-12c0-4.42-3.58-8-8-8z" stroke="currentColor" strokeWidth="1.5"/></svg>
+              <span className="tb2-tip">Show clubs</span>
+            </button>
+            {showClubFilter && (
+              <div className="tb2-dropdown tb2-dropdown--show">
+                <div className="tb2-dropdown-title">Show on map</div>
+                {[
+                  { val: 'all', label: 'All clubs', dots: [] },
+                  { val: 'mine', label: locations.filter(l => l.user_id === user?.id).length > 1 ? 'My clubs' : 'My club', dots: [markerColors.own] },
+                  ...(allTeamLocationIds.size > 0 ? [
+                    { val: 'team', label: 'My team', dots: [markerColors.team] },
+                    { val: 'mine_team', label: 'Mine + team', dots: [markerColors.own, markerColors.team] },
+                  ] : []),
+                  { val: 'others', label: 'Others only', dots: [markerColors.other] },
+                  { val: 'none', label: 'Hide all', dots: [] },
+                ].map(({ val, label, dots }) => (
+                  <button key={val} className={`tb2-show-pill${visibilityMode === val ? ' active' : ''}`}
+                    onClick={() => { setVisibilityMode(val); setShowClubFilter(false) }}>
+                    {dots.map((c, i) => <span key={i} className="tb2-show-dot" style={{ background: c }} />)}
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="tb2-sep" />
+
+          {/* Saved views (heart) */}
+          <div className="tb2-dropdown-wrap">
+            <button className={`tb2-btn${showSavedViews ? ' active' : ''}`} onClick={toggleToolbarDropdown(setShowSavedViews)}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 000-7.78z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              <span className="tb2-tip">Saved views</span>
+            </button>
+            {showSavedViews && (
+              <div className="tb2-dropdown tb2-dropdown--views">
+                <div className="tb2-dropdown-title">Saved views</div>
+                <div className="tb2-views-default">
+                  <span style={{ fontSize: 11, color: '#666' }}>Home view</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {hasDefaultView && <span style={{ fontSize: 10, color: '#4CAF82', fontWeight: 500 }}>✓ Set</span>}
+                    <button className="tb2-views-set-btn" onClick={saveDefaultView}>{hasDefaultView ? 'Update' : 'Set to current'}</button>
+                  </div>
+                </div>
+                <div className="tb2-views-save-row">
+                  <input className="tb2-views-input" type="text" placeholder="Name this view…"
+                    value={newViewName} onChange={e => setNewViewName(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && saveCurrentView()} maxLength={40} />
+                  <button className="tb2-views-save-btn" onClick={saveCurrentView}
+                    disabled={!newViewName.trim() || savingView}>{savingView ? '…' : 'Save'}</button>
+                </div>
+                {savedViews.length === 0
+                  ? <div className="tb2-views-empty">No saved views yet</div>
+                  : <div className="tb2-views-list">
+                      {savedViews.map(v => (
+                        <div key={v.id} className="tb2-views-item">
+                          <button className="tb2-views-fly" onClick={() => { flyToSavedView(v); setShowSavedViews(false) }}>
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="10" r="3" stroke="currentColor" strokeWidth="1.5"/><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" stroke="currentColor" strokeWidth="1.5"/></svg>
+                            <span>{v.name}</span>
+                            <span className="tb2-views-zoom">z{v.zoom}</span>
+                          </button>
+                          <button className="tb2-views-del" onClick={() => deleteSavedView(v.id)} title="Delete">✕</button>
+                        </div>
+                      ))}
+                    </div>
+                }
+              </div>
+            )}
+          </div>
+
+          <div className="tb2-sep" />
+
+          {/* Market Data */}
+          <button className={`tb2-btn${demoActive ? ' active' : ''}`}
             onClick={() => {
               const next = !demoActive
               setDemoActive(next)
-              if (next) {
-                setMyClubCollapsed(true)
-                setDemoLat(null); setDemoLng(null)
-                // Remember if panel was collapsed, then expand it
-                panelWasCollapsedBeforeDemo.current = panelCollapsed
-                if (panelCollapsed) setPanelCollapsed(false)
-              } else {
-                setDemoLat(null); setDemoLng(null)
-                setCountyGeoJson(null)
-                // Restore collapsed state if it was collapsed before activating
-                if (panelWasCollapsedBeforeDemo.current) {
-                  setPanelCollapsed(true)
-                  panelWasCollapsedBeforeDemo.current = false
-                }
-              }
+              if (next) { setMyClubCollapsed(true); setDemoLat(null); setDemoLng(null); panelWasCollapsedBeforeDemo.current = panelCollapsed; if (panelCollapsed) setPanelCollapsed(false) }
+              else { setDemoLat(null); setDemoLng(null); setCountyGeoJson(null); if (panelWasCollapsedBeforeDemo.current) { setPanelCollapsed(true); panelWasCollapsedBeforeDemo.current = false } }
             }}
             title="Toggle market data">
-            📊 Market Data
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M3 3v18h18" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><path d="M7 16l4-5 3 3 5-7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            <span className="tb2-tip">Market data</span>
           </button>
-          <button
-            className={`map-scroll-zoom-btn ${scrollZoom ? 'active' : ''}`}
-            onClick={() => {
-              const next = !scrollZoom
-              setScrollZoom(next)
-              localStorage.setItem('mapScrollZoom', String(next))
-            }}
-            title={scrollZoom ? 'Scroll zoom ON — click to disable' : 'Scroll zoom OFF — click to enable'}>
-            <span className={`scroll-zoom-dot ${scrollZoom ? 'on' : ''}`} /> Scroll Zoom {scrollZoom ? 'On' : 'Off'}
-          </button>
-          <button
-            className={`map-geolocate-btn map-geolocate-btn--icon${geoMarker ? ' active' : ''}${geoLocating ? ' loading' : ''}`}
-            onClick={handleGeoLocate}
-            title={geoLocating ? 'Locating…' : geoMarker ? 'Clear my location' : 'Show my location on the map'}
-            disabled={geoLocating}>
-            {geoLocating
-              ? <span className="geo-spinner" />
-              : <svg width="16" height="16" viewBox="0 0 18 18" fill="none">
-                  <circle cx="9" cy="9" r="3.5" fill="currentColor"/>
-                  <circle cx="9" cy="9" r="7" stroke="currentColor" strokeWidth="1.5" fill="none"/>
-                  <line x1="9" y1="2" x2="9" y2="0.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                  <line x1="9" y1="16" x2="9" y2="17.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                  <line x1="2" y1="9" x2="0.5" y2="9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                  <line x1="16" y1="9" x2="17.5" y2="9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                </svg>
-            }
-          </button>
-          {hasDefaultView && (
-            <button
-              className="map-geolocate-btn map-geolocate-btn--icon"
-              onClick={flyToDefaultView}
-              title="Go to default view">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M9 22V12h6v10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
+
+          <div className="tb2-sep" />
+
+          {/* Basemap */}
+          <div className="tb2-dropdown-wrap">
+            <button className={`tb2-btn${showBasemapPicker ? ' active' : ''}`} onClick={toggleToolbarDropdown(setShowBasemapPicker)}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 2L2 7l10 5 10-5-10-5z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/><path d="M2 17l10 5 10-5" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/><path d="M2 12l10 5 10-5" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/></svg>
+              <span className="tb2-tip">Base map</span>
             </button>
-          )}
-        </div>
-
-        {/* Zoom buttons — only when scroll zoom is off */}
-        {!scrollZoom && (
-          <div className="map-zoom-float">
-            <button className="map-zoom-float-btn" onClick={() => mapRef.current && mapRef.current.zoomIn()} title="Zoom in">+</button>
-            <button className="map-zoom-float-btn" onClick={() => mapRef.current && mapRef.current.zoomOut()} title="Zoom out">−</button>
-          </div>
-        )}
-
-        {/* ── Floating Map Preferences ── */}
-        <div className={`map-prefs-float ${prefsOpen ? 'open' : ''}`}>
-          <button className="map-prefs-float-btn" onClick={() => setPrefsOpen(o => !o)} title="Map preferences">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-              <path d="M12 15a3 3 0 100-6 3 3 0 000 6z" stroke="currentColor" strokeWidth="1.6"/>
-              <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" stroke="currentColor" strokeWidth="1.6"/>
-            </svg>
-            {!prefsOpen && teamLocationIds.size > 0 && (
-              <button className={`map-prefs-team-btn ${teamFilter ? 'active' : ''}`}
-                onClick={e => { e.stopPropagation(); setTeamFilter(f => !f) }}
-                title={teamFilter ? 'Showing team clubs — click to clear' : 'Highlight my team clubs'}>
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
-                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
-                  <circle cx="9" cy="7" r="4" stroke="currentColor" strokeWidth="1.8"/>
-                  <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
-                </svg>
-                Team
-              </button>
-            )}
-          </button>
-
-          {prefsOpen && (
-            <div className="map-prefs-float-body">
-              <div className="map-pref-row">
-                <span className="map-pref-name">On marker click</span>
-                <div className="map-pref-seg">
-                  {[{val:'zoom',label:'Zoom in'},{val:'pan',label:'Pan only'},{val:'stay',label:'Stay put'}].map(({val,label}) => (
-                    <button key={val} className={`map-pref-seg-btn ${clickBehavior===val?'active':''}`} onClick={() => saveClickBehavior(val)}>{label}</button>
-                  ))}
-                </div>
-              </div>
-              <div className="map-pref-row">
-                <span className="map-pref-name">Panel side</span>
-                <div className="map-pref-seg">
-                  {[{pos:'left',label:'Left'},{pos:'right',label:'Right'}].map(({pos,label}) => (
-                    <button key={pos} className={`map-pref-seg-btn ${panelPosition===pos?'active':''}`} onClick={() => updatePanelPosition(pos)}>{label}</button>
-                  ))}
-                </div>
-              </div>
-              <div className="map-pref-row">
-                <span className="map-pref-name">Scroll zoom</span>
-                <div className="map-pref-seg">
-                  {[{val:true,label:'On'},{val:false,label:'Off'}].map(({val,label}) => (
-                    <button key={label} className={`map-pref-seg-btn ${scrollZoom===val?'active':''}`}
-                      onClick={() => { setScrollZoom(val); localStorage.setItem('mapScrollZoom', String(val)) }}>{label}</button>
-                  ))}
-                </div>
-              </div>
-              <div className="map-pref-row" style={{ alignItems:'flex-start', paddingTop:9, paddingBottom:9 }}>
-                <span className="map-pref-name" style={{ paddingTop:2 }}>Marker shapes</span>
-                <div className="map-pref-shapes">
-                  <div className="map-pref-shapes-hint">Click to cycle: dot → pin → diamond</div>
-                  {[
-                    { key:'own',      label:'Mine',     color: markerColors.own      || '#D94F4F' },
-                    { key:'other',    label:'Others',   color: markerColors.other    || '#6B8DD6' },
-                    { key:'selected', label:'Selected', color: markerColors.selected || '#F59E0B' },
-                    { key:'team',     label:'Team',     color: markerColors.team     || '#7C3AED' },
-                  ].map(({ key, label, color }) => {
-                    const SHAPES = ['dot','pin','diamond']
-                    const cur = markerShapes[key] || 'dot'
-                    return (
-                      <div key={key} className="map-pref-shape-row">
-                        <span className="map-pref-shape-label">{label}</span>
-                        <button className="map-pref-cycle-btn"
-                          onClick={() => saveMarkerShape(key, SHAPES[(SHAPES.indexOf(cur)+1)%3])}
-                          title={`${label}: click to change shape`}>
-                          <svg width="11" height="11" viewBox="0 0 11 11">
-                            {cur==='dot'     && <circle cx="5.5" cy="5.5" r="4.5" fill="currentColor"/>}
-                            {cur==='pin'     && <path d="M5.5 1C3.57 1 2 2.57 2 4.5c0 2.75 3.5 6.5 3.5 6.5S9 7.25 9 4.5C9 2.57 7.43 1 5.5 1z" fill="currentColor"/>}
-                            {cur==='diamond' && <rect x="1" y="1" width="9" height="9" rx="1.5" fill="currentColor" transform="rotate(45 5.5 5.5)"/>}
-                          </svg>
-                          <span style={{ textTransform:'capitalize' }}>{cur}</span>
-                        </button>
-                        <div className="map-pref-color-dot" style={{ background: color }} />
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-              <div className="map-pref-row">
-                <span className="map-pref-name">Marker size</span>
-                <div className="map-pref-seg">
-                  {[{val:0.8,label:'Small'},{val:1,label:'Medium'},{val:1.35,label:'Large'}].map(({val,label}) => (
-                    <button key={label} className={`map-pref-seg-btn ${markerSizeScale===val?'active':''}`}
-                      onClick={() => saveMarkerSize(val)}>{label}</button>
-                  ))}
-                </div>
-              </div>
-              {teamLocationIds.size > 0 && (
-                <div className="map-pref-row">
-                  <span className="map-pref-name">Team filter</span>
-                  <button className={`map-prefs-team-btn ${teamFilter ? 'active' : ''}`}
-                    onClick={() => setTeamFilter(f => !f)}>
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
-                      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
-                      <circle cx="9" cy="7" r="4" stroke="currentColor" strokeWidth="1.8"/>
-                      <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
-                    </svg>
-                    {teamFilter ? 'Team on' : 'Team off'}
-                  </button>
-                </div>
-              )}
-              <div className="map-pref-row" style={{ borderBottom: 'none' }}>
-                <span className="map-pref-name">Base map</span>
-                <div className="map-pref-seg">
+            {showBasemapPicker && (
+              <div className="tb2-dropdown tb2-dropdown--basemap">
+                <div className="tb2-dropdown-title">Base map</div>
+                <div className="tb2-basemap-grid">
                   {BASE_MAPS.map(b => (
-                    <button key={b.id} className={`map-pref-seg-btn ${baseMap===b.id?'active':''}`} onClick={() => setBaseMap(b.id)}>{b.label}</button>
+                    <button key={b.id} className={`tb2-basemap-opt${baseMap === b.id ? ' active' : ''}`}
+                      onClick={() => { setBaseMap(b.id); setShowBasemapPicker(false) }}>
+                      {baseMap === b.id && <span className="tb2-basemap-check"><svg width="8" height="8" viewBox="0 0 12 12" fill="none"><path d="M2.5 6l2.5 2.5 4.5-5" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg></span>}
+                      <span className="tb2-basemap-label">{b.label}</span>
+                    </button>
                   ))}
                 </div>
               </div>
-              <div className="map-pref-actions">
-                <button className="map-pref-action-btn" onClick={() => setPrefsOpen(false)}>Close</button>
-              </div>
+            )}
+          </div>
 
-              {/* Views — embedded in prefs */}
-              <div className="map-pref-views-section">
-                <div className="map-pref-row" style={{ borderBottom: 'none', paddingBottom: 4 }}>
-                  <span className="map-pref-name">Default view</span>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    {hasDefaultView && (
-                      <span style={{ fontSize: 11, color: '#4CAF82', fontWeight: 500 }}>✓ Set</span>
-                    )}
-                    <button className="map-views-set-btn" onClick={saveDefaultView}>
-                      {hasDefaultView ? 'Update to current' : 'Set to current'}
-                    </button>
+          <div className="tb2-sep" />
+
+          {/* Settings */}
+          <div className="tb2-dropdown-wrap">
+            <button className={`tb2-btn${prefsOpen ? ' active' : ''}`} onClick={toggleToolbarDropdown(setPrefsOpen)}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.5"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" stroke="currentColor" strokeWidth="1.5"/></svg>
+              <span className="tb2-tip">Settings</span>
+            </button>
+            {prefsOpen && (
+              <div className="tb2-dropdown tb2-dropdown--settings">
+                <div className="tb2-dropdown-title">Settings</div>
+                <div className="tb2-set-row"><span className="tb2-set-label">On marker click</span>
+                  <div className="tb2-set-seg">
+                    {[{val:'zoom',label:'Zoom'},{val:'pan',label:'Pan'},{val:'stay',label:'Stay'}].map(({val,label}) => (
+                      <button key={val} className={`tb2-set-btn${clickBehavior===val?' active':''}`} onClick={() => saveClickBehavior(val)}>{label}</button>
+                    ))}
                   </div>
                 </div>
-                <div className="map-pref-row" style={{ borderBottom: 'none', flexDirection: 'column', gap: 8 }}>
-                  <span className="map-pref-name">Saved views</span>
-                  <div className="saved-views-save-row">
-                    <input className="saved-views-input" type="text" placeholder="Name this view…"
-                      value={newViewName} onChange={e => setNewViewName(e.target.value)}
-                      onKeyDown={e => e.key==='Enter' && saveCurrentView()} maxLength={40}/>
-                    <button className="saved-views-save-btn" onClick={saveCurrentView}
-                      disabled={!newViewName.trim()||savingView}>{savingView?'…':'Save'}</button>
+                <div className="tb2-set-row"><span className="tb2-set-label">Panel side</span>
+                  <div className="tb2-set-seg">
+                    {[{pos:'left',label:'Left'},{pos:'right',label:'Right'}].map(({pos,label}) => (
+                      <button key={pos} className={`tb2-set-btn${panelPosition===pos?' active':''}`} onClick={() => updatePanelPosition(pos)}>{label}</button>
+                    ))}
                   </div>
-                  {savedViews.length === 0
-                    ? <div className="saved-views-empty">No saved views yet — pan to a spot and save it.</div>
-                    : <div className="saved-views-list">
-                        {savedViews.map(v => (
-                          <div key={v.id} className="saved-views-item">
-                            <button className="saved-views-fly" onClick={() => flyToSavedView(v)}>
-                              <svg width="11" height="11" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="10" r="3" stroke="currentColor" strokeWidth="1.5"/><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" stroke="currentColor" strokeWidth="1.5"/></svg>
-                              <span className="saved-views-name">{v.name}</span>
-                              <span className="saved-views-zoom">z{v.zoom}</span>
-                            </button>
-                            <button className="saved-views-delete" onClick={() => deleteSavedView(v.id)} title="Delete">✕</button>
-                          </div>
-                        ))}
-                      </div>
-                  }
+                </div>
+                <div className="tb2-set-row"><span className="tb2-set-label">Scroll zoom</span>
+                  <div className="tb2-set-seg">
+                    {[{val:true,label:'On'},{val:false,label:'Off'}].map(({val,label}) => (
+                      <button key={label} className={`tb2-set-btn${scrollZoom===val?' active':''}`}
+                        onClick={() => { setScrollZoom(val); localStorage.setItem('mapScrollZoom', String(val)) }}>{label}</button>
+                    ))}
+                  </div>
+                </div>
+                <div className="tb2-set-row"><span className="tb2-set-label">Marker shape</span>
+                  <div className="tb2-set-seg">
+                    {[
+                      {val:'dot', icon: <svg width="8" height="8" viewBox="0 0 8 8"><circle cx="4" cy="4" r="3.5" fill="currentColor"/></svg>},
+                      {val:'pin', icon: <svg width="8" height="10" viewBox="0 0 8 10"><path d="M4 0C1.8 0 0 1.8 0 4c0 3 4 6 4 6s4-3 4-6c0-2.2-1.8-4-4-4z" fill="currentColor"/></svg>},
+                      {val:'diamond', icon: <svg width="8" height="8" viewBox="0 0 8 8"><rect x="0.5" y="0.5" width="7" height="7" rx="1" fill="currentColor" transform="rotate(45 4 4)"/></svg>},
+                    ].map(({val, icon}) => (
+                      <button key={val} className={`tb2-set-btn${(markerShapes.own||'dot')===val?' active':''}`}
+                        onClick={() => { const next = {own:val,other:val,selected:val,team:val}; setMarkerShapes(next); _iconCache={}; if(user){supabase.from('user_demo_preferences').select('preferences').eq('user_id',user.id).single().then(({data:existing})=>{const merged={...(existing?.preferences||{}),markerShapes:next};supabase.from('user_demo_preferences').upsert({user_id:user.id,preferences:merged},{onConflict:'user_id'})})} }}
+                        style={{display:'flex',alignItems:'center',gap:3}}>
+                        {icon}<span style={{textTransform:'capitalize'}}>{val}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="tb2-set-row" style={{borderBottom:'none'}}><span className="tb2-set-label">Marker size</span>
+                  <div className="tb2-set-seg">
+                    {[{val:0.8,label:'S'},{val:1,label:'M'},{val:1.35,label:'L'}].map(({val,label}) => (
+                      <button key={label} className={`tb2-set-btn${markerSizeScale===val?' active':''}`}
+                        onClick={() => saveMarkerSize(val)}>{label}</button>
+                    ))}
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
-
+            )}
+          </div>
         </div>
 
-        <div className="map-legend">
-          {/* Visibility mode selector */}
-          <div className="legend-visibility">
-            <div className="legend-visibility-label">Show</div>
-            <div className="legend-visibility-pills">
-              {[
-                { val: 'all',       label: 'All' },
-                { val: 'mine',      label: locations.filter(l => l.user_id === user?.id).length > 1 ? 'My clubs' : 'My club' },
-                ...(allTeamLocationIds.size > 0 ? [
-                  { val: 'team',      label: 'My team' },
-                  { val: 'mine_team', label: 'Mine + team' },
-                ] : []),
-                { val: 'others',    label: 'Others only' },
-                { val: 'none',      label: 'Hide all' },
-              ].map(({ val, label }) => (
-                <button
-                  key={val}
-                  className={`legend-vis-pill ${visibilityMode === val ? 'active' : ''}`}
-                  onClick={() => setVisibilityMode(val)}
-                >{label}</button>
-              ))}
-            </div>
-          </div>
-
-          {/* Divider */}
-          <div className="legend-divider" />
-
-          {/* Marker key */}
-          {locations.some(l => l.user_id === user?.id) && (
-            <div className="legend-row">
-              <span className="legend-circle" style={{ background: markerColors.own }} />
-              <span>{locations.filter(l => l.user_id === user?.id).length > 1 ? 'My clubs' : 'My club'}</span>
-            </div>
-          )}
-          <div className="legend-row">
-            <span className="legend-circle" style={{ background: markerColors.other }} />
-            <span>Other clubs</span>
-          </div>
-          <div className="legend-row">
-            <span className="legend-circle" style={{ background: markerColors.selected }} />
-            <span>Selected</span>
-          </div>
-          {isTeamOwner && (
-            <div className="legend-row">
-              <span className="legend-circle" style={{ background: markerColors.team }} />
-              <span>Your team</span>
-            </div>
-          )}
-          {isTeamMember && !isTeamOwner && (
-            <div className="legend-row">
-              <span className="legend-circle" style={{ background: markerColors.team }} />
-              <span>My team</span>
-            </div>
-          )}
-        </div>
-
-        {/* Save view toast */}
+                {/* Save view toast */}
         {saveViewToast && (
           <div className="map-save-toast">✓ Default view saved</div>
         )}
