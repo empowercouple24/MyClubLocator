@@ -1201,11 +1201,11 @@ export default function MapPage() {
   function closeAllToolbarDropdowns() { setShowSavedViews(false); setShowClubFilter(false); setShowBasemapPicker(false); setPrefsOpen(false) }
   function toggleToolbarDropdown(setter) {
     return () => {
-      setter(v => {
-        const opening = !v
-        if (opening) { setShowSavedViews(false); setShowClubFilter(false); setShowBasemapPicker(false); setPrefsOpen(false) }
-        return opening
-      })
+      // Close all OTHER dropdowns first
+      const allSetters = [setShowSavedViews, setShowClubFilter, setShowBasemapPicker, setPrefsOpen]
+      allSetters.forEach(s => { if (s !== setter) s(false) })
+      // Then toggle the target
+      setter(v => !v)
     }
   }
 
@@ -1627,6 +1627,13 @@ export default function MapPage() {
                     ))}
                   </div>
                 </div>
+                <div className="tb2-set-row"><span className="tb2-set-label">Panel width</span>
+                  <div className="tb2-set-seg">
+                    {[{val:'normal',label:'Normal'},{val:'wide',label:'Wide'}].map(({val,label}) => (
+                      <button key={val} className={`tb2-set-btn${panelWidth===val?' active':''}`} onClick={() => { const next = val; setPanelWidth(next); savePanelPrefs(next, panelCollapsed) }}>{label}</button>
+                    ))}
+                  </div>
+                </div>
                 <div className="tb2-set-row"><span className="tb2-set-label">Scroll zoom</span>
                   <div className="tb2-set-seg">
                     {[{val:true,label:'On'},{val:false,label:'Off'}].map(({val,label}) => (
@@ -1708,24 +1715,6 @@ export default function MapPage() {
         {/* Panel contents — hidden when collapsed */}
         {!panelCollapsed && (
         <div className="club-panel-inner">
-
-          {/* Panel header: width toggle pill */}
-          {panelPosition !== 'bottom' && (
-            <div className={`panel-width-row panel-width-row--${panelPosition}`}>
-              <button
-                className={`panel-wide-pill ${panelWidth === 'wide' ? 'active' : ''}`}
-                onClick={togglePanelWidth}
-              >
-                <svg width="13" height="11" viewBox="0 0 14 12" fill="none">
-                  <path d="M10 2l3 4-3 4M4 2L1 6l3 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-                <span className="panel-wide-pill-label">Wide panel</span>
-                <span className="panel-wide-pill-sub">
-                  {panelWidth === 'wide' ? 'click to disable' : 'click to enable'}
-                </span>
-              </button>
-            </div>
-          )}
 
           {/* Pinned: My Club card — collapsible */}
           <div className="cp-my-club-zone">
