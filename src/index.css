@@ -6890,6 +6890,29 @@ body:has(.admin-page-wrap) {
   margin-bottom: 0;
 }
 
+/* Prefill prompt — onboarding date match */
+.prefill-prompt {
+  background: #F0FAF4; border: 1px solid #c8e6d8; border-radius: 10px;
+  padding: 12px 16px; margin-bottom: 16px;
+}
+.prefill-prompt-text { font-size: 13px; color: #1A3C2E; line-height: 1.5; display: block; margin-bottom: 10px; }
+.prefill-prompt-btns { display: flex; gap: 8px; }
+.prefill-prompt-yes {
+  background: #4CAF82; color: #fff; border: none; border-radius: 8px;
+  padding: 7px 14px; font-size: 12.5px; font-weight: 600; cursor: pointer;
+}
+.prefill-prompt-yes:hover { background: #3d9a70; }
+.prefill-prompt-no {
+  background: transparent; color: #888; border: 1px solid #ddd; border-radius: 8px;
+  padding: 7px 14px; font-size: 12.5px; cursor: pointer;
+}
+.prefill-prompt-no:hover { background: #f5f5f5; }
+.prefill-inline-btn {
+  background: none; border: none; color: #4CAF82; font-size: 11px; font-weight: 600;
+  cursor: pointer; margin-left: 6px; padding: 0;
+}
+.prefill-inline-btn:hover { text-decoration: underline; }
+
 /* ── Per-Club Save Bar ────────────────────────────────────── */
 .club-save-bar {
   display: none;
@@ -10206,7 +10229,7 @@ input.input-ok {
   opacity: 0.55;
   transition: opacity 0.2s;
 }
-.onb-filled:focus, .onb-filled:hover {
+.onb-filled:focus, .onb-filled:hover, .onb-filled:focus-within {
   opacity: 1;
 }
 

@@ -1019,6 +1019,22 @@ function ClubEditor({ club, clubIndex, userId, isOnly, allClubs, onSaved, onRemo
       <div className="club-section">
         <div className="sec-label" style={{ marginBottom: 12 }}>Club Specifics</div>
 
+        {/* Q3 follow-up: prompt if onboarding had club dates */}
+        {personData?.survey_club_month && personData?.survey_club_year && !form.opened_month && !form.opened_year && (
+          <div className="prefill-prompt">
+            <span className="prefill-prompt-text">
+              You mentioned opening a club in <strong>{personData.survey_club_month} {personData.survey_club_year}</strong> during onboarding. Is this the same club?
+            </span>
+            <div className="prefill-prompt-btns">
+              <button type="button" className="prefill-prompt-yes" onClick={() => {
+                setField('opened_month', personData.survey_club_month)
+                setField('opened_year', personData.survey_club_year)
+              }}>Yes, use those dates</button>
+              <button type="button" className="prefill-prompt-no" onClick={e => e.target.closest('.prefill-prompt').remove()}>No, different club</button>
+            </div>
+          </div>
+        )}
+
         <div className="fgrid" style={{ marginBottom: 24 }}>
           <div className="pf">
             <label>Month opened <span className="req-star">*</span></label>
@@ -1030,7 +1046,15 @@ function ClubEditor({ club, clubIndex, userId, isOnly, allClubs, onSaved, onRemo
             {errors.opened_month && <span className="field-err">{errors.opened_month}</span>}
           </div>
           <div className="pf">
-            <label>Year opened <span className="req-star">*</span></label>
+            <label>
+              Year opened <span className="req-star">*</span>
+              {personData?.survey_club_year && form.opened_year !== personData.survey_club_year && (
+                <button type="button" className="prefill-inline-btn" onClick={() => {
+                  setField('opened_month', personData.survey_club_month || form.opened_month)
+                  setField('opened_year', personData.survey_club_year)
+                }} title="Use dates from onboarding survey">↩ From survey</button>
+              )}
+            </label>
             <select value={form.opened_year} onChange={e => setField('opened_year', e.target.value)}
               className={errors.opened_year ? 'input-err' : ''} tabIndex={6}>
               <option value="">Select year</option>
