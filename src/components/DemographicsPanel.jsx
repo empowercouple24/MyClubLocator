@@ -348,6 +348,7 @@ export default function DemographicsPanel({ lat, lng, locations, enabledFactors,
       {geoInfo && (
         <div className="demo-location-header">
           {geoInfo.countyName && <div className="demo-county-name">{geoInfo.countyName}</div>}
+          {geoInfo.stateName && <div className="demo-state-name">{geoInfo.stateName}</div>}
           {geoInfo.zip && <span className="demo-zip">ZIP {geoInfo.zip}</span>}
         </div>
       )}

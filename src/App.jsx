@@ -60,7 +60,7 @@ export default function App() {
     async function applyTheme() {
       const { data } = await supabase
         .from('app_settings')
-        .select('theme_page_bg, theme_card_header_bg, theme_card_header_text, theme_card_header_bold, theme_card_body, site_font')
+        .select('theme_page_bg, theme_card_header_bg, theme_card_header_text, theme_card_header_bold, theme_card_body')
         .eq('id', 1)
         .single()
       if (!data) return
@@ -70,13 +70,6 @@ export default function App() {
       if (data.theme_card_header_text) root.style.setProperty('--theme-card-header-text', data.theme_card_header_text)
       root.style.setProperty('--theme-card-header-weight', data.theme_card_header_bold === false ? '400' : '600')
       if (data.theme_card_body)        root.style.setProperty('--theme-card-body',         data.theme_card_body)
-      // Apply site font
-      const fontMap = {
-        'dm-sans': "'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-        'playfair': "'Playfair Display', Georgia, 'Times New Roman', serif",
-        'system': "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-      }
-      root.style.setProperty('--site-font', fontMap[data.site_font] || fontMap['dm-sans'])
     }
     applyTheme()
   }, [])

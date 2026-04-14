@@ -3406,6 +3406,12 @@ body:has(.admin-page-wrap) {
   line-height: 1.2;
   letter-spacing: -0.2px;
 }
+.demo-state-name {
+  font-size: 12px;
+  font-weight: 500;
+  color: #888;
+  margin-top: -1px;
+}
 .demo-zip {
   font-size: 12px;
   font-weight: 400;
