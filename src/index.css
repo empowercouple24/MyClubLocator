@@ -30,11 +30,18 @@ body {
 }
 
 /* Ensure --site-font cascades to ALL elements including form controls, map UI, tooltips */
-input, select, textarea, button,
-.leaflet-container, .leaflet-tooltip, .leaflet-popup-content,
-.sec-label, .sec-card, .club-tab, .btn-save, .btn-full,
-h1, h2, h3, h4, h5, h6, p, a, span, div, label, li {
-  font-family: inherit;
+*, *::before, *::after {
+  font-family: var(--site-font, 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif) !important;
+}
+/* Preserve Playfair Display where intentionally used */
+.ld-search-title, .ld-stat-num, .ld-header-tagline,
+.auth-hero-title, .auth-stat-num {
+  font-family: 'Playfair Display', Georgia, serif !important;
+}
+/* Preserve icon/emoji fonts and code blocks */
+.ql-editor .ql-code-block-container, .ql-editor code,
+.ql-snow .ql-picker.ql-font .ql-picker-item[data-value=monospace]::before {
+  font-family: Monaco, 'Courier New', monospace !important;
 }
 
 /* Leaflet map fix — must be explicit height */
