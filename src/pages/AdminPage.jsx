@@ -228,7 +228,7 @@ export default function AdminPage() {
         const td = tr.children[i]
         if (td) maxW = Math.max(maxW, td.scrollWidth + 4)
       })
-      newWidths.push(Math.max(40, Math.min(maxW, 350)))
+      newWidths.push(Math.max(40, Math.min(maxW, 500)))
     })
     // Restore fixed layout
     table.style.tableLayout = prevLayout

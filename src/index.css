@@ -358,9 +358,10 @@ body {
   width: 48px;
   height: 48px;
   border-radius: 10px;
-  object-fit: cover;
+  object-fit: contain;
   flex-shrink: 0;
   border: 1px solid #e0e8e0;
+  background: #fff;
 }
 
 .dc-initials {
@@ -1851,8 +1852,9 @@ body:has(.admin-page-wrap) {
   width: 44px;
   height: 44px;
   border-radius: 8px;
-  object-fit: cover;
+  object-fit: contain;
   flex-shrink: 0;
+  background: #fff;
 }
 
 .cp-initials {
@@ -2505,9 +2507,10 @@ body:has(.admin-page-wrap) {
   width: 32px;
   height: 32px;
   border-radius: 6px;
-  object-fit: cover;
+  object-fit: contain;
   flex-shrink: 0;
   border: 1px solid #e8eee8;
+  background: #fff;
 }
 
 .ct-logo-initials {
@@ -2631,12 +2634,16 @@ body:has(.admin-page-wrap) {
   flex-shrink: 0;
 }
 
+.logo-preview {
+  position: relative;
+}
 .logo-preview img {
   width: 72px;
   height: 72px;
   border-radius: 10px;
-  object-fit: cover;
+  object-fit: contain;
   border: 1px solid #e0e0e0;
+  background: #fff;
 }
 
 .logo-placeholder {
@@ -4946,21 +4953,19 @@ body:has(.admin-page-wrap) {
   color: #888;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  border-bottom: 1px solid #e4e9e6;
+  border-bottom: 1.5px solid #c0c8c4;
   background: #f8faf9;
   white-space: nowrap;
   position: relative;
-  overflow: hidden;
 }
 
 .amt-table td {
   padding: 10px 10px;
-  border-bottom: 1px solid #f4f4f4;
+  border-bottom: 1px solid #d0d5d2;
   vertical-align: middle;
   color: #333;
-  overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
+  background: #fff;
 }
 
 .amt-col-resizer {
@@ -4980,7 +4985,7 @@ body:has(.admin-page-wrap) {
 }
 
 .amt-table tr:last-child td { border-bottom: none; }
-.amt-table tr:hover td { background: #fafcfa; }
+.amt-table tr:hover td { background: #f5f8f6; }
 .amt-row-pending td { background: #fffbf5; }
 .amt-row-pending:hover td { background: #fff8ee; }
 
@@ -4988,8 +4993,9 @@ body:has(.admin-page-wrap) {
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  object-fit: cover;
+  object-fit: contain;
   display: block;
+  background: #fff;
 }
 
 .amt-initials-sm {
@@ -5005,8 +5011,8 @@ body:has(.admin-page-wrap) {
   justify-content: center;
 }
 
-.amt-cell-name  { font-weight: 500; color: #111; max-width: 140px; }
-.amt-cell-email { max-width: 160px; }
+.amt-cell-name  { font-weight: 500; color: #111; }
+.amt-cell-email { }
 .amt-cell-date  { white-space: nowrap; }
 .amt-empty      { color: #ccc; }
 
@@ -5120,7 +5126,8 @@ body:has(.admin-page-wrap) {
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  object-fit: cover;
+  object-fit: contain;
+  background: #fff;
 }
 
 .amt-detail-initials {
@@ -6403,8 +6410,9 @@ body:has(.admin-page-wrap) {
   width: 32px;
   height: 32px;
   border-radius: 6px;
-  object-fit: cover;
+  object-fit: contain;
   flex-shrink: 0;
+  background: #fff;
 }
 
 .dc-initials-sm {
