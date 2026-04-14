@@ -6,7 +6,7 @@ import mapPreviewStreets from '../assets/map-preview-streets.png'
 import mapPreviewSatellite from '../assets/map-preview-satellite.png'
 import RichTextEditor from '../components/RichTextEditor'
 
-const TABS = ['settings', 'access', 'contacts', 'members', 'teams']
+const TABS = ['settings', 'contacts', 'members', 'clubs', 'teams']
 
 const BREVO_API_KEY = import.meta.env.VITE_BREVO_API_KEY
 
@@ -817,17 +817,8 @@ export default function AdminPage() {
               {t === 'members' ? 'Members'
                 : t === 'settings' ? 'Settings'
                 : t === 'teams' ? 'Teams'
-                : t === 'access' ? (
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    Access Controls
-                    {anyPaused && (
-                      <span style={{
-                        width: 7, height: 7, borderRadius: '50%',
-                        background: '#F59E0B', display: 'inline-block', flexShrink: 0
-                      }} />
-                    )}
-                  </span>
-                ) : (
+                : t === 'clubs' ? 'Clubs'
+                : (
                   <span style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
                     Messages
                     {unreadContacts > 0 && (
@@ -1960,126 +1951,71 @@ export default function AdminPage() {
       )}
 
       {/* ── ACCESS CONTROLS TAB ── */}
-      {tab === 'access' && (() => {
-        const ACCESS_SWITCHES = [
-          { key: 'member_signups_enabled', label: 'New member signups',  hint: 'Allow new club owners to create an account', onStatus: 'Open',    offStatus: 'Paused', group: 'member' },
-          { key: 'member_login_enabled',   label: 'Member login',        hint: 'Allow existing club owners to log in',       onStatus: 'Active',  offStatus: 'Paused', group: 'member' },
-          { key: 'public_search_enabled',  label: 'Public club search',  hint: 'Allow visitors to search and find clubs',    onStatus: 'Visible', offStatus: 'Hidden',  group: 'public' },
-          { key: 'public_accounts_enabled',label: 'Public account signups', hint: 'Allow visitors to create a public account', onStatus: 'Open',  offStatus: 'Paused', group: 'public' },
-          { key: 'public_login_enabled',   label: 'Public account login', hint: 'Allow existing public accounts to log in',  onStatus: 'Active',  offStatus: 'Paused', group: 'public' },
-        ]
-        const paused = ACCESS_SWITCHES.filter(s => settings[s.key] === false)
-        const anyPaused = paused.length > 0
-        return (
-          <div>
-            {/* Status card */}
-            <div className="admin-section" style={{ border: anyPaused ? '0.5px solid #EF9F27' : '0.5px solid #4CAF82', background: anyPaused ? '#FFFBEB' : '#f7fdf9', padding: '14px 18px', marginBottom: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                {anyPaused ? (
-                  <>
-                    <svg width="18" height="18" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
-                      <circle cx="8" cy="8" r="6.5" stroke="#854F0B" strokeWidth="1.2"/>
-                      <path d="M8 5v4" stroke="#854F0B" strokeWidth="1.2" strokeLinecap="round"/>
-                      <circle cx="8" cy="11" r="0.75" fill="#854F0B"/>
-                    </svg>
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 500, color: '#633806' }}>{paused.length} control{paused.length > 1 ? 's' : ''} currently paused</div>
-                      <div style={{ fontSize: 11, color: '#854F0B', marginTop: 2 }}>{paused.map(s => s.label).join(' · ')}</div>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <svg width="18" height="18" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
-                      <circle cx="8" cy="8" r="6.5" stroke="#0F6E56" strokeWidth="1.2"/>
-                      <path d="M4.5 8l2 2 4-4" stroke="#0F6E56" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                    <div style={{ fontSize: 13, fontWeight: 500, color: '#085041' }}>All access controls active</div>
-                  </>
-                )}
-              </div>
-            </div>
 
-            <div style={{ padding: '20px 0 8px' }}>
-              <p className="admin-section-desc">Master switches for platform access. Turning anything off never deletes data — it just pauses access. Your admin account is unaffected by all toggles.</p>
-            </div>
-
-            <div className="ac-group-label ac-group-member">Club owners</div>
-            <div className="ac-switches-grid">
-              {ACCESS_SWITCHES.filter(s => s.group === 'member').map(({ key, label, hint, onStatus, offStatus }) => {
-                const on = settings[key]
-                return (
-                  <div key={key} className={`ac-switch-card ${on ? 'on' : 'off'}`} onClick={() => setSettings(s => ({ ...s, [key]: !on }))}>
-                    <div className="ac-switch-top">
-                      <div className="ac-switch-text">
-                        <div className="ac-switch-label">{label}</div>
-                        <div className="ac-switch-hint">{hint}</div>
-                        <div className={`ac-status-pill ${on ? 'on' : 'off'}`}>
-                          <span className={`ac-status-dot ${on ? 'on' : 'off'}`} />
-                          {on ? onStatus : offStatus}
-                        </div>
-                      </div>
-                      <div className={`ac-ls-body ${on ? 'on' : 'off'}`}>
-                        {on  && <span className="ac-ls-label">ON</span>}
-                        {!on && <span className="ac-ls-spacer" />}
-                        <div className="ac-ls-plate"><div className="ac-ls-rocker" /></div>
-                        {on  && <span className="ac-ls-spacer" />}
-                        {!on && <span className="ac-ls-label">OFF</span>}
-                      </div>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-
-            <div className="ac-group-label ac-group-public">Public users</div>
-            <div className="ac-switches-grid">
-              {ACCESS_SWITCHES.filter(s => s.group === 'public').map(({ key, label, hint, onStatus, offStatus }) => {
-                const on = settings[key]
-                return (
-                  <div key={key} className={`ac-switch-card ${on ? 'on' : 'off'}`} onClick={() => setSettings(s => ({ ...s, [key]: !on }))}>
-                    <div className="ac-switch-top">
-                      <div className="ac-switch-text">
-                        <div className="ac-switch-label">{label}</div>
-                        <div className="ac-switch-hint">{hint}</div>
-                        <div className={`ac-status-pill ${on ? 'on' : 'off'}`}>
-                          <span className={`ac-status-dot ${on ? 'on' : 'off'}`} />
-                          {on ? onStatus : offStatus}
-                        </div>
-                      </div>
-                      <div className={`ac-ls-body ${on ? 'on' : 'off'}`}>
-                        {on  && <span className="ac-ls-label">ON</span>}
-                        {!on && <span className="ac-ls-spacer" />}
-                        <div className="ac-ls-plate"><div className="ac-ls-rocker" /></div>
-                        {on  && <span className="ac-ls-spacer" />}
-                        {!on && <span className="ac-ls-label">OFF</span>}
-                      </div>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-
-            {/* Sticky save bar */}
-            {isSettingsDirty && (
-              <div className="save-bar save-bar--sticky save-bar--dirty">
-                <div className="save-bar-alert">
-                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                    <circle cx="8" cy="8" r="7" stroke="#B45309" strokeWidth="1.5"/>
-                    <path d="M8 5v4" stroke="#B45309" strokeWidth="1.5" strokeLinecap="round"/>
-                    <circle cx="8" cy="11.5" r="0.75" fill="#B45309"/>
-                  </svg>
-                  Unsaved changes
-                </div>
-                <div className="save-bar-btns">
-                  <button className="btn-save" onClick={handleSaveSettings} disabled={savingSettings}>
-                    {savingSettings ? 'Saving…' : 'Save Settings'}
-                  </button>
-                </div>
-              </div>
-            )}
+      {/* ── CLUBS TAB ── */}
+      {tab === 'clubs' && (
+        <div>
+          <div className="admin-section" style={{ marginBottom: 16 }}>
+            <p className="admin-section-desc">All registered clubs across the platform. Use this view to manage individual club listings.</p>
           </div>
-        )
-      })()}
+
+          {loadingMembers ? (
+            <div style={{ textAlign: 'center', padding: 40, color: '#888' }}>Loading clubs…</div>
+          ) : members.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: 40, color: '#888' }}>No clubs registered yet.</div>
+          ) : (
+            <div className="admin-clubs-grid">
+              {members.map(m => {
+                const person = allUsers.find(u => u.user_id === m.user_id) || {}
+                const ownerName = [person.first_name, person.last_name].filter(Boolean).join(' ')
+                const initials = (person.first_name?.[0] || '') + (person.last_name?.[0] || '')
+                return (
+                  <div key={m.id} className="admin-club-card">
+                    <div className="admin-club-card-hdr">
+                      {m.logo_url
+                        ? <img className="admin-club-card-logo" src={m.logo_url} alt="" />
+                        : <div className="admin-club-card-initials">{initials || '?'}</div>
+                      }
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div className="admin-club-card-name">{m.club_name || 'Unnamed Club'}</div>
+                        <div className="admin-club-card-sub">{m.city ? `${m.city}, ${m.state || ''}` : 'No location'}</div>
+                      </div>
+                      <div className={`admin-club-card-status ${m.approved ? 'approved' : 'pending'}`}>
+                        {m.approved ? 'Approved' : 'Pending'}
+                      </div>
+                    </div>
+                    <div className="admin-club-card-body">
+                      <div className="admin-club-card-row"><span>Owner</span><span>{ownerName || '—'}</span></div>
+                      <div className="admin-club-card-row"><span>Phone</span><span>{m.club_phone || '—'}</span></div>
+                      <div className="admin-club-card-row"><span>Email</span><span>{m.club_email || '—'}</span></div>
+                      <div className="admin-club-card-row"><span>Opened</span><span>{m.opened_month && m.opened_year ? `${m.opened_month.slice(0,3)} ${m.opened_year}` : '—'}</span></div>
+                      {m.address && <div className="admin-club-card-row"><span>Address</span><span>{m.address}</span></div>}
+                    </div>
+                    <div className="admin-club-card-actions">
+                      {!m.approved && (
+                        <button className="admin-club-card-btn admin-club-card-btn--approve"
+                          onClick={async () => { await supabase.from('locations').update({ approved: true }).eq('id', m.id); await loadMembers() }}>
+                          Approve
+                        </button>
+                      )}
+                      {m.approved && (
+                        <button className="admin-club-card-btn admin-club-card-btn--revoke"
+                          onClick={async () => { await supabase.from('locations').update({ approved: false }).eq('id', m.id); await loadMembers() }}>
+                          Revoke
+                        </button>
+                      )}
+                      <button className="admin-club-card-btn admin-club-card-btn--remove"
+                        onClick={() => setConfirmRemove(m)}>
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ── TEAMS TAB ── */}
       {tab === 'teams' && (
