@@ -3,7 +3,7 @@ import { MapContainer, TileLayer, Marker, Circle, GeoJSON, useMap } from 'react-
 import { divIcon, tooltip as leafletTooltip, marker as leafletMarker } from 'leaflet'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { geocodeSingle } from '../lib/geocode'
 import DemographicsPanel from '../components/DemographicsPanel'
 import MapSearchAutocomplete from '../components/MapSearchAutocomplete'
@@ -831,6 +831,10 @@ function ClubDetail({ club, userId, panelWidth, onManage, radiusMiles, setRadius
 export default function MapPage() {
   const { user } = useAuth()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const focusLat = parseFloat(searchParams.get('focus_lat'))
+  const focusLng = parseFloat(searchParams.get('focus_lng'))
+  const focusTooltip = searchParams.get('focus_tooltip') === '1'
   const [locations, setLocations]   = useState([])
   const [loading, setLoading]       = useState(true)
   const [selected, setSelected]     = useState(null)
@@ -861,7 +865,7 @@ export default function MapPage() {
   const [countyGeoJson, setCountyGeoJson] = useState(null)
   const [scrollZoom, setScrollZoom]   = useState(() => {
     const saved = localStorage.getItem('mapScrollZoom')
-    return saved === null ? true : saved === 'true'
+    return saved === null ? false : saved === 'true'
   })
   const [geoLocating, setGeoLocating] = useState(false)   // spinner while fetching
   const [geoError, setGeoError]       = useState(null)    // error message
@@ -909,6 +913,7 @@ export default function MapPage() {
   // Panel position — per user, stored in localStorage, default 'right'
   const posKey     = user ? `panel_position_${user.id}` : 'panel_position'
   const viewKey    = user ? `default_view_${user.id}`   : 'default_view'
+  const [hasDefaultView, setHasDefaultView] = useState(() => !!localStorage.getItem(user ? `default_view_${user?.id}` : 'default_view'))
   const [panelPosition, setPanelPosition] = useState(() => {
     return localStorage.getItem(posKey) || 'right'
   })
@@ -1074,8 +1079,26 @@ export default function MapPage() {
 
   // Load saved default view on mount (after locations load)
   const defaultViewApplied = useRef(false)
+  const focusApplied = useRef(false)
   useEffect(() => {
     if (locations.length > 0 && !defaultViewApplied.current) {
+      // Highest priority: focus from review modal approval
+      if (!isNaN(focusLat) && !isNaN(focusLng) && !focusApplied.current) {
+        focusApplied.current = true
+        setMapCenter([focusLat, focusLng])
+        setMapZoom(14)
+        // Find and select the club at these coords to show its tooltip
+        if (focusTooltip) {
+          const target = locations.find(l => Math.abs(l.lat - focusLat) < 0.0001 && Math.abs(l.lng - focusLng) < 0.0001)
+          if (target) {
+            setSelected(target)
+            // Auto-dismiss tooltip after 12 seconds
+            setTimeout(() => setSelected(s => s?.id === target.id ? null : s), 12000)
+          }
+        }
+        defaultViewApplied.current = true
+        return
+      }
       // Check if returning from /find — use that extent with highest priority
       const returnExt = sessionStorage.getItem('mapReturnExtent')
       if (returnExt) {
@@ -1113,8 +1136,19 @@ export default function MapPage() {
     const center = mapRef.current.getCenter()
     const zoom   = mapRef.current.getZoom()
     localStorage.setItem(viewKey, JSON.stringify({ lat: center.lat, lng: center.lng, zoom }))
+    setHasDefaultView(true)
     setSaveViewToast(true)
     setTimeout(() => setSaveViewToast(false), 2500)
+  }
+
+  function flyToDefaultView() {
+    const saved = localStorage.getItem(viewKey)
+    if (!saved) return
+    try {
+      const { lat, lng, zoom } = JSON.parse(saved)
+      setMapCenter([lat, lng])
+      setMapZoom(zoom)
+    } catch {}
   }
 
   async function loadSavedViews() {
@@ -1422,23 +1456,36 @@ export default function MapPage() {
               localStorage.setItem('mapScrollZoom', String(next))
             }}
             title={scrollZoom ? 'Scroll zoom ON — click to disable' : 'Scroll zoom OFF — click to enable'}>
-            🖱️ Scroll Zoom {scrollZoom ? 'On' : 'Off'}
+            <span className={`scroll-zoom-dot ${scrollZoom ? 'on' : ''}`} /> Scroll Zoom {scrollZoom ? 'On' : 'Off'}
           </button>
           <button
-            className={`map-geolocate-btn${geoMarker ? ' active' : ''}${geoLocating ? ' loading' : ''}`}
+            className={`map-geolocate-btn map-geolocate-btn--icon${geoMarker ? ' active' : ''}${geoLocating ? ' loading' : ''}`}
             onClick={handleGeoLocate}
-            title={geoMarker ? 'Clear my location' : 'Show my location on the map'}
+            title={geoLocating ? 'Locating…' : geoMarker ? 'Clear my location' : 'Show my location on the map'}
             disabled={geoLocating}>
             {geoLocating
               ? <span className="geo-spinner" />
-              : <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                  <circle cx="12" cy="12" r="4" fill="currentColor"/>
-                  <path d="M12 2v3M12 19v3M2 12h3M19 12h3" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                  <circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="1.5" strokeDasharray="3 2"/>
+              : <svg width="16" height="16" viewBox="0 0 18 18" fill="none">
+                  <circle cx="9" cy="9" r="3.5" fill="currentColor"/>
+                  <circle cx="9" cy="9" r="7" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+                  <line x1="9" y1="2" x2="9" y2="0.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                  <line x1="9" y1="16" x2="9" y2="17.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                  <line x1="2" y1="9" x2="0.5" y2="9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                  <line x1="16" y1="9" x2="17.5" y2="9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
                 </svg>
             }
-            {geoLocating ? ' Locating…' : geoMarker ? ' My Location ✓' : ' My Location'}
           </button>
+          {hasDefaultView && (
+            <button
+              className="map-geolocate-btn map-geolocate-btn--icon"
+              onClick={flyToDefaultView}
+              title="Go to default view">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M9 22V12h6v10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+          )}
         </div>
 
         {/* Zoom buttons — only when scroll zoom is off */}
@@ -1551,71 +1598,51 @@ export default function MapPage() {
                 </div>
               </div>
               <div className="map-pref-actions">
-                <button className="map-pref-action-btn map-pref-action-btn--accent"
-                  onClick={() => { setShowSavedViews(v => !v); setPrefsOpen(false) }}>
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
-                    <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                  Views
-                  {savedViews.length > 0 && <span className="map-pref-views-count">{savedViews.length}</span>}
-                </button>
-                <button className={`map-pref-action-btn${geoMarker?' active':''}`}
-                  onClick={e => { e.stopPropagation(); handleGeoLocate() }}
-                  disabled={geoLocating} style={{ marginLeft:'auto' }}>
-                  {geoLocating
-                    ? <span className="geo-spinner" style={{ width:11,height:11 }} />
-                    : <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
-                        <circle cx="12" cy="12" r="4" fill="currentColor"/>
-                        <path d="M12 2v3M12 19v3M2 12h3M19 12h3" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                      </svg>
+                <button className="map-pref-action-btn" onClick={() => setPrefsOpen(false)}>Close</button>
+              </div>
+
+              {/* Views — embedded in prefs */}
+              <div className="map-pref-views-section">
+                <div className="map-pref-row" style={{ borderBottom: 'none', paddingBottom: 4 }}>
+                  <span className="map-pref-name">Default view</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {hasDefaultView && (
+                      <span style={{ fontSize: 11, color: '#4CAF82', fontWeight: 500 }}>✓ Set</span>
+                    )}
+                    <button className="map-views-set-btn" onClick={saveDefaultView}>
+                      {hasDefaultView ? 'Update to current' : 'Set to current'}
+                    </button>
+                  </div>
+                </div>
+                <div className="map-pref-row" style={{ borderBottom: 'none', flexDirection: 'column', gap: 8 }}>
+                  <span className="map-pref-name">Saved views</span>
+                  <div className="saved-views-save-row">
+                    <input className="saved-views-input" type="text" placeholder="Name this view…"
+                      value={newViewName} onChange={e => setNewViewName(e.target.value)}
+                      onKeyDown={e => e.key==='Enter' && saveCurrentView()} maxLength={40}/>
+                    <button className="saved-views-save-btn" onClick={saveCurrentView}
+                      disabled={!newViewName.trim()||savingView}>{savingView?'…':'Save'}</button>
+                  </div>
+                  {savedViews.length === 0
+                    ? <div className="saved-views-empty">No saved views yet — pan to a spot and save it.</div>
+                    : <div className="saved-views-list">
+                        {savedViews.map(v => (
+                          <div key={v.id} className="saved-views-item">
+                            <button className="saved-views-fly" onClick={() => flyToSavedView(v)}>
+                              <svg width="11" height="11" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="10" r="3" stroke="currentColor" strokeWidth="1.5"/><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" stroke="currentColor" strokeWidth="1.5"/></svg>
+                              <span className="saved-views-name">{v.name}</span>
+                              <span className="saved-views-zoom">z{v.zoom}</span>
+                            </button>
+                            <button className="saved-views-delete" onClick={() => deleteSavedView(v.id)} title="Delete">✕</button>
+                          </div>
+                        ))}
+                      </div>
                   }
-                  {geoLocating ? 'Locating…' : geoMarker ? 'My Location ✓' : 'My Location'}
-                </button>
+                </div>
               </div>
             </div>
           )}
 
-          {/* Views panel */}
-          {showSavedViews && (
-            <div className="map-views-panel">
-              <div className="map-views-header">
-                <span className="map-views-title">Views</span>
-                <button className="map-views-close" onClick={() => setShowSavedViews(false)}>✕</button>
-              </div>
-              <div className="map-views-default-row">
-                <svg width="13" height="13" viewBox="0 0 16 16" fill="none" style={{ color:'#F59E0B', flexShrink:0 }}>
-                  <path d="M8 1l1.8 3.6L14 5.6l-3 2.9.7 4.1L8 10.5l-3.7 2.1.7-4.1L2 5.6l4.2-.9L8 1z" fill="currentColor"/>
-                </svg>
-                <div style={{ flex:1 }}>
-                  <div className="map-views-default-label">Default view</div>
-                  <div className="map-views-default-sub">Opens here on every login</div>
-                </div>
-                <button className="map-views-set-btn" onClick={saveDefaultView}>Set to current</button>
-              </div>
-              <div className="saved-views-save-row">
-                <input className="saved-views-input" type="text" placeholder="Name this view…"
-                  value={newViewName} onChange={e => setNewViewName(e.target.value)}
-                  onKeyDown={e => e.key==='Enter' && saveCurrentView()} maxLength={40}/>
-                <button className="saved-views-save-btn" onClick={saveCurrentView}
-                  disabled={!newViewName.trim()||savingView}>{savingView?'…':'Save'}</button>
-              </div>
-              {savedViews.length === 0
-                ? <div className="saved-views-empty">No saved views yet — pan to a spot and save it.</div>
-                : <div className="saved-views-list">
-                    {savedViews.map(v => (
-                      <div key={v.id} className="saved-views-item">
-                        <button className="saved-views-fly" onClick={() => flyToSavedView(v)}>
-                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="10" r="3" stroke="currentColor" strokeWidth="1.5"/><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" stroke="currentColor" strokeWidth="1.5"/></svg>
-                          <span className="saved-views-name">{v.name}</span>
-                          <span className="saved-views-zoom">z{v.zoom}</span>
-                        </button>
-                        <button className="saved-views-delete" onClick={() => deleteSavedView(v.id)} title="Delete">✕</button>
-                      </div>
-                    ))}
-                  </div>
-              }
-            </div>
-          )}
         </div>
 
         <div className="map-legend">
@@ -1761,7 +1788,7 @@ export default function MapPage() {
             </button>
             {!myClubCollapsed && (
               <div className="cp-my-club-expanded">
-                <MyClubCard myClub={myClub} onManage={() => navigate('/app/profile')} />
+                <MyClubCard myClub={myClub} onManage={() => navigate(`/app/profile?club=${myClub?.club_index || 0}`)} />
               </div>
             )}
           </div>
@@ -1779,7 +1806,7 @@ export default function MapPage() {
                 club={selected}
                 userId={user?.id}
                 panelWidth={panelWidth}
-                onManage={() => navigate('/app/profile')}
+                onManage={() => navigate(`/app/profile?club=${selected?.club_index || 0}`)}
                 radiusMiles={radiusMiles}
                 setRadiusMiles={setRadiusMiles}
                 customMiles={customMiles}

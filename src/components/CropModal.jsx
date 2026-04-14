@@ -163,13 +163,18 @@ export default function CropModal({ imageSrc, onSave, onCancel, circular = true 
 
         <div className="crop-controls">
           <div className="crop-zoom-row">
-            <span className="crop-zoom-label">Zoom</span>
+            <button type="button" className="crop-zoom-btn" onClick={() => setZoom(z => Math.max(0.5, z - 0.15))} title="Zoom out">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="1.5"/><path d="M21 21l-4.35-4.35M8 11h6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+            </button>
             <input
               type="range" min="0.5" max="4" step="0.05"
               value={zoom}
               onChange={e => setZoom(parseFloat(e.target.value))}
               style={{ flex: 1 }}
             />
+            <button type="button" className="crop-zoom-btn" onClick={() => setZoom(z => Math.min(4, z + 0.15))} title="Zoom in">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="1.5"/><path d="M21 21l-4.35-4.35M8 11h6M11 8v6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+            </button>
             <span className="crop-zoom-val">{zoom.toFixed(1)}×</span>
           </div>
           <div className="crop-actions">

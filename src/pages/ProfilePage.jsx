@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 import { geocodeSingle, geocodeZip } from '../lib/geocode'
@@ -251,7 +251,7 @@ function MyTeamSection({ userId, userLevel }) {
                       {pending.length > 0 && ` · ${pending.length} pending`}
                     </span>
                   </div>
-                  <svg className={`survey-chevron ${isOpen ? 'open' : ''}`} width="14" height="14" viewBox="0 0 16 16" fill="none">
+                  <svg className={`survey-chevron ${isOpen ? 'open' : ''}`} width="18" height="18" viewBox="0 0 16 16" fill="none">
                     <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
                 </div>
@@ -703,6 +703,8 @@ function ClubEditor({ club, clubIndex, userId, isOnly, allClubs, onSaved, onRemo
   const [copySource, setCopySource]   = useState(null)
   const [copyTargets, setCopyTargets] = useState({})
   const [showCrossClubCopy, setShowCrossClubCopy] = useState(false)
+  const [hoursPromptShown, setHoursPromptShown] = useState(false)
+  const [hoursPromptDay, setHoursPromptDay]     = useState(null)
   const isDirty = JSON.stringify({ ...form, logo_url: logoUrl, photo_urls: photoUrls })
     !== JSON.stringify({ ...savedForm, logo_url: savedForm.logo_url, photo_urls: savedForm.photo_urls })
 
@@ -715,7 +717,34 @@ function ClubEditor({ club, clubIndex, userId, isOnly, allClubs, onSaved, onRemo
   )
 
   function setField(key, value) {
-    setForm(f => ({ ...f, [key]: value }))
+    setForm(f => {
+      const next = { ...f, [key]: value }
+      // Auto-prompt: when first day gets both open+close filled, suggest copying
+      if (!hoursPromptShown && key.startsWith('hours_') && key.endsWith('_close') && value) {
+        const dayName = key.replace('hours_', '').replace('_close', '')
+        const openKey = 'hours_' + dayName + '_open'
+        if (next[openKey]) {
+          // Check no other days are filled yet
+          const otherDaysFilled = DAYS.some(d => d !== dayName && next['hours_' + d + '_open'] && next['hours_' + d + '_close'])
+          if (!otherDaysFilled) {
+            setHoursPromptShown(true)
+            setHoursPromptDay(dayName)
+          }
+        }
+      }
+      if (!hoursPromptShown && key.startsWith('hours_') && key.endsWith('_open') && value) {
+        const dayName = key.replace('hours_', '').replace('_open', '')
+        const closeKey = 'hours_' + dayName + '_close'
+        if (next[closeKey]) {
+          const otherDaysFilled = DAYS.some(d => d !== dayName && next['hours_' + d + '_open'] && next['hours_' + d + '_close'])
+          if (!otherDaysFilled) {
+            setHoursPromptShown(true)
+            setHoursPromptDay(dayName)
+          }
+        }
+      }
+      return next
+    })
     if (errors[key]) setErrors(e => ({ ...e, [key]: null }))
   }
 
@@ -1019,6 +1048,22 @@ function ClubEditor({ club, clubIndex, userId, isOnly, allClubs, onSaved, onRemo
       <div className="club-section">
         <div className="sec-label" style={{ marginBottom: 12 }}>Club Specifics</div>
 
+        {/* Q3 follow-up: prompt if onboarding had club dates */}
+        {personData?.survey_club_month && personData?.survey_club_year && !form.opened_month && !form.opened_year && (
+          <div className="prefill-prompt">
+            <span className="prefill-prompt-text">
+              You mentioned opening a club in <strong>{personData.survey_club_month} {personData.survey_club_year}</strong> during onboarding. Is this the same club?
+            </span>
+            <div className="prefill-prompt-btns">
+              <button type="button" className="prefill-prompt-yes" onClick={() => {
+                setField('opened_month', personData.survey_club_month)
+                setField('opened_year', personData.survey_club_year)
+              }}>Yes, use those dates</button>
+              <button type="button" className="prefill-prompt-no" onClick={e => e.target.closest('.prefill-prompt').remove()}>No, different club</button>
+            </div>
+          </div>
+        )}
+
         <div className="fgrid" style={{ marginBottom: 24 }}>
           <div className="pf">
             <label>Month opened <span className="req-star">*</span></label>
@@ -1030,7 +1075,15 @@ function ClubEditor({ club, clubIndex, userId, isOnly, allClubs, onSaved, onRemo
             {errors.opened_month && <span className="field-err">{errors.opened_month}</span>}
           </div>
           <div className="pf">
-            <label>Year opened <span className="req-star">*</span></label>
+            <label>
+              Year opened <span className="req-star">*</span>
+              {personData?.survey_club_year && form.opened_year !== personData.survey_club_year && (
+                <button type="button" className="prefill-inline-btn" onClick={() => {
+                  setField('opened_month', personData.survey_club_month || form.opened_month)
+                  setField('opened_year', personData.survey_club_year)
+                }} title="Use dates from onboarding survey">↩ From survey</button>
+              )}
+            </label>
             <select value={form.opened_year} onChange={e => setField('opened_year', e.target.value)}
               className={errors.opened_year ? 'input-err' : ''} tabIndex={6}>
               <option value="">Select year</option>
@@ -1095,6 +1148,33 @@ function ClubEditor({ club, clubIndex, userId, isOnly, allClubs, onSaved, onRemo
           ))}
         </div>
 
+        {/* Auto-prompt: copy first day's hours to other days */}
+        {hoursPromptDay && !copySource && (
+          <div className="hours-auto-prompt">
+            <span className="hours-auto-prompt-text">
+              Add {DAY_LABELS[DAYS.indexOf(hoursPromptDay)]}'s hours to more days?
+            </span>
+            <div className="hours-auto-prompt-btns">
+              <button type="button" className="hours-auto-prompt-yes" onClick={() => {
+                setCopySource(hoursPromptDay)
+                setCopyTargets({})
+                setHoursPromptDay(null)
+              }}>Yes, choose days</button>
+              <button type="button" className="hours-auto-prompt-all" onClick={() => {
+                const o = form['hours_' + hoursPromptDay + '_open']
+                const c = form['hours_' + hoursPromptDay + '_close']
+                if (o && c) {
+                  const updates = {}
+                  DAYS.forEach(d => { if (d !== hoursPromptDay) { updates['hours_' + d + '_open'] = o; updates['hours_' + d + '_close'] = c } })
+                  setForm(f => ({ ...f, ...updates }))
+                }
+                setHoursPromptDay(null)
+              }}>Apply to all days</button>
+              <button type="button" className="hours-auto-prompt-no" onClick={() => setHoursPromptDay(null)}>No thanks</button>
+            </div>
+          </div>
+        )}
+
         {copySource && (
           <div className="copy-panel">
             <div className="copy-panel-title">
@@ -1128,6 +1208,7 @@ function ClubEditor({ club, clubIndex, userId, isOnly, allClubs, onSaved, onRemo
           {
             key: 'website',
             label: 'Website',
+            icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{display:'block'}}><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1.5"/><path d="M2 12h20M12 2c2.5 2.5 4 6 4 10s-1.5 7.5-4 10c-2.5-2.5-4-6-4-10s1.5-7.5 4-10z" stroke="currentColor" strokeWidth="1.5"/></svg>,
             placeholder: 'yoursite.com',
             validate: v => {
               if (!v) return null
@@ -1143,6 +1224,7 @@ function ClubEditor({ club, clubIndex, userId, isOnly, allClubs, onSaved, onRemo
           {
             key: 'social_facebook',
             label: 'Facebook',
+            icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{display:'block'}}><path d="M18 2h-3a5 5 0 00-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 011-1h3V2z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>,
             placeholder: 'facebook.com/yourpage or yourpage',
             validate: v => {
               if (!v) return null
@@ -1162,6 +1244,7 @@ function ClubEditor({ club, clubIndex, userId, isOnly, allClubs, onSaved, onRemo
           {
             key: 'social_instagram',
             label: 'Instagram',
+            icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{display:'block'}}><rect x="2" y="2" width="20" height="20" rx="5" stroke="currentColor" strokeWidth="1.5"/><circle cx="12" cy="12" r="5" stroke="currentColor" strokeWidth="1.5"/><circle cx="17.5" cy="6.5" r="1.5" fill="currentColor"/></svg>,
             placeholder: '@yourhandle',
             validate: v => {
               if (!v) return null
@@ -1181,6 +1264,7 @@ function ClubEditor({ club, clubIndex, userId, isOnly, allClubs, onSaved, onRemo
           {
             key: 'social_tiktok',
             label: 'TikTok',
+            icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{display:'block'}}><path d="M9 12a4 4 0 104 4V4c1.5 2 3.5 3 5.5 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>,
             placeholder: '@yourhandle',
             validate: v => {
               if (!v) return null
@@ -1200,6 +1284,7 @@ function ClubEditor({ club, clubIndex, userId, isOnly, allClubs, onSaved, onRemo
           {
             key: 'social_youtube',
             label: 'YouTube',
+            icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{display:'block'}}><path d="M22.54 6.42a2.78 2.78 0 00-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.46a2.78 2.78 0 00-1.94 2A29 29 0 001 12a29 29 0 00.46 5.58 2.78 2.78 0 001.94 2C5.12 20 12 20 12 20s6.88 0 8.6-.46a2.78 2.78 0 001.94-2A29 29 0 0023 12a29 29 0 00-.46-5.58z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/><path d="M9.75 15.02l5.75-3.27-5.75-3.27v6.54z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>,
             placeholder: 'youtube.com/yourchannel or @handle',
             validate: v => {
               if (!v) return null
@@ -1217,13 +1302,13 @@ function ClubEditor({ club, clubIndex, userId, isOnly, allClubs, onSaved, onRemo
               return clean.startsWith('@') ? clean : `youtube.com/${clean}`
             },
           },
-        ].map(({ key, label, placeholder, validate, previewUrl, previewLabel }, si) => {
+        ].map(({ key, label, placeholder, validate, previewUrl, previewLabel, icon }, si) => {
           const val = form[key] || ''
           const validationError = val ? validate(val) : null
           const preview = val && !validationError ? previewUrl(val) : null
           return (
             <div className="soc-row soc-row--with-preview" key={key}>
-              <span className="soc-lbl">{label}</span>
+              <span className="soc-lbl">{icon && <span className="soc-icon">{icon}</span>}{label}</span>
               <div className="pf soc-input-wrap">
                 <input type="text" value={val}
                   onChange={e => setField(key, e.target.value)}
@@ -1412,11 +1497,13 @@ function ClubEditor({ club, clubIndex, userId, isOnly, allClubs, onSaved, onRemo
 export default function ProfilePage() {
   const { user } = useAuth()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const initClubTab = parseInt(searchParams.get('club'))
 
   const [personForm, setPersonForm] = useState(DEFAULT_PERSON)
   const [savedPersonForm, setSavedPersonForm] = useState(null)
   const [clubs, setClubs]           = useState([])   // array of DB rows
-  const [activeTab, setActiveTab]   = useState(0)    // index into clubs[]
+  const [activeTab, setActiveTab]   = useState(!isNaN(initClubTab) ? initClubTab : 0)    // index into clubs[]
   const [loading, setLoading]       = useState(true)
   const [saving, setSaving]         = useState(false)
   const [personToast, setPersonToast] = useState('')
@@ -1441,7 +1528,7 @@ export default function ProfilePage() {
   const [cropTarget, setCropTarget] = useState(null)
 
   const [showAddClubPrompt, setShowAddClubPrompt] = useState(false)
-  const [myClubsOpen, setMyClubsOpen] = useState(false)
+  const [myClubsOpen, setMyClubsOpen] = useState(!isNaN(initClubTab))
   const [showTeamInfoModal, setShowTeamInfoModal] = useState(false)
   const [teamInfoSettings, setTeamInfoSettings] = useState(null)
   const [showReviewModal, setShowReviewModal] = useState(false)
@@ -1539,7 +1626,6 @@ export default function ProfilePage() {
       } else {
         // Brand new user — pre-fill email
         const baseClub = user.email ? { ...DEFAULT_CLUB, club_email: user.email } : { ...DEFAULT_CLUB }
-        setClubs([baseClub])
         if (user.email) setPersonForm(f => ({ ...f, owner_email: user.email }))
 
         // Check for pending_survey from onboarding
@@ -1554,15 +1640,11 @@ export default function ProfilePage() {
             // Merge survey fields into person form
             setPersonForm(f => ({ ...f, ...survey }))
             // Also prefill club opened date from onboarding survey
-            if (survey.survey_club_month || survey.survey_club_year) {
-              setClubs(prev => prev.map((c, i) => i === 0 ? {
-                ...c,
-                opened_month: survey.survey_club_month || c.opened_month,
-                opened_year: survey.survey_club_year || c.opened_year,
-              } : c))
-            }
+            if (survey.survey_club_month) baseClub.opened_month = survey.survey_club_month
+            if (survey.survey_club_year)  baseClub.opened_year  = survey.survey_club_year
           } catch {}
         }
+        setClubs([baseClub])
       }
       // Load team info modal settings
       const { data: appS } = await supabase.from('app_settings')
@@ -1944,20 +2026,18 @@ export default function ProfilePage() {
           )}
         </div>
 
-        {/* Owner save bar — sticky when dirty */}
-        {hasAnyClub && (
-          <div className={`owner-save-bar${isPersonDirty ? ' owner-save-bar--sticky' : ''}`}>
-            {isPersonDirty && (
-              <div className="save-bar-alert">
-                <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                  <circle cx="8" cy="8" r="7" stroke="#B45309" strokeWidth="1.5"/>
-                  <path d="M8 5v4" stroke="#B45309" strokeWidth="1.5" strokeLinecap="round"/>
-                  <circle cx="8" cy="11.5" r="0.75" fill="#B45309"/>
-                </svg>
-                Unsaved changes
-              </div>
-            )}
-            <button className="btn-save" onClick={savePersonFields} disabled={saving || !isPersonDirty || !personForm.first_name.trim() || !personForm.last_name.trim() || !personForm.herbalife_level}>
+        {/* Owner save bar — only visible when dirty */}
+        {hasAnyClub && isPersonDirty && (
+          <div className="owner-save-bar owner-save-bar--sticky">
+            <div className="save-bar-alert">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                <circle cx="8" cy="8" r="7" stroke="#B45309" strokeWidth="1.5"/>
+                <path d="M8 5v4" stroke="#B45309" strokeWidth="1.5" strokeLinecap="round"/>
+                <circle cx="8" cy="11.5" r="0.75" fill="#B45309"/>
+              </svg>
+              Unsaved changes
+            </div>
+            <button className="btn-save" onClick={savePersonFields} disabled={saving || !personForm.first_name.trim() || !personForm.last_name.trim() || !personForm.herbalife_level}>
               {saving ? 'Saving…' : 'Save Owner Info'}
             </button>
           </div>
@@ -1987,8 +2067,13 @@ export default function ProfilePage() {
       {/* CARD 2: My Clubs — tabbed */}
       <div className="sec-card my-clubs-card">
         <button type="button" className="sec-card-band" onClick={() => setMyClubsOpen(o => !o)} style={{ cursor: 'pointer', width: '100%', border: 'none' }}>
-          <span className="sec-label">My Clubs</span>
-          <svg className={`survey-chevron ${myClubsOpen ? 'open' : ''}`} width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 2, flex: 1, minWidth: 0 }}>
+            <span className="sec-label">My Clubs</span>
+            {!myClubsOpen && clubs.some(c => c.club_name?.trim()) && (
+              <span className="collapsed-club-names">{clubs.map((c, i) => c.club_name?.trim() || `Club ${i + 1}`).join('  ·  ')}</span>
+            )}
+          </div>
+          <svg className={`survey-chevron ${myClubsOpen ? 'open' : ''}`} width="18" height="18" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
         </button>
 
         {myClubsOpen && (<>
@@ -2026,7 +2111,7 @@ export default function ProfilePage() {
             onSaved={handleClubSaved}
             onRemove={() => handleClubRemoved(activeTab)}
             userEmail={!clubs[activeTab].id && activeTab === 0 ? user.email : null}
-            personData={personForm}
+            personData={{ ...personForm, owner_photo_url: ownerPhotoUrl, owner2_photo_url: owner2PhotoUrl, owner3_photo_url: owner3PhotoUrl }}
           />
         )}
         </>)}
@@ -2073,7 +2158,7 @@ export default function ProfilePage() {
                     : <span className="survey-progress-badge optional-tag">all optional</span>
                 }
               </div>
-              <svg className={'survey-chevron' + (storyOpen ? ' open' : '')} width="14" height="14" viewBox="0 0 16 16" fill="none">
+              <svg className={'survey-chevron' + (storyOpen ? ' open' : '')} width="18" height="18" viewBox="0 0 16 16" fill="none">
                 <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </button>
@@ -2348,13 +2433,30 @@ export default function ProfilePage() {
       {showReviewModal && (() => {
         const club = clubs[0] || {}
         const DAY_LABELS_SHORT = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
+        const DAYS = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday']
         const hoursRows = DAYS.map((d, i) => {
           const o = club['hours_' + d + '_open'], c = club['hours_' + d + '_close']
-          return o && c ? { day: DAY_LABELS_SHORT[i], hours: `${o} – ${c}` } : null
-        }).filter(Boolean)
+          return { day: DAY_LABELS_SHORT[i], hours: o && c ? `${o} – ${c}` : null }
+        })
+        const hasAnyHours = hoursRows.some(r => r.hours)
+
+        // Level pill colors (matches DirectoryPage)
+        function levelStyle(level) {
+          if (!level) return null
+          let bg = '#eef2f7', color = '#555', border = '#ddd'
+          if (/^Presidents Team/.test(level))  { bg = '#fdf6cc'; color = '#7a5200'; border = '#c9a800' }
+          else if (/^Chairmans Club/.test(level)) { bg = '#f0f0f4'; color = '#3a3a50'; border = '#b0b0c8' }
+          else if (/^Founders Circle/.test(level)) { bg = '#f8f8ff'; color = '#3a3060'; border = '#c8c0e8' }
+          else if (/^(Supervisor|World Team|Active World Team|Distributor|Success Builder)/.test(level)) { bg = '#f0f0f0'; color = '#555'; border = '#ccc' }
+          else if (/^(Get Team|Millionaire)/.test(level)) { bg = '#e8f8f0'; color = '#0c5a32'; border = '#A8DFC4' }
+          return { display: 'inline-block', fontSize: 11, fontWeight: 600, padding: '2px 10px', borderRadius: 20, background: bg, color, border: `0.5px solid ${border}` }
+        }
+
+        const missing = (val) => !val
+          ? <span className="review-missing">Not provided</span>
+          : <span>{val}</span>
 
         async function handleApproveAndGo() {
-          // Build full record from person form + first club
           const club0 = clubs[0] || {}
           const personRecord = {
             ...personForm,
@@ -2364,14 +2466,11 @@ export default function ProfilePage() {
             owner3_photo_url: owner3PhotoUrl,
           }
 
-          // Check if locations row exists
           const { data: existingLocs } = await supabase.from('locations').select('id').eq('user_id', user.id)
 
           if (existingLocs && existingLocs.length > 0) {
-            // Update all existing location rows with person + approval
             await supabase.from('locations').update(personRecord).eq('user_id', user.id)
           } else if (club0.club_name && club0.address) {
-            // No location row yet — create one with club + person data
             const { data: appSettings } = await supabase.from('app_settings').select('require_approval').eq('id', 1).single()
             const newRecord = {
               user_id: user.id,
@@ -2385,62 +2484,76 @@ export default function ProfilePage() {
             await supabase.from('locations').insert(newRecord)
           }
 
-          // Clear pending_survey
           await supabase.from('user_terms_acceptance').update({ pending_survey: null }).eq('user_id', user.id)
 
           setSavedPersonForm({ ...personForm, _p1: ownerPhotoUrl, _p2: owner2PhotoUrl, _p3: owner3PhotoUrl })
           setShowReviewModal(false)
-          navigate('/app/map')
+          // Navigate with club coords so map centers + shows tooltip
+          const lat = club0.lat, lng = club0.lng
+          if (lat && lng) {
+            navigate(`/app/map?focus_lat=${lat}&focus_lng=${lng}&focus_tooltip=1`)
+          } else {
+            navigate('/app/map')
+          }
         }
 
         return (
           <div className="modal-overlay">
             <div className="modal-box review-modal" onClick={e => e.stopPropagation()}>
-              <div className="review-modal-header">
-                <div className="review-modal-icon">
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-                    <path d="M9 11l3 3L22 4" stroke="#4CAF82" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" stroke="#4CAF82" strokeWidth="1.5" strokeLinecap="round"/>
-                  </svg>
-                </div>
+              {/* Branded header bar */}
+              <div className="review-modal-header-bar">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                  <path d="M9 11l3 3L22 4" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" stroke="rgba(255,255,255,0.6)" strokeWidth="1.5" strokeLinecap="round"/>
+                </svg>
                 <h3 className="review-modal-title">Review Your Profile</h3>
               </div>
               <div className="review-modal-body">
-                <p className="review-modal-intro">Take a moment to review everything before going live on the map.</p>
+                <p className="review-modal-intro">Take a moment to review everything before going live on the map. Fields marked <span className="review-missing-inline">not provided</span> are optional but recommended.</p>
 
                 {/* Owner info */}
                 <div className="review-section">
                   <div className="review-section-label">Owner</div>
-                  <div className="review-row"><span className="review-key">Name</span><span>{[personForm.first_name, personForm.last_name].filter(Boolean).join(' ') || '—'}</span></div>
-                  <div className="review-row"><span className="review-key">Email</span><span>{personForm.owner_email || '—'}</span></div>
-                  <div className="review-row"><span className="review-key">Level</span><span>{personForm.herbalife_level || '—'}</span></div>
+                  <div className="review-row"><span className="review-key">Name</span>{missing([personForm.first_name, personForm.last_name].filter(Boolean).join(' '))}</div>
+                  <div className="review-row"><span className="review-key">Email</span>{missing(personForm.owner_email)}</div>
+                  <div className="review-row"><span className="review-key">Level</span>
+                    {personForm.herbalife_level
+                      ? <span style={levelStyle(personForm.herbalife_level)}>{personForm.herbalife_level}</span>
+                      : <span className="review-missing">Not provided</span>
+                    }
+                  </div>
+                  {ownerPhotoUrl && (
+                    <div className="review-row"><span className="review-key">Photo</span><img src={ownerPhotoUrl} alt="Owner" className="review-photo-thumb" /></div>
+                  )}
                 </div>
 
                 {/* Club info */}
                 <div className="review-section">
-                  <div className="review-section-label">Club — {club.club_name || 'Unnamed'}</div>
-                  <div className="review-row"><span className="review-key">Address</span><span>{[club.address, club.city, club.state, club.zip].filter(Boolean).join(', ') || '—'}</span></div>
-                  <div className="review-row"><span className="review-key">Phone</span><span>{club.club_phone || '—'}</span></div>
-                  <div className="review-row"><span className="review-key">Email</span><span>{club.club_email || '—'}</span></div>
-                  <div className="review-row"><span className="review-key">Opened</span><span>{club.opened_month && club.opened_year ? `${club.opened_month} ${club.opened_year}` : '—'}</span></div>
-                  {hoursRows.length > 0 && (
-                    <div className="review-row review-row--top"><span className="review-key">Hours</span>
-                      <div>{hoursRows.map(r => <div key={r.day} style={{ fontSize: 12.5 }}><strong>{r.day}</strong> {r.hours}</div>)}</div>
-                    </div>
-                  )}
+                  <div className="review-section-label">Club — {club.club_name || <span className="review-missing-inline">unnamed</span>}</div>
+                  <div className="review-row"><span className="review-key">Address</span>{missing([club.address, club.city, club.state, club.zip].filter(Boolean).join(', '))}</div>
+                  <div className="review-row"><span className="review-key">Phone</span>{missing(club.club_phone)}</div>
+                  <div className="review-row"><span className="review-key">Email</span>{missing(club.club_email)}</div>
+                  <div className="review-row"><span className="review-key">Opened</span>{club.opened_month && club.opened_year ? <span>{club.opened_month} {club.opened_year}</span> : <span className="review-missing">Not provided</span>}</div>
+                  <div className="review-row review-row--top"><span className="review-key">Hours</span>
+                    {hasAnyHours ? (
+                      <div>{hoursRows.map(r => (
+                        <div key={r.day} style={{ fontSize: 12.5 }}>
+                          <strong>{r.day}</strong> {r.hours || <span className="review-missing-inline">closed</span>}
+                        </div>
+                      ))}</div>
+                    ) : <span className="review-missing">No hours set</span>}
+                  </div>
                 </div>
 
-                {/* Socials */}
-                {(club.social_facebook || club.social_instagram || club.social_tiktok || club.social_youtube || club.website) && (
-                  <div className="review-section">
-                    <div className="review-section-label">Social & Website</div>
-                    {club.website && <div className="review-row"><span className="review-key">Website</span><span>{club.website}</span></div>}
-                    {club.social_facebook && <div className="review-row"><span className="review-key">Facebook</span><span>✓</span></div>}
-                    {club.social_instagram && <div className="review-row"><span className="review-key">Instagram</span><span>✓</span></div>}
-                    {club.social_tiktok && <div className="review-row"><span className="review-key">TikTok</span><span>✓</span></div>}
-                    {club.social_youtube && <div className="review-row"><span className="review-key">YouTube</span><span>✓</span></div>}
-                  </div>
-                )}
+                {/* Social & Website — always show all fields */}
+                <div className="review-section">
+                  <div className="review-section-label">Social & Website</div>
+                  <div className="review-row"><span className="review-key">Website</span>{club.website ? <span>{club.website}</span> : <span className="review-missing">Not provided</span>}</div>
+                  <div className="review-row"><span className="review-key">Facebook</span>{club.social_facebook ? <span className="review-social-url">facebook.com/{club.social_facebook}</span> : <span className="review-missing">Not linked</span>}</div>
+                  <div className="review-row"><span className="review-key">Instagram</span>{club.social_instagram ? <span className="review-social-url">@{club.social_instagram}</span> : <span className="review-missing">Not linked</span>}</div>
+                  <div className="review-row"><span className="review-key">TikTok</span>{club.social_tiktok ? <span className="review-social-url">@{club.social_tiktok}</span> : <span className="review-missing">Not linked</span>}</div>
+                  <div className="review-row"><span className="review-key">YouTube</span>{club.social_youtube ? <span className="review-social-url">{club.social_youtube}</span> : <span className="review-missing">Not linked</span>}</div>
+                </div>
 
                 {/* Additional clubs */}
                 {clubs.length > 1 && (
