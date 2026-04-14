@@ -100,7 +100,7 @@ export default function OnboardingPage() {
   }
 
   async function handleNext() {
-    if (CARDS[step].id === 'done') { navigate('/app/profile'); return }
+    if (CARDS[step].id === 'done') { await saveSurvey(); navigate('/app/profile'); return }
     if (step < CARDS.length - 1) setStep(s => s + 1)
   }
 
@@ -109,7 +109,7 @@ export default function OnboardingPage() {
     setStep(s => s + 1)
   }
 
-  function handleSkip() { if (step < CARDS.length - 1) setStep(s => s + 1) }
+  async function handleSkip() { await saveSurvey(); if (step < CARDS.length - 1) setStep(s => s + 1) }
   function handleBack() { if (step > 0) setStep(s => s - 1) }
 
   const card = CARDS[step]

@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 import { geocodeSingle, geocodeZip } from '../lib/geocode'
@@ -1412,11 +1412,13 @@ function ClubEditor({ club, clubIndex, userId, isOnly, allClubs, onSaved, onRemo
 export default function ProfilePage() {
   const { user } = useAuth()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const initClubTab = parseInt(searchParams.get('club'))
 
   const [personForm, setPersonForm] = useState(DEFAULT_PERSON)
   const [savedPersonForm, setSavedPersonForm] = useState(null)
   const [clubs, setClubs]           = useState([])   // array of DB rows
-  const [activeTab, setActiveTab]   = useState(0)    // index into clubs[]
+  const [activeTab, setActiveTab]   = useState(!isNaN(initClubTab) ? initClubTab : 0)    // index into clubs[]
   const [loading, setLoading]       = useState(true)
   const [saving, setSaving]         = useState(false)
   const [personToast, setPersonToast] = useState('')
@@ -1441,7 +1443,7 @@ export default function ProfilePage() {
   const [cropTarget, setCropTarget] = useState(null)
 
   const [showAddClubPrompt, setShowAddClubPrompt] = useState(false)
-  const [myClubsOpen, setMyClubsOpen] = useState(false)
+  const [myClubsOpen, setMyClubsOpen] = useState(!isNaN(initClubTab))
   const [showTeamInfoModal, setShowTeamInfoModal] = useState(false)
   const [teamInfoSettings, setTeamInfoSettings] = useState(null)
   const [showReviewModal, setShowReviewModal] = useState(false)
@@ -1539,7 +1541,6 @@ export default function ProfilePage() {
       } else {
         // Brand new user — pre-fill email
         const baseClub = user.email ? { ...DEFAULT_CLUB, club_email: user.email } : { ...DEFAULT_CLUB }
-        setClubs([baseClub])
         if (user.email) setPersonForm(f => ({ ...f, owner_email: user.email }))
 
         // Check for pending_survey from onboarding
@@ -1554,15 +1555,11 @@ export default function ProfilePage() {
             // Merge survey fields into person form
             setPersonForm(f => ({ ...f, ...survey }))
             // Also prefill club opened date from onboarding survey
-            if (survey.survey_club_month || survey.survey_club_year) {
-              setClubs(prev => prev.map((c, i) => i === 0 ? {
-                ...c,
-                opened_month: survey.survey_club_month || c.opened_month,
-                opened_year: survey.survey_club_year || c.opened_year,
-              } : c))
-            }
+            if (survey.survey_club_month) baseClub.opened_month = survey.survey_club_month
+            if (survey.survey_club_year)  baseClub.opened_year  = survey.survey_club_year
           } catch {}
         }
+        setClubs([baseClub])
       }
       // Load team info modal settings
       const { data: appS } = await supabase.from('app_settings')
@@ -1987,7 +1984,12 @@ export default function ProfilePage() {
       {/* CARD 2: My Clubs — tabbed */}
       <div className="sec-card my-clubs-card">
         <button type="button" className="sec-card-band" onClick={() => setMyClubsOpen(o => !o)} style={{ cursor: 'pointer', width: '100%', border: 'none' }}>
-          <span className="sec-label">My Clubs</span>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 2, flex: 1, minWidth: 0 }}>
+            <span className="sec-label">My Clubs</span>
+            {!myClubsOpen && clubs.some(c => c.club_name?.trim()) && (
+              <span className="collapsed-club-names">{clubs.map((c, i) => c.club_name?.trim() || `Club ${i + 1}`).join('  ·  ')}</span>
+            )}
+          </div>
           <svg className={`survey-chevron ${myClubsOpen ? 'open' : ''}`} width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
         </button>
 
@@ -2026,7 +2028,7 @@ export default function ProfilePage() {
             onSaved={handleClubSaved}
             onRemove={() => handleClubRemoved(activeTab)}
             userEmail={!clubs[activeTab].id && activeTab === 0 ? user.email : null}
-            personData={personForm}
+            personData={{ ...personForm, owner_photo_url: ownerPhotoUrl, owner2_photo_url: owner2PhotoUrl, owner3_photo_url: owner3PhotoUrl }}
           />
         )}
         </>)}

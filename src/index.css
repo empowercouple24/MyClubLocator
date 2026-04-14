@@ -22,11 +22,19 @@ html, body, #root {
 }
 
 body {
-  font-family: var(--site-font, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+  font-family: var(--site-font, 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
   font-size: 14px;
   color: #1a1a1a;
   background: var(--theme-page-bg, #E8E3D8);
   -webkit-font-smoothing: antialiased;
+}
+
+/* Ensure --site-font cascades to ALL elements including form controls, map UI, tooltips */
+input, select, textarea, button,
+.leaflet-container, .leaflet-tooltip, .leaflet-popup-content,
+.sec-label, .sec-card, .club-tab, .btn-save, .btn-full,
+h1, h2, h3, h4, h5, h6, p, a, span, div, label, li {
+  font-family: inherit;
 }
 
 /* Leaflet map fix — must be explicit height */
@@ -622,6 +630,10 @@ body:has(.admin-page-wrap) {
   gap: 8px;
 }
 .sec-card-band:hover { filter: brightness(0.92); }
+.collapsed-club-names {
+  font-size: 12px; font-weight: 500; color: rgba(255,255,255,0.7);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
+}
 
 /* Card body padding wrapper */
 .sec-card-body {
@@ -638,7 +650,8 @@ body:has(.admin-page-wrap) {
 }
 /* White text only when sec-label is inside a header bar */
 .survey-toggle-btn .sec-label,
-.sec-card-header .sec-label {
+.sec-card-header .sec-label,
+.sec-card-band .sec-label {
   color: var(--theme-card-header-text, #fff);
 }
 
@@ -10272,6 +10285,21 @@ input.input-ok {
 .ld-search-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 24px rgba(76,175,130,0.35); }
 .ld-search-or { display: flex; align-items: center; gap: 12px; margin: 14px 0; font-size: 12px; color: #ccc; }
 .ld-search-or::before, .ld-search-or::after { content: ''; flex: 1; height: 1px; background: #eee; }
+.ld-search-spinner { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); color: #4CAF82; font-size: 18px; animation: spin 1s linear infinite; }
+.ld-search-dropdown {
+  position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 50;
+  background: #fff; border: 1px solid #e0e0e0; border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.12); list-style: none; padding: 6px 0; margin: 0;
+  max-height: 280px; overflow-y: auto; text-align: left;
+}
+.ld-search-dropdown-item {
+  padding: 10px 16px; cursor: pointer; transition: background 0.15s;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.ld-search-dropdown-item:hover, .ld-search-dropdown-item.highlighted { background: #f0faf4; }
+.ld-search-dropdown-main { font-size: 14px; color: #1A3C2E; font-weight: 500; }
+.ld-search-dropdown-sub { font-size: 12px; color: #999; }
+.ld-search-dropdown-credit { padding: 6px 16px; font-size: 10px; color: #ccc; text-align: right; pointer-events: none; }
 .ld-locate-btn {
   width: 100%; padding: 12px; border: 1.5px solid #e4e4e4; border-radius: 12px;
   background: #fff; color: #888; font-size: 14px; font-weight: 500;

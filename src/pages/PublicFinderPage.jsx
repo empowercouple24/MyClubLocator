@@ -446,10 +446,11 @@ export default function PublicFinderPage() {
   const initZoom  = parseInt(searchParams.get('zoom')) || 11
   const [settings, setSettings]             = useState(null)
   const [loadingSettings, setLoadingSettings] = useState(true)
-  const [accepted, setAccepted]             = useState(fromOwner) // owners bypass disclaimer
+  const [accepted, setAccepted]             = useState(fromOwner || hasInitCoords) // owners & landing search bypass disclaimer
   // ...fly to owner's previous extent on mount if coming from /app/map
+  const hasInitCoords = !isNaN(initLat) && !isNaN(initLng)
   const [flyTo, setFlyTo] = useState(
-    fromOwner && !isNaN(initLat) && !isNaN(initLng)
+    hasInitCoords
       ? { lat: initLat, lng: initLng, zoom: initZoom, _t: Date.now() }
       : null
   )
@@ -507,6 +508,7 @@ export default function PublicFinderPage() {
   useEffect(() => {
     if (autoGeoFired.current) return
     if (fromOwner) return  // owner already has coords from URL
+    if (hasInitCoords) return  // landing page search already has coords
     if (!accepted) return  // wait until disclaimer is accepted
     autoGeoFired.current = true
     handleGeolocate()
