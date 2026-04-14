@@ -1047,8 +1047,9 @@ body:has(.admin-page-wrap) {
 }
 .tb2-btn:hover .tb2-tip { opacity: 1; }
 .tb2-search {
-  display: flex; border-radius: 7px; overflow: hidden; border: 0.5px solid #d0d9d4;
+  display: flex; border-radius: 7px; border: 0.5px solid #d0d9d4; position: relative;
 }
+.tb2-search .map-search-btn { border-radius: 0 7px 7px 0; }
 .tb2-search input, .tb2-search .map-search-ac-input {
   border: none; outline: none; padding: 7px 10px; font-size: 11px; width: 170px; background: transparent;
 }
@@ -1060,7 +1061,7 @@ body:has(.admin-page-wrap) {
 .tb2-clear:hover { color: #c00; }
 
 /* Dropdown containers */
-.tb2-dropdown-wrap { position: relative; }
+.tb2-dropdown-wrap { position: relative; display: flex; align-items: center; }
 .tb2-dropdown {
   position: absolute; top: 42px; left: 50%; transform: translateX(-50%);
   background: #fff; border-radius: 10px; border: 0.5px solid #e0e8e0;
