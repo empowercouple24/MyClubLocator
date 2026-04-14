@@ -677,7 +677,7 @@ function RemoveClubPrompt({ clubName, onConfirm, onCancel }) {
 }
 
 // ── ClubEditor: renders one club's fields ─────────────────────
-function ClubEditor({ club, clubIndex, userId, isOnly, allClubs, onSaved, onRemove, userEmail, personData }) {
+function ClubEditor({ club, clubIndex, userId, isOnly, allClubs, onSaved, onRemove, userEmail, personData, onDirtyChange, saveRef }) {
   const [form, setForm]       = useState({ ...DEFAULT_CLUB, ...club })
   const [savedForm, setSavedForm] = useState({ ...DEFAULT_CLUB, ...club })
   const [errors, setErrors]   = useState({})
@@ -707,6 +707,9 @@ function ClubEditor({ club, clubIndex, userId, isOnly, allClubs, onSaved, onRemo
   const [hoursPromptDay, setHoursPromptDay]     = useState(null)
   const isDirty = JSON.stringify({ ...form, logo_url: logoUrl, photo_urls: photoUrls })
     !== JSON.stringify({ ...savedForm, logo_url: savedForm.logo_url, photo_urls: savedForm.photo_urls })
+
+  useEffect(() => { onDirtyChange?.(isDirty) }, [isDirty])
+  useEffect(() => { if (saveRef) saveRef.current = handleSave })
 
   // Required fields filled check — enables/disables save buttons
   const requiredFilled = !!(
@@ -946,6 +949,15 @@ function ClubEditor({ club, clubIndex, userId, isOnly, allClubs, onSaved, onRemo
 
   async function handleRemove() {
     if (!form.id) { onRemove && onRemove(); return }
+    // Clean up storage photos
+    try {
+      const folder = `${userId}/${form.id}`
+      const { data: files } = await supabase.storage.from('club-photos').list(folder)
+      if (files?.length) {
+        const paths = files.map(f => `${folder}/${f.name}`)
+        await supabase.storage.from('club-photos').remove(paths)
+      }
+    } catch (err) { console.warn('Storage cleanup error:', err.message) }
     const { error } = await supabase.from('locations').delete().eq('id', form.id)
     if (!error) onRemove && onRemove()
   }
@@ -1571,6 +1583,8 @@ export default function ProfilePage() {
 
   const [showAddClubPrompt, setShowAddClubPrompt] = useState(false)
   const [myClubsOpen, setMyClubsOpen] = useState(!isNaN(initClubTab))
+  const [clubDirty, setClubDirty] = useState(false)
+  const clubSaveRef = useRef(null)
   const [showTeamInfoModal, setShowTeamInfoModal] = useState(false)
   const [teamInfoSettings, setTeamInfoSettings] = useState(null)
   const [showReviewModal, setShowReviewModal] = useState(false)
@@ -2085,16 +2099,6 @@ export default function ProfilePage() {
           </div>
         )}
         </div>{/* end sec-card-body */}
-        <div className="next-card-row">
-          <button className="next-card-btn" type="button" onClick={() => {
-            setOwner1Collapsed(true)
-            setMyClubsOpen(true)
-            setTimeout(() => document.querySelector('.my-clubs-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100)
-          }}>
-            Next: My Clubs
-            <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
-          </button>
-        </div>
       </div>
 
       {/* Owner crop modal */}
@@ -2154,19 +2158,11 @@ export default function ProfilePage() {
             onRemove={() => handleClubRemoved(activeTab)}
             userEmail={!clubs[activeTab].id && activeTab === 0 ? user.email : null}
             personData={{ ...personForm, owner_photo_url: ownerPhotoUrl, owner2_photo_url: owner2PhotoUrl, owner3_photo_url: owner3PhotoUrl }}
+            onDirtyChange={setClubDirty}
+            saveRef={clubSaveRef}
           />
         )}
         </>)}
-        <div className="next-card-row">
-          <button className="next-card-btn" type="button" onClick={() => {
-            setMyClubsOpen(false)
-            setStoryOpen(true)
-            setTimeout(() => document.querySelector('.story-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100)
-          }}>
-            <span>Next: Your Story</span><span className="next-card-optional">optional</span>
-            <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
-          </button>
-        </div>
       </div>
       {showAddClubPrompt && (
         <AddClubPrompt
@@ -2214,16 +2210,6 @@ export default function ProfilePage() {
                       placeholder="Share your answer here…" />
                   </div>
                 ))}
-                <div className="next-card-row">
-                  <button className="next-card-btn" type="button" onClick={() => {
-                    setStoryOpen(false)
-                    setSurveyOpen(true)
-                    setTimeout(() => document.querySelector('.survey-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100)
-                  }}>
-                    <span>Next: Member Survey</span><span className="next-card-optional">optional</span>
-                    <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                  </button>
-                </div>
               </div>
             )}
           </div>
@@ -2240,7 +2226,17 @@ export default function ProfilePage() {
           const newCsv = toggleTrainingValue(personForm.survey_trainings || '', val)
           setPersonField('survey_trainings', newCsv)
         }
-        const unfilled = (val) => !val ? 'survey-unfilled' : ''
+        const surveyFields = [
+          personForm.survey_upline,
+          personForm.survey_hl_year,
+          personForm.survey_active_club !== null && personForm.survey_active_club !== '' && personForm.survey_active_club !== undefined ? 'filled' : '',
+          personForm.survey_club_year,
+          personForm.survey_trainings,
+          personForm.survey_hear_how,
+        ]
+        const surveyFilledCount = surveyFields.filter(v => v).length
+        const surveyMostFilled = surveyFilledCount >= Math.max(surveyFields.length - 2, 1)
+        const unfilled = (val) => !val ? (surveyMostFilled ? 'survey-unfilled survey-highlight' : 'survey-unfilled') : ''
         return (
           <div className="sec-card survey-card" style={{ padding: 0, overflow: 'hidden' }}>
             <button type="button" className="survey-toggle-btn" onClick={() => setSurveyOpen(o => !o)}>
@@ -2424,28 +2420,6 @@ export default function ProfilePage() {
                   <textarea rows={3} value={personForm.survey_open_response || ''} onChange={e => setPersonField('survey_open_response', e.target.value)}
                     placeholder="Your Herbalife journey, hopes for this platform, anything on your mind…" />
                 </div>
-                <div className="next-card-row">
-                  {meetsTeamLevel ? (
-                    <button className="next-card-btn" type="button" onClick={() => {
-                      setSurveyOpen(false)
-                      if (teamInfoSettings?.team_info_modal_enabled && !localStorage.getItem(`team_info_seen_${user?.id}`)) {
-                        setShowTeamInfoModal(true)
-                      }
-                      setTimeout(() => document.querySelector('.my-team-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100)
-                    }}>
-                      <span>Next: My Team</span>
-                      <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                    </button>
-                  ) : (
-                    <button className="next-card-btn next-card-btn--primary" type="button" onClick={() => {
-                      setSurveyOpen(false)
-                      setShowReviewModal(true)
-                    }}>
-                      <span>Save & Review</span>
-                      <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                    </button>
-                  )}
-                </div>
               </div>
             )}
           </div>
@@ -2458,12 +2432,6 @@ export default function ProfilePage() {
       {meetsTeamLevel && (<>
         <div style={{ height: 32 }} />
         <MyTeamSection userId={user?.id} userLevel={personForm.herbalife_level} />
-        <div className="next-card-row" style={{ marginTop: 16 }}>
-          <button className="next-card-btn next-card-btn--primary" type="button" onClick={() => setShowReviewModal(true)}>
-            <span>Save & Review</span>
-            <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
-          </button>
-        </div>
       </>)}
 
       <div style={{ height: 32 }} />
@@ -2648,6 +2616,32 @@ export default function ProfilePage() {
             <div className="team-info-modal-footer">
               <button className="auth-btn auth-btn--forest" onClick={() => { setShowTeamInfoModal(false); localStorage.setItem(`team_info_seen_${user?.id}`, 'true') }}>
                 Got it!
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* ═══ Global sticky save footer ═══ */}
+      {(isPersonDirty || clubDirty) && (
+        <div className="profile-sticky-footer">
+          <div className="profile-sticky-inner">
+            <div className="profile-sticky-alert">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" stroke="#B45309" strokeWidth="1.5"/><path d="M8 5v4" stroke="#B45309" strokeWidth="1.5" strokeLinecap="round"/><circle cx="8" cy="11.5" r="0.75" fill="#B45309"/></svg>
+              Unsaved changes
+            </div>
+            <div className="profile-sticky-btns">
+              <button className="profile-sticky-btn" onClick={async () => {
+                if (isPersonDirty) await savePersonFields()
+                if (clubDirty && clubSaveRef.current) await clubSaveRef.current('save')
+              }} disabled={saving}>
+                {saving ? 'Saving…' : 'Save'}
+              </button>
+              <button className="profile-sticky-btn profile-sticky-btn--primary" onClick={async () => {
+                if (isPersonDirty) await savePersonFields()
+                if (clubDirty && clubSaveRef.current) await clubSaveRef.current('save')
+                navigate('/app/map')
+              }} disabled={saving}>
+                {saving ? 'Saving…' : 'Save & Go to Map'}
               </button>
             </div>
           </div>

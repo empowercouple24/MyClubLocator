@@ -831,6 +831,22 @@ function ClubDetail({ club, userId, panelWidth, onManage, radiusMiles, setRadius
 export default function MapPage() {
   const { user } = useAuth()
   const navigate = useNavigate()
+  const navigateRef = useRef(navigate)
+  navigateRef.current = navigate
+
+  // Delegated click handler for tooltip "View in Directory" links
+  useEffect(() => {
+    function handleDirClick(e) {
+      const link = e.target.closest('.ct-dir-link')
+      if (!link) return
+      e.preventDefault()
+      e.stopPropagation()
+      const name = decodeURIComponent(link.dataset.clubname || '')
+      navigateRef.current(`/app/directory?search=${encodeURIComponent(name)}`)
+    }
+    document.addEventListener('click', handleDirClick, true)
+    return () => document.removeEventListener('click', handleDirClick, true)
+  }, [])
   const [searchParams] = useSearchParams()
   const focusLat = parseFloat(searchParams.get('focus_lat'))
   const focusLng = parseFloat(searchParams.get('focus_lng'))

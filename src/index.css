@@ -7214,6 +7214,50 @@ body:has(.admin-page-wrap) {
   padding: 12px 1.5rem;
 }
 
+/* ═══ Global profile sticky save footer ═══ */
+.profile-sticky-footer {
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 900;
+  background: #fff; border-top: 1.5px solid #d4e8dc;
+  box-shadow: 0 -4px 20px rgba(0,0,0,0.1);
+  animation: stickySlideUp 0.2s ease;
+}
+@keyframes stickySlideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+.profile-sticky-inner {
+  max-width: 900px; margin: 0 auto;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 24px; gap: 16px;
+}
+.profile-sticky-alert {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px; font-weight: 500; color: #B45309;
+}
+.profile-sticky-btns { display: flex; gap: 8px; }
+.profile-sticky-btn {
+  padding: 8px 20px; border-radius: 8px; font-size: 13px; font-weight: 500;
+  cursor: pointer; border: 1px solid #d0d9d4; background: #fff; color: #333;
+  transition: all 0.15s;
+}
+.profile-sticky-btn:hover { background: #f5f5f5; }
+.profile-sticky-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.profile-sticky-btn--primary {
+  background: #1A3C2E; color: #fff; border-color: #1A3C2E;
+}
+.profile-sticky-btn--primary:hover { background: #254f3d; }
+@media (max-width: 600px) {
+  .profile-sticky-inner { padding: 10px 16px; flex-direction: column; gap: 8px; }
+  .profile-sticky-btns { width: 100%; }
+  .profile-sticky-btn { flex: 1; text-align: center; }
+}
+
+/* ═══ Survey unanswered field highlight ═══ */
+.survey-field-unanswered {
+  background: #FEF3C7;
+  border-radius: 8px;
+  padding: 8px 10px;
+  border: 1px solid #F59E0B33;
+  transition: background 0.3s;
+}
+
 /* ── Add/Remove Club Modals ───────────────────────────────── */
 .modal-box {
   background: #fff;
@@ -10476,6 +10520,18 @@ input.input-ok {
   border: 1.5px dashed #FFCC80;
   pointer-events: none;
   opacity: 0.6;
+}
+.survey-highlight {
+  background: #FEF3C7;
+  border-radius: 10px;
+  padding: 8px 10px;
+  margin-left: -10px;
+  margin-right: -10px;
+}
+.survey-highlight::before {
+  opacity: 1;
+  border-color: #F59E0B;
+  inset: 0;
 }
 
 /* ── Onboarding: dim already-filled fields ────────────── */
