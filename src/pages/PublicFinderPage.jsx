@@ -444,11 +444,10 @@ export default function PublicFinderPage() {
   const initLat   = parseFloat(searchParams.get('lat'))
   const initLng   = parseFloat(searchParams.get('lng'))
   const initZoom  = parseInt(searchParams.get('zoom')) || 11
+  const hasInitCoords = !isNaN(initLat) && !isNaN(initLng)
   const [settings, setSettings]             = useState(null)
   const [loadingSettings, setLoadingSettings] = useState(true)
   const [accepted, setAccepted]             = useState(fromOwner || hasInitCoords) // owners & landing search bypass disclaimer
-  // ...fly to owner's previous extent on mount if coming from /app/map
-  const hasInitCoords = !isNaN(initLat) && !isNaN(initLng)
   const [flyTo, setFlyTo] = useState(
     hasInitCoords
       ? { lat: initLat, lng: initLng, zoom: initZoom, _t: Date.now() }
