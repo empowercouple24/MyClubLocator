@@ -1143,7 +1143,7 @@ body:has(.admin-page-wrap) {
 .tb2-basemap-opt.active .tb2-basemap-label { color: #1A3C2E; }
 
 /* Settings dropdown */
-.tb2-dropdown--settings { width: 230px; right: 0; left: auto; transform: none; }
+.tb2-dropdown--settings { width: 270px; right: 0; left: auto; transform: none; }
 .tb2-set-row {
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
   padding: 6px 4px; border-bottom: 0.5px solid #f0f4f1; font-size: 11px;

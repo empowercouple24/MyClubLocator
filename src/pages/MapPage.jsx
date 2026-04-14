@@ -923,6 +923,7 @@ export default function MapPage() {
   const [panelCollapsed, setPanelCollapsed] = useState(false)
   const panelWasCollapsedBeforeDemo = useRef(false) // tracks whether panel was collapsed before market data was toggled on
   const [clickBehavior,  setClickBehavior]  = useState('zoom')     // 'zoom' | 'pan' | 'stay'
+  const [homeBehavior,   setHomeBehavior]   = useState('zoom')     // 'zoom' | 'pan' | 'stay'
   const [demoViewMode,   setDemoViewMode]   = useState('table')    // 'table' | 'widget'
   const [teamFilter, setTeamFilter]           = useState(false)      // show my team clubs highlighted
   const [teamLocationIds, setTeamLocationIds] = useState(new Set()) // location IDs in my teams (owned)
@@ -955,6 +956,7 @@ export default function MapPage() {
       if (data?.preferences?.panelWidth)     setPanelWidth(data.preferences.panelWidth)
       if (data?.preferences?.panelCollapsed !== undefined) setPanelCollapsed(data.preferences.panelCollapsed)
       if (data?.preferences?.clickBehavior)  setClickBehavior(data.preferences.clickBehavior)
+      if (data?.preferences?.homeBehavior)   setHomeBehavior(data.preferences.homeBehavior)
       if (data?.preferences?.demoViewMode)   setDemoViewMode(data.preferences.demoViewMode)
       if (data?.preferences?.markerShapes)   setMarkerShapes(s => ({ ...s, ...data.preferences.markerShapes }))
       if (data?.preferences?.markerSizeScale) { setMarkerSizeScale(data.preferences.markerSizeScale); _iconCache = {} }
@@ -1036,6 +1038,19 @@ export default function MapPage() {
       .eq('user_id', user.id)
       .single()
     const merged = { ...(existing?.preferences || {}), clickBehavior: behavior }
+    await supabase.from('user_demo_preferences')
+      .upsert({ user_id: user.id, preferences: merged }, { onConflict: 'user_id' })
+  }
+
+  async function saveHomeBehavior(behavior) {
+    setHomeBehavior(behavior)
+    if (!user) return
+    const { data: existing } = await supabase
+      .from('user_demo_preferences')
+      .select('preferences')
+      .eq('user_id', user.id)
+      .single()
+    const merged = { ...(existing?.preferences || {}), homeBehavior: behavior }
     await supabase.from('user_demo_preferences')
       .upsert({ user_id: user.id, preferences: merged }, { onConflict: 'user_id' })
   }
@@ -1163,8 +1178,14 @@ export default function MapPage() {
     if (!saved) return
     try {
       const { lat, lng, zoom } = JSON.parse(saved)
-      setMapCenter([lat, lng])
-      setMapZoom(zoom)
+      if (homeBehavior === 'zoom') {
+        setMapCenter([lat, lng])
+        setMapZoom(zoom)
+      } else if (homeBehavior === 'pan') {
+        setMapCenter([lat, lng])
+        // keep current zoom
+      }
+      // 'stay' = do nothing (just a visual anchor reminder)
     } catch {}
   }
 
@@ -1593,7 +1614,6 @@ export default function MapPage() {
                   {BASE_MAPS.map(b => (
                     <button key={b.id} className={`tb2-basemap-opt${baseMap === b.id ? ' active' : ''}`}
                       onClick={() => { setBaseMap(b.id); setShowBasemapPicker(false) }}>
-                      {baseMap === b.id && <span className="tb2-basemap-check"><svg width="8" height="8" viewBox="0 0 12 12" fill="none"><path d="M2.5 6l2.5 2.5 4.5-5" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg></span>}
                       <span className="tb2-basemap-label">{b.label}</span>
                     </button>
                   ))}
@@ -1617,6 +1637,13 @@ export default function MapPage() {
                   <div className="tb2-set-seg">
                     {[{val:'zoom',label:'Zoom'},{val:'pan',label:'Pan'},{val:'stay',label:'Stay'}].map(({val,label}) => (
                       <button key={val} className={`tb2-set-btn${clickBehavior===val?' active':''}`} onClick={() => saveClickBehavior(val)}>{label}</button>
+                    ))}
+                  </div>
+                </div>
+                <div className="tb2-set-row"><span className="tb2-set-label">Home button</span>
+                  <div className="tb2-set-seg">
+                    {[{val:'zoom',label:'Zoom'},{val:'pan',label:'Pan'},{val:'stay',label:'Stay'}].map(({val,label}) => (
+                      <button key={val} className={`tb2-set-btn${homeBehavior===val?' active':''}`} onClick={() => saveHomeBehavior(val)}>{label}</button>
                     ))}
                   </div>
                 </div>
