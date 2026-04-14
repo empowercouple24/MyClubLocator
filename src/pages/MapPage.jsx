@@ -1866,13 +1866,22 @@ export default function MapPage() {
                 onGeoInfo={async (geo) => {
                   if (!geo?.stateFips || !geo?.countyFips) { setCountyGeoJson(null); return }
                   try {
-                    const countyOnly = geo.countyFips.slice(2)
-                    const url = `/api/county-boundary?state=${geo.stateFips}&county=${countyOnly}`
-                    const res = await fetch(url)
-                    if (!res.ok) { console.warn('[MarketData] County boundary HTTP', res.status); setCountyGeoJson(null); return }
-                    const data = await res.json()
-                    if (data?.features?.length) setCountyGeoJson(data)
-                    else setCountyGeoJson(null)
+                    // Fetch US county boundaries from Census CDN (cached after first load)
+                    if (!window._countyBoundariesCache) {
+                      const url = 'https://raw.githubusercontent.com/plotly/datasets/master/geojson-counties-fips.json'
+                      const res = await fetch(url)
+                      if (!res.ok) { console.warn('[MarketData] County boundaries CDN HTTP', res.status); setCountyGeoJson(null); return }
+                      window._countyBoundariesCache = await res.json()
+                    }
+                    const allCounties = window._countyBoundariesCache
+                    const fips = geo.countyFips
+                    const match = allCounties.features?.filter(f => f.id === fips || f.properties?.GEO_ID?.endsWith(fips) || f.properties?.GEOID === fips || f.properties?.STATE + f.properties?.COUNTY === fips)
+                    if (match?.length) {
+                      setCountyGeoJson({ type: 'FeatureCollection', features: match })
+                    } else {
+                      console.warn('[MarketData] No county match for FIPS', fips)
+                      setCountyGeoJson(null)
+                    }
                   } catch (err) { console.warn('[MarketData] County boundary error:', err.message); setCountyGeoJson(null) }
                 }}
               />
