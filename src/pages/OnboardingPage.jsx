@@ -100,7 +100,7 @@ export default function OnboardingPage() {
   }
 
   async function handleNext() {
-    if (CARDS[step].id === 'done') { await saveSurvey(); navigate('/app/profile'); return }
+    if (CARDS[step].id === 'done') { navigate('/app/profile'); return }
     if (step < CARDS.length - 1) setStep(s => s + 1)
   }
 
@@ -109,7 +109,7 @@ export default function OnboardingPage() {
     setStep(s => s + 1)
   }
 
-  async function handleSkip() { await saveSurvey(); if (step < CARDS.length - 1) setStep(s => s + 1) }
+  function handleSkip() { if (step < CARDS.length - 1) setStep(s => s + 1) }
   function handleBack() { if (step > 0) setStep(s => s - 1) }
 
   const card = CARDS[step]
@@ -186,7 +186,7 @@ export default function OnboardingPage() {
             <div className="onb-eyebrow">Question 3</div>
             <div className="onb-title">Are you actively operating a nutrition club?</div>
             <div className="onb-sub">This platform is designed for active club owners.</div>
-            <div className={`onb-yn-row ${activeClub !== null ? 'onb-filled' : ''}`}>
+            <div className="onb-yn-row">
               <button className={`onb-yn yes ${activeClub === true ? 'on' : ''}`} onClick={() => setActiveClub(true)}>Yes</button>
               <button className={`onb-yn no  ${activeClub === false ? 'on' : ''}`} onClick={() => setActiveClub(false)}>No</button>
             </div>
@@ -216,7 +216,7 @@ export default function OnboardingPage() {
             <div className="onb-eyebrow">Question 4</div>
             <div className="onb-title">Do you actively attend trainings and events?</div>
             <div className="onb-sub">Select all that apply.</div>
-            <div className={`onb-check-list ${trainings.size > 0 ? 'onb-filled' : ''}`}>
+            <div className="onb-check-list">
               {TRAINING_OPTIONS.map(({ value, label }) => (
                 <div key={value} className={`onb-check-item ${trainings.has(value) ? 'on' : ''}`} onClick={() => toggleTraining(value)}>
                   <div className="onb-check-box">
@@ -238,7 +238,7 @@ export default function OnboardingPage() {
           {card.id === 'hearHow' && (<>
             <div className="onb-eyebrow">Question 5</div>
             <div className="onb-title">How did you hear about this platform?</div>
-            <div className={`onb-radio-list ${hearHow ? 'onb-filled' : ''}`}>
+            <div className="onb-radio-list">
               {HEAR_HOW_OPTIONS.map(({ value, label, hasInput }) => (
                 <div key={value} className="onb-radio-item">
                   <div className={`onb-radio-row ${hearHow === value ? 'on' : ''}`} onClick={() => { setHearHow(value); if (!hasInput) setHearDetail('') }}>
@@ -265,7 +265,7 @@ export default function OnboardingPage() {
             <div className="onb-eyebrow">Question 6</div>
             <div className="onb-title">What is your primary goal for joining this platform?</div>
             <div className="onb-sub">Select the option that best describes what you're looking for.</div>
-            <div className={`onb-radio-list ${goal ? 'onb-filled' : ''}`}>
+            <div className="onb-radio-list">
               {GOAL_OPTIONS.map(({ value, label }) => (
                 <div key={value} className="onb-radio-item">
                   <div className={`onb-radio-row ${goal === value ? 'on' : ''}`} onClick={() => { setGoal(value); if (value !== 'other') setGoalDetail('') }}>

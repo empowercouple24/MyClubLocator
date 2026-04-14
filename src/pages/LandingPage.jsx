@@ -1,7 +1,6 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { geocodeAutocomplete } from '../lib/geocode'
 
 function TargetIcon({ size = 26, color = '#4CAF82' }) {
   return (
@@ -102,69 +101,6 @@ export default function LandingPage() {
   const [termsAccepted, setTermsAccepted] = useState(true)
   const [signupDone, setSignupDone] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  const [searchResults, setSearchResults] = useState([])
-  const [searchOpen, setSearchOpen] = useState(false)
-  const [searchHighlighted, setSearchHighlighted] = useState(-1)
-  const [searchLoading, setSearchLoading] = useState(false)
-  const searchWrapRef = useRef(null)
-  const userLocRef = useRef(null)
-
-  // Get user location once for proximity bias
-  useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        pos => { userLocRef.current = { lat: pos.coords.latitude, lng: pos.coords.longitude } },
-        () => {},
-        { timeout: 5000, maximumAge: 300000 }
-      )
-    }
-  }, [])
-
-  // Close dropdown on outside click
-  useEffect(() => {
-    function handleClick(e) {
-      if (searchWrapRef.current && !searchWrapRef.current.contains(e.target)) setSearchOpen(false)
-    }
-    document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
-  }, [])
-
-  const doSearch = useCallback((() => {
-    let timer
-    return (q) => {
-      clearTimeout(timer)
-      timer = setTimeout(async () => {
-        if (q.length < 3) { setSearchResults([]); setSearchOpen(false); return }
-        setSearchLoading(true)
-        const data = await geocodeAutocomplete(q, { types: 'place,postcode,address', limit: 6, proximity: userLocRef.current })
-        setSearchResults(data)
-        setSearchOpen(data.length > 0)
-        setSearchHighlighted(-1)
-        setSearchLoading(false)
-      }, 350)
-    }
-  })(), [])
-
-  function handleSearchInput(e) {
-    const q = e.target.value
-    setSearchQuery(q)
-    doSearch(q)
-  }
-
-  function handleSearchSelect(result) {
-    setSearchQuery(result.displayStreet || result.label?.split(',')[0] || '')
-    setSearchOpen(false)
-    setSearchResults([])
-    navigate(`/find?lat=${result.lat}&lng=${result.lng}&zoom=13`)
-  }
-
-  function handleSearchKeyDown(e) {
-    if (!searchOpen) return
-    if (e.key === 'ArrowDown') { e.preventDefault(); setSearchHighlighted(h => Math.min(h + 1, searchResults.length - 1)) }
-    else if (e.key === 'ArrowUp') { e.preventDefault(); setSearchHighlighted(h => Math.max(h - 1, 0)) }
-    else if (e.key === 'Enter' && searchHighlighted >= 0) { e.preventDefault(); handleSearchSelect(searchResults[searchHighlighted]) }
-    else if (e.key === 'Escape') { setSearchOpen(false) }
-  }
 
   useEffect(() => {
     async function loadStats() {
@@ -224,20 +160,10 @@ export default function LandingPage() {
     if (error) setError(error.message)
   }
 
-  async function handleSearch(e) {
+  function handleSearch(e) {
     e.preventDefault()
-    if (searchHighlighted >= 0 && searchResults[searchHighlighted]) {
-      handleSearchSelect(searchResults[searchHighlighted])
-    } else if (searchResults.length > 0) {
-      handleSearchSelect(searchResults[0])
-    } else if (searchQuery.trim()) {
-      // Fallback: fire a one-shot search and navigate with the first result
-      const data = await geocodeAutocomplete(searchQuery.trim(), { types: 'place,postcode,address', limit: 1, proximity: userLocRef.current })
-      if (data.length > 0) {
-        navigate(`/find?lat=${data[0].lat}&lng=${data[0].lng}&zoom=13`)
-      } else {
-        navigate('/find')
-      }
+    if (searchQuery.trim()) {
+      navigate(`/find?q=${encodeURIComponent(searchQuery.trim())}`)
     } else {
       navigate('/find')
     }
@@ -264,26 +190,9 @@ export default function LandingPage() {
               <form className="ld-search-body" onSubmit={handleSearch}>
                 <h2 className="ld-search-title">Search Clubs</h2>
                 <p className="ld-search-sub">Enter a ZIP code or city to find independently owned nutrition clubs near you.</p>
-                <div className="ld-search-input-wrap" ref={searchWrapRef}>
+                <div className="ld-search-input-wrap">
                   <svg className="ld-search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="1.5"/><path d="M21 21l-4.35-4.35" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
-                  <input className="ld-search-input" type="text" placeholder="ZIP code, city, or address…" value={searchQuery} onChange={handleSearchInput} onKeyDown={handleSearchKeyDown} onFocus={() => searchResults.length > 0 && setSearchOpen(true)} autoComplete="off" />
-                  {searchLoading && <span className="ld-search-spinner">⟳</span>}
-                  {searchOpen && searchResults.length > 0 && (
-                    <ul className="ld-search-dropdown">
-                      {searchResults.map((r, i) => (
-                        <li
-                          key={r.id}
-                          className={`ld-search-dropdown-item${i === searchHighlighted ? ' highlighted' : ''}`}
-                          onMouseDown={() => handleSearchSelect(r)}
-                          onMouseEnter={() => setSearchHighlighted(i)}
-                        >
-                          <span className="ld-search-dropdown-main">📍 {r.displayStreet || r.label?.split(',')[0]}</span>
-                          {r.displaySecondary && <span className="ld-search-dropdown-sub">{r.displaySecondary}</span>}
-                        </li>
-                      ))}
-                      <li className="ld-search-dropdown-credit">Powered by Mapbox</li>
-                    </ul>
-                  )}
+                  <input className="ld-search-input" type="text" placeholder="ZIP code or city name…" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
                 </div>
                 <button className="ld-search-btn" type="submit">Find a club near me →</button>
                 <div className="ld-search-or">or</div>

@@ -693,8 +693,8 @@ export default function AdminPage() {
       marker_color_other:                settings.marker_color_other,
       marker_color_selected:             settings.marker_color_selected,
       marker_color_team:                 settings.marker_color_team,
-      landing_eyebrow_color:             settings.landing_eyebrow_color || null,
-      landing_hero_panel_color:          settings.landing_hero_panel_color || null,
+      landing_eyebrow_color:             settings.landing_eyebrow_color,
+      landing_hero_panel_color:          settings.landing_hero_panel_color,
       theme_page_bg:                     settings.theme_page_bg,
       theme_card_header_bg:              settings.theme_card_header_bg,
       theme_card_header_text:            settings.theme_card_header_text,
@@ -1666,7 +1666,7 @@ export default function AdminPage() {
                   <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1 }}>
                     <h3 className="admin-section-title" style={{ margin: 0 }}>MyClubLocator Themes</h3>
                     <div style={{ display: 'flex', gap: 4 }}>
-                      {[settings.theme_card_header_bg, settings.theme_page_bg, settings.marker_color_own].map((c, i) => (
+                      {[settings.theme_card_header_bg, settings.landing_hero_panel_color, settings.marker_color_own].map((c, i) => (
                         <span key={i} style={{ width: 12, height: 12, borderRadius: '50%', background: c || '#888', border: '1px solid rgba(0,0,0,0.1)', display: 'inline-block' }} />
                       ))}
                     </div>
@@ -1810,6 +1810,77 @@ export default function AdminPage() {
                           </div>
                         </div>
 
+
+                {/* Landing Page Appearance */}
+                <div style={{ borderTop: "0.5px solid #e8ede9", padding: "12px 20px 4px" }}>
+                  <div style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: ".04em", color: "#aaa", marginBottom: 12 }}>Landing Page Appearance</div>
+                </div>
+                        <p className="admin-section-desc" style={{ marginBottom: 18 }}>Customize the color scheme of the public-facing landing page.</p>
+                        <div style={{ marginBottom: 20 }}>
+                          <div className="mc-preview-label" style={{ marginBottom: 8 }}>Preview</div>
+                          <div style={{ border: '1px solid #dde8e2', borderRadius: 10, overflow: 'hidden', fontSize: 12 }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px', background: '#fff' }}>
+                              <div style={{ padding: '12px 14px', borderBottom: '0.5px solid #e8f0eb' }}>
+                                <div style={{ display: 'inline-block', background: '#E6F1FB', color: '#185FA5', fontSize: 9, fontWeight: 600, padding: '2px 6px', borderRadius: 4, textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 6 }}>Find a club</div>
+                                <div style={{ fontSize: 13, fontWeight: 500, color: '#111', lineHeight: 1.2 }}>Looking for a nutrition club?</div>
+                              </div>
+                              <div style={{ background: settings.landing_hero_panel_color || '#1A3C2E', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <div style={{ textAlign: 'center' }}>
+                                  <div style={{ fontSize: 14, color: '#fff', fontWeight: 300 }}>340+</div>
+                                  <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '.5px' }}>clubs</div>
+                                </div>
+                              </div>
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr 1fr', borderTop: '0.5px solid #e8f0eb' }}>
+                              <div style={{ background: settings.landing_eyebrow_color || '#F1EFE8', borderRight: '0.5px solid #e0ddd5', padding: '8px 12px', display: 'flex', flexDirection: 'column', justifyContent: 'center', minWidth: 80 }}>
+                                <div style={{ fontSize: 9, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.5px', color: '#555', whiteSpace: 'nowrap' }}>Club owners</div>
+                                <div style={{ fontSize: 10, fontWeight: 500, color: '#333', marginTop: 2, whiteSpace: 'nowrap' }}>Add &amp; manage &#x2192;</div>
+                              </div>
+                              <div style={{ background: '#fff', padding: '8px 10px', borderRight: '0.5px solid #e8f0eb', display: 'flex', alignItems: 'center', gap: 7 }}>
+                                <div style={{ width: 20, height: 20, borderRadius: 5, background: '#E1F5EE', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none"><path d="M15 3h6v6M10 14L21 3M9 7H3v14h14v-6" stroke="#0F6E56" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                                </div>
+                                <div><div style={{ fontSize: 10, fontWeight: 500, color: '#222' }}>Log in</div><div style={{ fontSize: 9, color: '#999' }}>Returning member</div></div>
+                              </div>
+                              <div style={{ background: '#fff', padding: '8px 10px', display: 'flex', alignItems: 'center', gap: 7 }}>
+                                <div style={{ width: 20, height: 20, borderRadius: 5, background: '#EEF2FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="#4338CA" strokeWidth="2"/><path d="M12 8v8M8 12h8" stroke="#4338CA" strokeWidth="2" strokeLinecap="round"/></svg>
+                                </div>
+                                <div><div style={{ fontSize: 10, fontWeight: 500, color: '#222' }}>Add my club</div><div style={{ fontSize: 9, color: '#999' }}>New member</div></div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18 }}>
+                          <div>
+                            <div className="mc-picker-label" style={{ marginBottom: 4 }}>Club owners eyebrow color</div>
+                            <div className="admin-section-desc" style={{ marginBottom: 10 }}>Background of the "Club owners" label strip</div>
+                            <div className="mc-custom-row" style={{ marginBottom: 10 }}>
+                              <input type="color" className="mc-color-input" value={settings.landing_eyebrow_color || '#F1EFE8'} onChange={e => setSettings(s => ({ ...s, landing_eyebrow_color: e.target.value }))} />
+                              <span className="mc-hex-value">{settings.landing_eyebrow_color}</span>
+                              <div className="mc-current-dot" style={{ background: settings.landing_eyebrow_color }} />
+                            </div>
+                            <div className="mc-presets">
+                              {genShades(settings.landing_eyebrow_color || '#F1EFE8').map(c => (
+                                <button key={c} className={`mc-preset-swatch ${settings.landing_eyebrow_color === c ? 'active' : ''}`} style={{ background: c }} onClick={() => setSettings(s => ({ ...s, landing_eyebrow_color: c }))} title={c} />
+                              ))}
+                            </div>
+                          </div>
+                          <div>
+                            <div className="mc-picker-label" style={{ marginBottom: 4 }}>Hero panel background color</div>
+                            <div className="admin-section-desc" style={{ marginBottom: 10 }}>The decorative club-count panel on the right</div>
+                            <div className="mc-custom-row" style={{ marginBottom: 10 }}>
+                              <input type="color" className="mc-color-input" value={settings.landing_hero_panel_color || '#1A3C2E'} onChange={e => setSettings(s => ({ ...s, landing_hero_panel_color: e.target.value }))} />
+                              <span className="mc-hex-value">{settings.landing_hero_panel_color}</span>
+                              <div className="mc-current-dot" style={{ background: settings.landing_hero_panel_color }} />
+                            </div>
+                            <div className="mc-presets">
+                              {genShades(settings.landing_hero_panel_color || '#1A3C2E').map(c => (
+                                <button key={c} className={`mc-preset-swatch ${settings.landing_hero_panel_color === c ? 'active' : ''}`} style={{ background: c }} onClick={() => setSettings(s => ({ ...s, landing_hero_panel_color: c }))} title={c} />
+                              ))}
+                            </div>
+                          </div>
+                        </div>
 
 
                 <div style={{ borderTop: "0.5px solid #e8ede9", padding: "12px 20px 4px" }}>

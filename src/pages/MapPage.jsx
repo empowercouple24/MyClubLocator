@@ -1761,7 +1761,7 @@ export default function MapPage() {
             </button>
             {!myClubCollapsed && (
               <div className="cp-my-club-expanded">
-                <MyClubCard myClub={myClub} onManage={() => navigate(`/app/profile?club=${myClub?.club_index || 0}`)} />
+                <MyClubCard myClub={myClub} onManage={() => navigate('/app/profile')} />
               </div>
             )}
           </div>
@@ -1779,7 +1779,7 @@ export default function MapPage() {
                 club={selected}
                 userId={user?.id}
                 panelWidth={panelWidth}
-                onManage={() => navigate(`/app/profile?club=${selected?.club_index || 0}`)}
+                onManage={() => navigate('/app/profile')}
                 radiusMiles={radiusMiles}
                 setRadiusMiles={setRadiusMiles}
                 customMiles={customMiles}
