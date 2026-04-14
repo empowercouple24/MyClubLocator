@@ -788,18 +788,27 @@ function ClubEditor({ club, clubIndex, userId, isOnly, allClubs, onSaved, onRemo
     setUploadingLogo(false)
   }
 
+  const [photoCapModal, setPhotoCapModal] = useState(null) // null | { remaining, files, total }
+
   async function handlePhotoUpload(e) {
     const files = Array.from(e.target.files || [])
     if (!files.length) return
     const remaining = 10 - photoUrls.length
     if (remaining <= 0) {
-      alert('You have reached the maximum of 10 photos. Remove some to add new ones.')
+      setPhotoCapModal({ remaining: 0, files: [], total: files.length })
+      e.target.value = ''
       return
     }
     if (files.length > remaining) {
-      const proceed = window.confirm(`You can only add ${remaining} more photo${remaining === 1 ? '' : 's'} (10 max). We'll upload the first ${remaining}. Continue?`)
-      if (!proceed) return
+      setPhotoCapModal({ remaining, files, total: files.length })
+      e.target.value = ''
+      return
     }
+    await doPhotoUpload(files, remaining)
+    e.target.value = ''
+  }
+
+  async function doPhotoUpload(files, remaining) {
     const slots = Math.min(files.length, remaining)
     setUploadProgress({ done: 0, total: slots })
     setUploadError(null)
@@ -1486,6 +1495,39 @@ function ClubEditor({ club, clubIndex, userId, isOnly, allClubs, onSaved, onRemo
           onConfirm={() => { setShowRemovePrompt(false); handleRemove() }}
           onCancel={() => setShowRemovePrompt(false)}
         />
+      )}
+
+      {photoCapModal && (
+        <div className="modal-overlay" onClick={() => setPhotoCapModal(null)}>
+          <div className="modal-box photo-cap-modal" onClick={e => e.stopPropagation()}>
+            <div className="photo-cap-icon">📷</div>
+            {photoCapModal.remaining <= 0 ? (
+              <>
+                <h3 className="photo-cap-title">Photo limit reached</h3>
+                <p className="photo-cap-text">You've reached the maximum of 10 photos. Remove some existing photos to make room for new ones.</p>
+                <div className="photo-cap-btns">
+                  <button className="photo-cap-btn" onClick={() => setPhotoCapModal(null)}>Got it</button>
+                </div>
+              </>
+            ) : (
+              <>
+                <h3 className="photo-cap-title">Too many photos selected</h3>
+                <p className="photo-cap-text">
+                  You selected {photoCapModal.total} photo{photoCapModal.total === 1 ? '' : 's'} but only have room for {photoCapModal.remaining} more (10 max).
+                  We'll upload the first {photoCapModal.remaining}.
+                </p>
+                <div className="photo-cap-btns">
+                  <button className="photo-cap-btn photo-cap-btn--primary" onClick={() => {
+                    const { files, remaining } = photoCapModal
+                    setPhotoCapModal(null)
+                    doPhotoUpload(files, remaining)
+                  }}>Upload first {photoCapModal.remaining}</button>
+                  <button className="photo-cap-btn" onClick={() => setPhotoCapModal(null)}>Cancel</button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
       )}
 
       <div className={'toast' + (toast ? ' show' : '')}>{toast}</div>

@@ -955,6 +955,7 @@ export default function MapPage() {
       if (data?.preferences?.clickBehavior)  setClickBehavior(data.preferences.clickBehavior)
       if (data?.preferences?.demoViewMode)   setDemoViewMode(data.preferences.demoViewMode)
       if (data?.preferences?.markerShapes)   setMarkerShapes(s => ({ ...s, ...data.preferences.markerShapes }))
+      if (data?.preferences?.markerSizeScale) { setMarkerSizeScale(data.preferences.markerSizeScale); _iconCache = {} }
     }
     loadPanelPrefs()
     loadSavedViews()
@@ -1061,6 +1062,20 @@ export default function MapPage() {
       .eq('user_id', user.id)
       .single()
     const merged = { ...(existing?.preferences || {}), markerShapes: next }
+    await supabase.from('user_demo_preferences')
+      .upsert({ user_id: user.id, preferences: merged }, { onConflict: 'user_id' })
+  }
+
+  async function saveMarkerSize(scale) {
+    setMarkerSizeScale(scale)
+    _iconCache = {} // bust icon cache
+    if (!user) return
+    const { data: existing } = await supabase
+      .from('user_demo_preferences')
+      .select('preferences')
+      .eq('user_id', user.id)
+      .single()
+    const merged = { ...(existing?.preferences || {}), markerSizeScale: scale }
     await supabase.from('user_demo_preferences')
       .upsert({ user_id: user.id, preferences: merged }, { onConflict: 'user_id' })
   }
@@ -1573,6 +1588,15 @@ export default function MapPage() {
                       </div>
                     )
                   })}
+                </div>
+              </div>
+              <div className="map-pref-row">
+                <span className="map-pref-name">Marker size</span>
+                <div className="map-pref-seg">
+                  {[{val:0.8,label:'Small'},{val:1,label:'Medium'},{val:1.35,label:'Large'}].map(({val,label}) => (
+                    <button key={label} className={`map-pref-seg-btn ${markerSizeScale===val?'active':''}`}
+                      onClick={() => saveMarkerSize(val)}>{label}</button>
+                  ))}
                 </div>
               </div>
               {teamLocationIds.size > 0 && (
