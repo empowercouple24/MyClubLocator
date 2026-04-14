@@ -1284,7 +1284,7 @@ export default function MapPage() {
 
   async function handleCitySearch(e) {
     e.preventDefault()
-    if (!citySearch.trim()) { setCityFilter(''); return }
+    if (!citySearch.trim()) return
     setGeocoding(true)
     try {
       const coords = await geocodeSingle(citySearch)
@@ -1293,7 +1293,6 @@ export default function MapPage() {
         setMapZoom(11)
       }
     } catch {}
-    setCityFilter(citySearch)
     setGeocoding(false)
   }
 
@@ -1479,7 +1478,7 @@ export default function MapPage() {
               value={citySearch}
               onChange={setCitySearch}
               geocoding={geocoding}
-              onSelect={({ lat, lng, label }) => { setMapCenter([lat, lng]); setMapZoom(11); setCityFilter(label) }}
+              onSelect={({ lat, lng, label }) => { setMapCenter([lat, lng]); setMapZoom(11) }}
               onClear={clearFilters}
             />
           </form>
