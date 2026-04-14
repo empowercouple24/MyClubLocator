@@ -677,7 +677,7 @@ function RemoveClubPrompt({ clubName, onConfirm, onCancel }) {
 }
 
 // ── ClubEditor: renders one club's fields ─────────────────────
-function ClubEditor({ club, clubIndex, userId, isOnly, allClubs, onSaved, onRemove, userEmail, personData, onDirtyChange, saveRef }) {
+function ClubEditor({ club, clubIndex, userId, isOnly, allClubs, onSaved, onRemove, userEmail, personData, onDirtyChange, saveRef, onNextSection }) {
   const [form, setForm]       = useState({ ...DEFAULT_CLUB, ...club })
   const [savedForm, setSavedForm] = useState({ ...DEFAULT_CLUB, ...club })
   const [errors, setErrors]   = useState({})
@@ -1171,7 +1171,8 @@ function ClubEditor({ club, clubIndex, userId, isOnly, allClubs, onSaved, onRemo
 
         {/* Auto-prompt: copy first day's hours to other days */}
         {hoursPromptDay && !copySource && (
-          <div className="hours-auto-prompt">
+          <div className="hours-auto-prompt" onClick={e => { if (e.target === e.currentTarget) setHoursPromptDay(null) }}>
+            <div className="hours-auto-prompt-inner">
             <span className="hours-auto-prompt-text">
               Add {DAY_LABELS[DAYS.indexOf(hoursPromptDay)]}'s hours to more days?
             </span>
@@ -1193,31 +1194,34 @@ function ClubEditor({ club, clubIndex, userId, isOnly, allClubs, onSaved, onRemo
               }}>Apply to all days</button>
               <button type="button" className="hours-auto-prompt-no" onClick={() => setHoursPromptDay(null)}>No thanks</button>
             </div>
+            </div>
           </div>
         )}
 
         {copySource && (
-          <div className="copy-panel">
-            <div className="copy-panel-title">
-              Copy {DAY_LABELS[DAYS.indexOf(copySource)]} hours to:
-            </div>
-            <div className="copy-quick-btns">
-              <button onClick={selectAllTargets}>Select all</button>
-              <button onClick={selectWeekdays}>Weekdays</button>
-              <button onClick={() => setCopyTargets({})}>Clear all</button>
-            </div>
-            <div className="copy-checkboxes">
-              {DAYS.filter(d => d !== copySource).map(d => (
-                <label key={d} className="copy-check-label">
-                  <input type="checkbox" checked={!!copyTargets[d]} onChange={() => toggleCopyTarget(d)} />
-                  {DAY_LABELS[DAYS.indexOf(d)]}
-                </label>
-              ))}
-            </div>
-            <div className="copy-actions">
-              <button className="copy-apply-btn" onClick={applyCopyToTargets}
-                disabled={!Object.values(copyTargets).some(Boolean)}>Apply</button>
-              <button className="copy-cancel-btn" onClick={() => setCopySource(null)}>Cancel</button>
+          <div className="copy-overlay" onClick={e => { if (e.target === e.currentTarget) setCopySource(null) }}>
+            <div className="copy-modal">
+              <div className="copy-panel-title">
+                Copy {DAY_LABELS[DAYS.indexOf(copySource)]} hours to:
+              </div>
+              <div className="copy-quick-btns">
+                <button onClick={selectAllTargets}>Select all</button>
+                <button onClick={selectWeekdays}>Weekdays</button>
+                <button onClick={() => setCopyTargets({})}>Clear all</button>
+              </div>
+              <div className="copy-checkboxes">
+                {DAYS.filter(d => d !== copySource).map(d => (
+                  <label key={d} className="copy-check-label">
+                    <input type="checkbox" checked={!!copyTargets[d]} onChange={() => toggleCopyTarget(d)} />
+                    {DAY_LABELS[DAYS.indexOf(d)]}
+                  </label>
+                ))}
+              </div>
+              <div className="copy-actions">
+                <button className="copy-apply-btn" onClick={applyCopyToTargets}
+                  disabled={!Object.values(copyTargets).some(Boolean)}>Apply</button>
+                <button className="copy-cancel-btn" onClick={() => setCopySource(null)}>Cancel</button>
+              </div>
             </div>
           </div>
         )}
@@ -1474,21 +1478,19 @@ function ClubEditor({ club, clubIndex, userId, isOnly, allClubs, onSaved, onRemo
         />
       )}
 
-      {/* Per-club save bar — sticky when dirty or unsaved */}
+      {/* Per-club save bar */}
       <div className={`club-save-bar${isDirty || !form.id ? ' club-save-bar--visible' : ''}${isDirty ? ' club-save-bar--sticky' : ''}`}>
-        {isDirty && form.id && (
-          <div className="save-bar-alert">
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-              <circle cx="8" cy="8" r="7" stroke="#B45309" strokeWidth="1.5"/>
-              <path d="M8 5v4" stroke="#B45309" strokeWidth="1.5" strokeLinecap="round"/>
-              <circle cx="8" cy="11.5" r="0.75" fill="#B45309"/>
-            </svg>
-            Unsaved changes
-          </div>
-        )}
-        <div className="save-bar-btns">
+        <div className="save-bar-btns" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', flex: 1 }}>
           <button className="btn-save" onClick={() => handleSave('save')} disabled={saving || (!isDirty && !!form.id) || !requiredFilled}>
             {saving && saveAction === 'save' ? 'Saving…' : 'Save Club'}
+          </button>
+          <button className="btn-save btn-save--secondary" onClick={() => handleSave('save').then(() => {
+            if (onNextSection) onNextSection()
+          })} disabled={saving || !requiredFilled}>
+            Save & go to next section →
+          </button>
+          <button className="btn-save btn-save--map" onClick={() => handleSave('map')} disabled={saving || !requiredFilled}>
+            Save & go to map →
           </button>
         </div>
         {!isOnly && (
@@ -1585,6 +1587,9 @@ export default function ProfilePage() {
   const [myClubsOpen, setMyClubsOpen] = useState(!isNaN(initClubTab))
   const [clubDirty, setClubDirty] = useState(false)
   const clubSaveRef = useRef(null)
+  const [showOwnerPrompt, setShowOwnerPrompt] = useState(false)
+  const [showStoryPrompt, setShowStoryPrompt] = useState(false)
+  const [showCongrats, setShowCongrats] = useState(false)
   const [showTeamInfoModal, setShowTeamInfoModal] = useState(false)
   const [teamInfoSettings, setTeamInfoSettings] = useState(null)
   const [showReviewModal, setShowReviewModal] = useState(false)
@@ -1598,6 +1603,8 @@ export default function ProfilePage() {
     ? JSON.stringify({ ...personForm, _p1: ownerPhotoUrl, _p2: owner2PhotoUrl, _p3: owner3PhotoUrl })
       !== JSON.stringify({ ...savedPersonForm, _p1: savedPersonForm._p1, _p2: savedPersonForm._p2, _p3: savedPersonForm._p3 })
     : false
+
+  const ownerComplete = !!(personForm.first_name?.trim() && personForm.last_name?.trim() && personForm.owner_email?.trim() && personForm.herbalife_level)
 
   const hasLoadedRef = useRef(false)
 
@@ -1680,9 +1687,9 @@ export default function ProfilePage() {
           }
         }
       } else {
-        // Brand new user — pre-fill email
+        // Brand new user — pre-fill email and merge pending survey
         const baseClub = user.email ? { ...DEFAULT_CLUB, club_email: user.email } : { ...DEFAULT_CLUB }
-        if (user.email) setPersonForm(f => ({ ...f, owner_email: user.email }))
+        let surveyMerge = {}
 
         // Check for pending_survey from onboarding
         const { data: uta } = await supabase
@@ -1693,13 +1700,19 @@ export default function ProfilePage() {
         if (uta?.pending_survey) {
           try {
             const survey = JSON.parse(uta.pending_survey)
-            // Merge survey fields into person form
-            setPersonForm(f => ({ ...f, ...survey }))
+            surveyMerge = survey
             // Also prefill club opened date from onboarding survey
             if (survey.survey_club_month) baseClub.opened_month = survey.survey_club_month
             if (survey.survey_club_year)  baseClub.opened_year  = survey.survey_club_year
           } catch {}
         }
+
+        // Single merge: email + survey data together
+        setPersonForm(f => ({
+          ...f,
+          ...(user.email ? { owner_email: user.email } : {}),
+          ...surveyMerge,
+        }))
         setClubs([baseClub])
       }
       // Load team info modal settings
@@ -2082,19 +2095,31 @@ export default function ProfilePage() {
           )}
         </div>
 
-        {/* Owner save bar — only visible when dirty */}
-        {hasAnyClub && isPersonDirty && (
-          <div className="owner-save-bar owner-save-bar--sticky">
-            <div className="save-bar-alert">
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                <circle cx="8" cy="8" r="7" stroke="#B45309" strokeWidth="1.5"/>
-                <path d="M8 5v4" stroke="#B45309" strokeWidth="1.5" strokeLinecap="round"/>
-                <circle cx="8" cy="11.5" r="0.75" fill="#B45309"/>
-              </svg>
-              Unsaved changes
+        {/* Owner completion prompt — shows when required fields are filled */}
+        {ownerComplete && (isPersonDirty || !hasAnyClub) && !owner1Collapsed && (
+          <div className="owner-complete-prompt">
+            <div className="owner-complete-btns">
+              {!showOwner2 && (
+                <button className="ocp-btn ocp-btn--secondary" onClick={async () => { await savePersonFields(); setShowOwner2(true) }}>
+                  + Add a second owner
+                </button>
+              )}
+              <button className="ocp-btn ocp-btn--primary" onClick={async () => {
+                await savePersonFields()
+                setOwner1Collapsed(true)
+                setMyClubsOpen(true)
+                setTimeout(() => document.querySelector('.my-clubs-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 150)
+              }} disabled={saving}>
+                {saving ? 'Saving…' : 'Save & add my club details →'}
+              </button>
             </div>
-            <button className="btn-save" onClick={savePersonFields} disabled={saving || !personForm.first_name.trim() || !personForm.last_name.trim() || !personForm.herbalife_level}>
-              {saving ? 'Saving…' : 'Save Owner Info'}
+          </div>
+        )}
+        {/* Unsaved dirty indicator for returning users editing */}
+        {ownerComplete && isPersonDirty && hasAnyClub && !owner1Collapsed && (
+          <div style={{ textAlign: 'right', padding: '0 0 8px' }}>
+            <button className="ocp-btn ocp-btn--primary" onClick={savePersonFields} disabled={saving} style={{ fontSize: 12, padding: '6px 16px' }}>
+              {saving ? 'Saving…' : 'Save changes'}
             </button>
           </div>
         )}
@@ -2160,6 +2185,7 @@ export default function ProfilePage() {
             personData={{ ...personForm, owner_photo_url: ownerPhotoUrl, owner2_photo_url: owner2PhotoUrl, owner3_photo_url: owner3PhotoUrl }}
             onDirtyChange={setClubDirty}
             saveRef={clubSaveRef}
+            onNextSection={() => setShowStoryPrompt(true)}
           />
         )}
         </>)}
@@ -2426,6 +2452,25 @@ export default function ProfilePage() {
         )
       })()}
 
+      <div style={{ height: 16 }} />
+
+      {/* Save & finish prompt */}
+      <div className="profile-finish-bar">
+        <button className="ocp-btn ocp-btn--secondary" onClick={async () => {
+          if (isPersonDirty) await savePersonFields()
+          if (clubDirty && clubSaveRef.current) await clubSaveRef.current('save')
+        }} disabled={saving}>
+          {saving ? 'Saving…' : 'Save progress'}
+        </button>
+        <button className="ocp-btn ocp-btn--primary" onClick={async () => {
+          if (isPersonDirty) await savePersonFields()
+          if (clubDirty && clubSaveRef.current) await clubSaveRef.current('save')
+          setShowCongrats(true)
+        }} disabled={saving}>
+          {saving ? 'Saving…' : 'Save & go to map →'}
+        </button>
+      </div>
+
       <div style={{ height: 32 }} />
 
       {/* My Team — only shown if user meets min level */}
@@ -2621,7 +2666,7 @@ export default function ProfilePage() {
           </div>
         </div>
       )}
-      {/* ═══ Global sticky save footer ═══ */}
+      {/* ═══ Context-aware sticky save footer ═══ */}
       {(isPersonDirty || clubDirty) && (
         <div className="profile-sticky-footer">
           <div className="profile-sticky-inner">
@@ -2647,6 +2692,56 @@ export default function ProfilePage() {
           </div>
         </div>
       )}
+      {/* ═══ Your Story prompt modal ═══ */}
+      {showStoryPrompt && (
+        <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) setShowStoryPrompt(false) }}>
+          <div className="modal-card" onClick={e => e.stopPropagation()} style={{ maxWidth: 400, textAlign: 'center', padding: '32px 28px' }}>
+            <div style={{ fontSize: 28, marginBottom: 12 }}>📝</div>
+            <h3 style={{ fontSize: 18, fontWeight: 700, color: '#1A3C2E', marginBottom: 8 }}>Want to fill out Your Story?</h3>
+            <p style={{ fontSize: 13, color: '#888', lineHeight: 1.6, marginBottom: 20 }}>
+              Sharing your story helps other club owners connect with you. It's completely optional — you can always come back to it later.
+            </p>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button className="ocp-btn ocp-btn--secondary" style={{ flex: 1 }} onClick={() => {
+                setShowStoryPrompt(false)
+                setStoryOpen(true)
+                setTimeout(() => document.querySelector('.story-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 150)
+              }}>
+                Fill it out now
+              </button>
+              <button className="ocp-btn ocp-btn--primary" style={{ flex: 1 }} onClick={() => {
+                setShowStoryPrompt(false)
+                setSurveyOpen(true)
+                setTimeout(() => document.querySelector('.survey-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 150)
+              }}>
+                Skip to survey →
+              </button>
+            </div>
+            <button style={{ marginTop: 12, background: 'none', border: 'none', color: '#4CAF82', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+              onClick={() => { setShowStoryPrompt(false); navigate('/app/map') }}>
+              Skip all, go to map →
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ Congrats modal ═══ */}
+      {showCongrats && (
+        <div className="modal-overlay modal-overlay--locked">
+          <div className="modal-card" onClick={e => e.stopPropagation()} style={{ maxWidth: 420, textAlign: 'center', padding: '40px 32px' }}>
+            <div className="congrats-confetti">🎉</div>
+            <h2 style={{ fontSize: 22, fontWeight: 700, color: '#1A3C2E', marginBottom: 8 }}>You're on the map!</h2>
+            <p style={{ fontSize: 14, color: '#666', lineHeight: 1.6, marginBottom: 24 }}>
+              Congratulations! Your club profile is set up and ready to be discovered by the community. Welcome to MyClubLocator.
+            </p>
+            <button className="ocp-btn ocp-btn--primary" style={{ width: '100%', padding: '14px 24px', fontSize: 15 }}
+              onClick={() => { setShowCongrats(false); navigate('/app/map') }}>
+              Explore the map →
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className={'toast' + (personToast ? ' show' : '')}>{personToast}</div>
     </div>
   )

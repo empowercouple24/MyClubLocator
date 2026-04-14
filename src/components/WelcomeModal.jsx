@@ -47,8 +47,8 @@ export default function WelcomeModal() {
   }
 
   if (!show || !settings) return null
-  const videoUrl = settings.welcome_video_url || settings.welcome_video_placeholder || 'https://www.youtube.com/embed/dQw4w9WgXcQ'
-  const showVideo = settings.welcome_video_enabled && !hasClub
+  const videoUrl = settings.welcome_video_url || 'https://www.youtube.com/embed/UYmvFzDuO5k?start=8'
+  const showVideo = settings.welcome_video_enabled
 
   return (
     <div className="modal-overlay modal-overlay--locked">

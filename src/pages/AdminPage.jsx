@@ -211,28 +211,36 @@ export default function AdminPage() {
   function autoSizeColumns() {
     const table = tableRef.current
     if (!table) return
+    const wrap = table.closest('.amt-table-wrap')
+    const containerW = wrap ? wrap.clientWidth : 1200
     // Temporarily switch to auto layout to measure natural widths
     const prevLayout = table.style.tableLayout
     const prevWidth = table.style.width
     table.style.tableLayout = 'auto'
     table.style.width = 'auto'
-    // Force reflow
     table.offsetWidth
     const cols = table.querySelectorAll('thead th')
-    const newWidths = []
+    const naturalWidths = []
     cols.forEach((th, i) => {
-      // Measure header width
       let maxW = th.scrollWidth + 4
-      // Measure all cells in this column
-      table.querySelectorAll(`tbody tr`).forEach(tr => {
+      table.querySelectorAll('tbody tr').forEach(tr => {
         const td = tr.children[i]
         if (td) maxW = Math.max(maxW, td.scrollWidth + 4)
       })
-      newWidths.push(Math.max(40, Math.min(maxW, 500)))
+      naturalWidths.push(Math.max(40, maxW))
     })
     // Restore fixed layout
     table.style.tableLayout = prevLayout
     table.style.width = prevWidth
+    // If total exceeds container, scale down proportionally but keep minimums
+    const total = naturalWidths.reduce((a, b) => a + b, 0)
+    let newWidths
+    if (total > containerW) {
+      const scale = containerW / total
+      newWidths = naturalWidths.map(w => Math.max(40, Math.round(w * scale)))
+    } else {
+      newWidths = naturalWidths
+    }
     if (newWidths.length === defaultColWidths.length) {
       setColWidths(newWidths)
     }
@@ -294,9 +302,9 @@ export default function AdminPage() {
 
   // Settings state
   const [settings, setSettings] = useState({
-    welcome_video_enabled: false,
-    welcome_video_url: '',
-    welcome_video_placeholder: 'https://www.youtube.com/embed/dQw4w9WgXcQ',
+    welcome_video_enabled: true,
+    welcome_video_url: 'https://www.youtube.com/embed/UYmvFzDuO5k?start=8',
+    welcome_video_placeholder: '',
     welcome_title: 'Welcome to My Club Locator!',
     welcome_returning_title: 'Welcome back, {{first_name}}!',
     welcome_message: "You're now part of the network. Watch the video below to get started, then add your club to the map.",
@@ -1197,24 +1205,23 @@ export default function AdminPage() {
                   <div className="admin-card-body" style={{ padding: '12px 0 0' }}>
 
                     {/* ═══ 1. Returning Member Welcome ═══ */}
+                    {/* ═══ 1a. New Member Welcome ═══ */}
                     <div className="au-card">
                       <div className="au-card-hdr">
                         <div className="au-card-hdr-left">
                           <div className="au-card-icon" style={{ background: '#E1F5EE' }}>
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9z" stroke="#0F6E56" strokeWidth="1.5"/></svg>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" stroke="#0F6E56" strokeWidth="1.5"/><circle cx="8.5" cy="7" r="4" stroke="#0F6E56" strokeWidth="1.5"/><path d="M20 8v6M23 11h-6" stroke="#0F6E56" strokeWidth="1.5" strokeLinecap="round"/></svg>
                           </div>
                           <div>
-                            <div className="au-card-title">Returning member welcome</div>
-                            <div className="au-card-where">Modal shown on login to members with a club</div>
+                            <div className="au-card-title">New member welcome</div>
+                            <div className="au-card-where">Modal shown on first login — before they set up a club</div>
                           </div>
                         </div>
                       </div>
                       <div className="au-card-body-grid">
                         <div className="au-card-edit">
-                          <div className="au-field"><label>New member title</label>
+                          <div className="au-field"><label>Title</label>
                             <input type="text" value={settings.welcome_title} onChange={e => setSettings(s => ({ ...s, welcome_title: e.target.value }))} placeholder="Welcome to My Club Locator!" /></div>
-                          <div className="au-field"><label>Returning member title <span className="field-optional">for users who already have a club</span></label>
-                            <input type="text" value={settings.welcome_returning_title} onChange={e => setSettings(s => ({ ...s, welcome_returning_title: e.target.value }))} placeholder="Welcome back, {{first_name}}!" /></div>
                           <div className="au-field"><label>Message (rich text)</label>
                             <RichTextEditor value={settings.welcome_message} onChange={v => setSettings(s => ({ ...s, welcome_message: v }))} placeholder="Welcome message body…" /></div>
                           <div className="au-toggle-row">
@@ -1222,12 +1229,8 @@ export default function AdminPage() {
                             <ToggleSwitch on={settings.welcome_video_enabled} onChange={v => setSettings(s => ({ ...s, welcome_video_enabled: v }))} />
                           </div>
                           {settings.welcome_video_enabled && (
-                            <>
-                              <div className="au-field"><label>Video URL</label>
-                                <input type="url" value={settings.welcome_video_url} onChange={e => setSettings(s => ({ ...s, welcome_video_url: e.target.value }))} placeholder="https://youtube.com/embed/..." /></div>
-                              <div className="au-field"><label>Placeholder image URL <span className="field-optional">shown before video loads</span></label>
-                                <input type="url" value={settings.welcome_video_placeholder} onChange={e => setSettings(s => ({ ...s, welcome_video_placeholder: e.target.value }))} placeholder="https://..." /></div>
-                            </>
+                            <div className="au-field"><label>Video URL</label>
+                              <input type="url" value={settings.welcome_video_url} onChange={e => setSettings(s => ({ ...s, welcome_video_url: e.target.value }))} placeholder="https://youtube.com/embed/..." /></div>
                           )}
                           <div className="au-toggle-row">
                             <span className="au-toggle-label">Disclaimer</span>
@@ -1244,15 +1247,51 @@ export default function AdminPage() {
                             <div className="au-preview-logo">
                               <svg width="20" height="20" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="3.5" fill="#4CAF82"/><circle cx="9" cy="9" r="7" stroke="#4CAF82" strokeWidth="1.5" fill="none"/><line x1="9" y1="2" x2="9" y2="0.5" stroke="#4CAF82" strokeWidth="1.5" strokeLinecap="round"/><line x1="9" y1="16" x2="9" y2="17.5" stroke="#4CAF82" strokeWidth="1.5" strokeLinecap="round"/><line x1="2" y1="9" x2="0.5" y2="9" stroke="#4CAF82" strokeWidth="1.5" strokeLinecap="round"/><line x1="16" y1="9" x2="17.5" y2="9" stroke="#4CAF82" strokeWidth="1.5" strokeLinecap="round"/></svg>
                             </div>
-                            <div className="au-preview-title">{settings.welcome_returning_title?.replace('{{first_name}}', 'Jeffrey') || 'Welcome back!'}</div>
+                            <div className="au-preview-title">{settings.welcome_title || 'Welcome to My Club Locator!'}</div>
                             <div className="au-preview-msg rte-content" dangerouslySetInnerHTML={{ __html: settings.welcome_message || 'Your welcome message here.' }} />
                             {settings.welcome_video_enabled && (
                               <div className="au-preview-video"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M5 3l14 9-14 9V3z" fill="#ccc"/></svg></div>
                             )}
-                            <div className="au-preview-btn">Explore the Map</div>
+                            <div className="au-preview-btn">Add My Club</div>
                             {settings.welcome_disclaimer_enabled && (
                               <div className="au-preview-disc rte-content" dangerouslySetInnerHTML={{ __html: settings.welcome_disclaimer || 'Disclaimer text here.' }} />
                             )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* ═══ 1b. Returning Member Welcome ═══ */}
+                    <div className="au-card">
+                      <div className="au-card-hdr">
+                        <div className="au-card-hdr-left">
+                          <div className="au-card-icon" style={{ background: '#EEEDFE' }}>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9z" stroke="#534AB7" strokeWidth="1.5"/><path d="M9 22V12h6v10" stroke="#534AB7" strokeWidth="1.5"/></svg>
+                          </div>
+                          <div>
+                            <div className="au-card-title">Returning member welcome</div>
+                            <div className="au-card-where">Modal shown on login to members who already have a club</div>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="au-card-body-grid">
+                        <div className="au-card-edit">
+                          <div className="au-field"><label>Title</label>
+                            <input type="text" value={settings.welcome_returning_title} onChange={e => setSettings(s => ({ ...s, welcome_returning_title: e.target.value }))} placeholder="Welcome back, {{first_name}}!" />
+                            <span className="field-optional" style={{ display: 'block', marginTop: 4 }}>Use {'{{first_name}}'} to insert the member's name</span></div>
+                          <div className="au-field"><label>Message (rich text)</label>
+                            <RichTextEditor value={settings.welcome_message} onChange={v => setSettings(s => ({ ...s, welcome_message: v }))} placeholder="Welcome message body…" />
+                            <span className="field-optional" style={{ display: 'block', marginTop: 4 }}>Shared with new member welcome above</span></div>
+                        </div>
+                        <div className="au-card-preview">
+                          <div className="au-preview-label">Live preview</div>
+                          <div className="au-preview-modal">
+                            <div className="au-preview-logo">
+                              <svg width="20" height="20" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="3.5" fill="#4CAF82"/><circle cx="9" cy="9" r="7" stroke="#4CAF82" strokeWidth="1.5" fill="none"/><line x1="9" y1="2" x2="9" y2="0.5" stroke="#4CAF82" strokeWidth="1.5" strokeLinecap="round"/><line x1="9" y1="16" x2="9" y2="17.5" stroke="#4CAF82" strokeWidth="1.5" strokeLinecap="round"/><line x1="2" y1="9" x2="0.5" y2="9" stroke="#4CAF82" strokeWidth="1.5" strokeLinecap="round"/><line x1="16" y1="9" x2="17.5" y2="9" stroke="#4CAF82" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                            </div>
+                            <div className="au-preview-title">{settings.welcome_returning_title?.replace('{{first_name}}', 'Jeffrey') || 'Welcome back!'}</div>
+                            <div className="au-preview-msg rte-content" dangerouslySetInnerHTML={{ __html: settings.welcome_message || 'Your welcome message here.' }} />
+                            <div className="au-preview-btn">Explore the Map</div>
                           </div>
                         </div>
                       </div>
