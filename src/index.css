@@ -1036,18 +1036,12 @@ body:has(.admin-page-wrap) {
 /* ═══ Toolbar v2 — unified horizontal strip ═══ */
 .map-toolbar-v2 {
   position: absolute; top: 12px; left: 12px; z-index: 500;
-  display: flex; align-items: flex-start; gap: 4px;
-  pointer-events: auto;
-}
-.tb2-row-primary, .tb2-row-secondary {
   display: flex; align-items: center; gap: 3px;
-  background: rgba(255,255,255,0.85); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
-  border-radius: 10px; padding: 4px 5px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.12); border: 0.5px solid rgba(224,232,224,0.7);
-}
-
-@media (max-width: 1100px) {
-  .map-toolbar-v2 { flex-direction: column; align-items: flex-start; }
+  flex-wrap: wrap;
+  background: #fff; border-radius: 10px; padding: 4px 5px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.12); border: 0.5px solid #e0e8e0;
+  pointer-events: auto;
+  max-width: calc(100vw - 420px);
 }
 .tb2-btn {
   width: 34px; height: 34px; display: flex; align-items: center; justify-content: center;
@@ -1182,8 +1176,7 @@ body:has(.admin-page-wrap) {
 
 /* Mobile responsive */
 @media (max-width: 768px) {
-  .map-toolbar-v2 { left: 8px; max-width: calc(100vw - 24px); gap: 3px; }
-  .tb2-row-primary, .tb2-row-secondary { gap: 2px; padding: 3px 4px; }
+  .map-toolbar-v2 { left: 8px; max-width: calc(100vw - 24px); gap: 2px; padding: 3px 4px; }
   .tb2-search input, .tb2-search .map-search-ac-input { width: 110px; font-size: 10px; }
   .tb2-btn { width: 30px; height: 30px; }
   .tb2-sep { height: 20px; }
