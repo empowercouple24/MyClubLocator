@@ -60,6 +60,19 @@ function makeUserIcon(sizeScale = 1) {
   })
 }
 
+function makeSearchPinIcon(sizeScale = 1) {
+  const w = Math.round(28 * sizeScale)
+  const h = Math.round(40 * sizeScale)
+  return divIcon({
+    className: '',
+    html: `<svg width="${w}" height="${h}" viewBox="0 0 28 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M14 0C6.27 0 0 6.27 0 14c0 10.5 14 26 14 26s14-15.5 14-26C28 6.27 21.73 0 14 0z" fill="#E24B4A"/>
+      <circle cx="14" cy="14" r="6" fill="white"/>
+    </svg>`,
+    iconSize: [w, h], iconAnchor: [w / 2, h],
+  })
+}
+
 function MapFlyTo({ lat, lng, zoom, bounds }) {
   const map = useMap()
   useEffect(() => {
@@ -510,6 +523,7 @@ export default function PublicFinderPage() {
   const [geoError, setGeoError]             = useState('')
   const [userLat, setUserLat]               = useState(null)
   const [userLng, setUserLng]               = useState(null)
+  const [isGeolocated, setIsGeolocated]     = useState(false)
   const [results, setResults]               = useState(null)
   const [resultsFallback, setResultsFallback] = useState(false)
   const [expandedId, setExpandedId]         = useState(null)
@@ -664,7 +678,7 @@ export default function PublicFinderPage() {
     setGeoError('')
     const coords = await geocodeAddress(query.trim())
     if (!coords) { setGeoError('Address not found. Try a city, place name, or zip code.'); return }
-    setUserLat(coords.lat); setUserLng(coords.lng)
+    setUserLat(coords.lat); setUserLng(coords.lng); setIsGeolocated(false)
     doSearch(coords.lat, coords.lng)
   }
 
@@ -674,7 +688,7 @@ export default function PublicFinderPage() {
     navigator.geolocation.getCurrentPosition(
       pos => {
         const { latitude, longitude } = pos.coords
-        setUserLat(latitude); setUserLng(longitude); setGeoLocating(false)
+        setUserLat(latitude); setUserLng(longitude); setGeoLocating(false); setIsGeolocated(true)
         doSearch(latitude, longitude)
       },
       () => { setGeoError('Could not get your location. Try entering an address.'); setGeoLocating(false) }
@@ -726,7 +740,8 @@ export default function PublicFinderPage() {
 
   const pinColor  = markerColors.other    || '#6B8DD6'
   const selColor  = markerColors.selected || '#F59E0B'
-  const userIcon  = makeUserIcon(finderSizeScale)
+  const userIcon      = makeUserIcon(finderSizeScale)
+  const searchPinIcon = makeSearchPinIcon(finderSizeScale)
 
   return (
     <div className="pfp-page">
@@ -782,7 +797,7 @@ export default function PublicFinderPage() {
             <TileLayer url={MAPBOX_URL} attribution={MAPBOX_ATTR} />
             <FindExtentTracker />
             {flyTo && <MapFlyTo key={flyTo._t} lat={flyTo.lat} lng={flyTo.lng} zoom={flyTo.zoom} bounds={flyTo.bounds} />}
-            {userLat && userLng && <Marker position={[userLat, userLng]} icon={userIcon} />}
+            {userLat && userLng && <Marker position={[userLat, userLng]} icon={isGeolocated ? userIcon : searchPinIcon} />}
             {(results || []).map(club => {
               if (!club.lat || !club.lng) return null
               const isSelected = club.id === expandedId
@@ -824,7 +839,7 @@ export default function PublicFinderPage() {
                   onSelect={({ street, city, state, zip, lat, lng }) => {
                     const full = [street, city, state, zip].filter(Boolean).join(', ')
                     setQuery(full); setGeoError('')
-                    setUserLat(lat); setUserLng(lng)
+                    setUserLat(lat); setUserLng(lng); setIsGeolocated(false)
                     doSearch(lat, lng)
                   }}
                 />
