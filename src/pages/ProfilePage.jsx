@@ -2626,7 +2626,6 @@ export default function ProfilePage() {
         <MyTeamSection userId={user?.id} userLevel={personForm.herbalife_level} />
       </>)}
 
-      <div style={{ height: 32 }} />
       {/* Contact / Feedback */}
       <ContactFeedbackSection
         userName={[personForm.first_name, personForm.last_name].filter(Boolean).join(' ')}
