@@ -1536,6 +1536,7 @@ export default function MapPage() {
 
         {/* ═══ Unified Map Toolbar ═══ */}
         <div className="map-toolbar-v2">
+          <div className="tb2-row-primary">
           {/* My Location */}
           <button
             className={`tb2-btn${geoMarker ? ' active' : ''}${geoLocating ? ' loading' : ''}`}
@@ -1620,7 +1621,9 @@ export default function MapPage() {
             )}
           </div>
 
-          <div className="tb2-sep" />
+          </div>
+
+          <div className="tb2-row-secondary">
 
           {/* Saved views (heart) */}
           <div className="tb2-dropdown-wrap" onMouseEnter={() => handleToolbarEnter(setShowSavedViews)} onMouseLeave={handleToolbarLeave}>
@@ -1774,6 +1777,7 @@ export default function MapPage() {
                 </div>
               </div>
             )}
+          </div>
           </div>
         </div>
 
