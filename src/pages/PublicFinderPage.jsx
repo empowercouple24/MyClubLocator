@@ -330,7 +330,7 @@ function ClubCard({ club, expanded, onExpand, onClose, isFav, onToggleFav, onAut
             {club.distanceMiles != null && <span className="pfp-dist-badge">{club.distanceMiles.toFixed(1)} mi</span>}
             {todayHours && <span className={open ? 'pfp-open-badge' : 'pfp-closed-badge'}>{open ? 'Open' : 'Closed'}</span>}
           </div>
-          {todayHours && <div className="pfp-card-hours">{todayHours}</div>}
+          {expanded && todayHours && <div className="pfp-card-hours">{todayHours}</div>}
         </div>
         <div className="pfp-card-actions" onClick={e => e.stopPropagation()}>
           {(onToggleFav || onAuthRequired) && (
@@ -759,7 +759,7 @@ export default function PublicFinderPage() {
         )}
         <div className="pfp-brand">
           <svg width="14" height="14" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="3.5" fill="#4CAF82"/><circle cx="9" cy="9" r="7" stroke="#4CAF82" strokeWidth="1.5" fill="none"/><line x1="9" y1="2" x2="9" y2="0.5" stroke="#4CAF82" strokeWidth="1.5" strokeLinecap="round"/><line x1="9" y1="16" x2="9" y2="17.5" stroke="#4CAF82" strokeWidth="1.5" strokeLinecap="round"/><line x1="2" y1="9" x2="0.5" y2="9" stroke="#4CAF82" strokeWidth="1.5" strokeLinecap="round"/><line x1="16" y1="9" x2="17.5" y2="9" stroke="#4CAF82" strokeWidth="1.5" strokeLinecap="round"/></svg>
-          My Club Locator
+          My<span className="pfp-brand-green">Club</span>Locator
         </div>
         <div className="pfp-auth-zone">
           {isClubOwner ? (
@@ -946,7 +946,7 @@ export default function PublicFinderPage() {
                       </button>
                     ) : (
                       <>
-                        <span>Club owner?</span>
+                        <span style={{fontWeight:600}}>Club owner?</span>
                         <button onClick={() => navigate('/login')} className="pfp-footer-link">Log in to manage your club →</button>
                       </>
                     )}

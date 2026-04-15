@@ -127,7 +127,7 @@ export default function OnboardingPage() {
           <div className="onb-logo-pin">
             <svg width="14" height="14" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="3.5" fill="#fff"/><circle cx="9" cy="9" r="7" stroke="#fff" strokeWidth="1.5" fill="none"/><line x1="9" y1="2" x2="9" y2="0.5" stroke="#fff" strokeWidth="1.5" strokeLinecap="round"/><line x1="9" y1="16" x2="9" y2="17.5" stroke="#fff" strokeWidth="1.5" strokeLinecap="round"/><line x1="2" y1="9" x2="0.5" y2="9" stroke="#fff" strokeWidth="1.5" strokeLinecap="round"/><line x1="16" y1="9" x2="17.5" y2="9" stroke="#fff" strokeWidth="1.5" strokeLinecap="round"/></svg>
           </div>
-          <span>My Club Locator</span>
+          <span>My<span style={{color:'#4CAF82'}}>Club</span>Locator</span>
         </div>
 
         {card.id !== 'done' && (
