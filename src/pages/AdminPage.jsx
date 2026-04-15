@@ -114,7 +114,10 @@ function ContactCard({ submission: c, onReplySent, expanded, onToggle }) {
       <div className="csub-collapse-header" onClick={onToggle}>
         <div className="csub-avatar">{(c.name || '?').slice(0,1).toUpperCase()}</div>
         <div className="csub-meta">
-          <div className="csub-name">{c.name}</div>
+          <div className="csub-name">
+            {c.name}
+            {c.category && <span className={`csub-cat-badge csub-cat--${c.category}`}>{c.category === 'bug' ? '🐛 Bug' : c.category === 'question' ? '❓ Question' : c.category === 'feature' ? '💡 Feature' : '💬 Feedback'}</span>}
+          </div>
           <div className="csub-email">{c.email}</div>
         </div>
         {!expanded && <div className="csub-preview">{preview}</div>}
@@ -133,6 +136,15 @@ function ContactCard({ submission: c, onReplySent, expanded, onToggle }) {
       {expanded && (
         <>
           <div className="csub-message">{c.message}</div>
+
+          {c.screenshot_url && (
+            <div className="csub-screenshot">
+              <a href={c.screenshot_url} target="_blank" rel="noopener noreferrer">
+                <img src={c.screenshot_url} alt="Screenshot" />
+              </a>
+              <span className="csub-screenshot-label">Screenshot attached</span>
+            </div>
+          )}
 
           {replies.length > 0 && (
             <div className="csub-replies">
