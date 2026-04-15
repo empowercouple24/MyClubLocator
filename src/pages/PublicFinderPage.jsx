@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { MapContainer, TileLayer, Marker, Polyline, Tooltip, useMap, useMapEvents } from 'react-leaflet'
+import { MapContainer, TileLayer, Marker, Tooltip, useMap, useMapEvents } from 'react-leaflet'
 import { divIcon } from 'leaflet'
 import { supabase } from '../lib/supabase'
 import { geocodeSingle } from '../lib/geocode'
@@ -270,7 +270,7 @@ function AuthModal({ mode: initialMode, settings, onSuccess, onClose }) {
   )
 }
 
-function ClubCard({ club, expanded, onExpand, onClose, isFav, onToggleFav, onAuthRequired, publicAccountId, markerColor, onShowRoute, routeActive, routeLoading }) {
+function ClubCard({ club, expanded, onExpand, onClose, isFav, onToggleFav, onAuthRequired, publicAccountId, markerColor }) {
   const open       = isOpenNow(club)
   const todayHours = getTodayHours(club)
   const todayIdx   = getTodayIdx()
@@ -409,33 +409,17 @@ function ClubCard({ club, expanded, onExpand, onClose, isFav, onToggleFav, onAut
               {noteSent && <div className="pf-note-sent">Note submitted — thank you!</div>}
             </div>
           )}
-          <a className="pfp-directions-btn" href={mapsUrl} target="_blank" rel="noopener noreferrer">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M3 12l18-9-9 18-2-8-7-1z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/></svg>
-            Get directions in Google Maps
+          <a className="pfp-gmaps-btn" href={mapsUrl} target="_blank" rel="noopener noreferrer">
+            <svg width="20" height="20" viewBox="0 0 92 92" xmlns="http://www.w3.org/2000/svg">
+              <path d="M72.8 20.2L60.5 36.8l12-3.4 9.1-9.1c-2.3-2.5-5.5-4.1-8.8-4.1z" fill="#1A73E8"/>
+              <path d="M46 6C32.7 6 22 16.7 22 30c0 20 24 56 24 56s24-36 24-56C70 16.7 59.3 6 46 6zm0 36c-6.6 0-12-5.4-12-12s5.4-12 12-12 12 5.4 12 12-5.4 12-12 12z" fill="#EA4335"/>
+              <path d="M46 30c0-6.6 5.4-12 12-12 2.8 0 5.4 1 7.4 2.6L72.8 10C66.8 4.4 59 2 50 2 36.7 2 25.4 9.8 20.2 20.8L35.5 33C38 26.8 41.5 30 46 30z" fill="#FBBC04"/>
+              <path d="M22 30c0-2 .3-3.9.7-5.8L7.4 12.5C4.3 17.8 2 24 2 30c0 6.2 2 12.2 5.5 17.5l15-12.3c-.3-1.7-.5-3.4-.5-5.2z" fill="#4285F4"/>
+              <path d="M46 54c-4.5 0-8.4-2.5-10.5-6.2L20.2 60c5.2 10.2 15.5 18 28.8 18 8 0 15-2.8 20.5-7.6l-14.7-11.5C52.2 52 49.3 54 46 54z" fill="#34A853"/>
+            </svg>
+            Get directions using Google Maps
           </a>
           <ShareLocationButton club={club} className="pfp-share-btn" />
-          {onShowRoute && (
-            <button
-              className={`pfp-route-btn ${routeActive ? 'pfp-route-btn--active' : ''}`}
-              onClick={onShowRoute}
-              disabled={routeLoading}
-            >
-              {routeLoading ? (
-                <><div className="pfp-route-spinner" /> Calculating route…</>
-              ) : routeActive ? (
-                <><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg> Hide route</>
-              ) : (
-                <><svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                  <path d="M3 18h1c1 0 2-.5 2.5-1.5L8 14l2 2 3-4 2.5 3 1.5-1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  <rect x="4" y="7" width="8" height="5" rx="2" stroke="currentColor" strokeWidth="1.5"/>
-                  <circle cx="6" cy="12" r="1.5" fill="currentColor"/>
-                  <circle cx="10" cy="12" r="1.5" fill="currentColor"/>
-                  <rect x="5" y="8.5" width="3" height="2" rx="0.5" fill="currentColor" opacity="0.3"/>
-                  <rect x="9" y="8.5" width="2" height="2" rx="0.5" fill="currentColor" opacity="0.3"/>
-                </svg> Show driving route</>
-              )}
-            </button>
-          )}
         </div>
       )}
     </div>
@@ -768,12 +752,6 @@ export default function PublicFinderPage() {
             <FindExtentTracker />
             {flyTo && <MapFlyTo key={flyTo._t} lat={flyTo.lat} lng={flyTo.lng} zoom={flyTo.zoom} bounds={flyTo.bounds} />}
             {userLat && userLng && <Marker position={[userLat, userLng]} icon={userIcon} />}
-          {routeCoords && (
-            <Polyline
-              positions={routeCoords}
-              pathOptions={{ color: '#185FA5', weight: 4, opacity: 0.85, lineCap: 'round', lineJoin: 'round' }}
-            />
-          )}
             {(results || []).map(club => {
               if (!club.lat || !club.lng) return null
               const isSelected = club.id === expandedId
@@ -862,9 +840,6 @@ export default function PublicFinderPage() {
                         onAuthRequired={!publicAccount && settings?.public_accounts_enabled !== false ? () => setAuthModal('signin') : undefined}
                         publicAccountId={publicAccount?.id}
                         markerColor={club.id === expandedId ? selColor : pinColor}
-                        onShowRoute={userLat && userLng ? () => fetchRoute(club) : undefined}
-                        routeActive={routeClubId === club.id && !!routeCoords}
-                        routeLoading={routeLoading && routeClubId === club.id}
                       />
                     </div>
                   ))}
