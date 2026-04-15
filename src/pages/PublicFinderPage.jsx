@@ -231,7 +231,7 @@ function AuthModal({ mode: initialMode, settings, onSuccess, onClose }) {
     e.preventDefault(); setError(''); setLoading(true)
     if (mode === 'signup') {
       if (settings?.public_accounts_enabled === false) { setError('New public accounts are not available right now.'); setLoading(false); return }
-      const { data, error: authErr } = await supabase.auth.signUp({ email, password })
+      const { data, error: authErr } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: `${window.location.origin}/find` } })
       if (authErr) { setError(authErr.message); setLoading(false); return }
       if (data?.user) await supabase.from('public_accounts').insert({ auth_user_id: data.user.id, email, display_name: displayName.trim() || null })
       onSuccess()
@@ -495,13 +495,23 @@ export default function PublicFinderPage() {
       if (s?.global_marker_size) setFinderSizeScale(s.global_marker_size === 'large' ? 1.5 : s.global_marker_size === 'medium' ? 1.25 : 1)
       if (session.data.session) {
         const userId = session.data.session.user.id
+        const userEmail = session.data.session.user.email
         // Check if this is a public account or a club owner
         const { data: pubAcct } = await supabase.from('public_accounts').select('id').eq('auth_user_id', userId).single()
         if (pubAcct) {
           await loadPublicAccount(userId)
         } else {
-          // Has a session but no public_accounts row → club owner or admin
-          setIsClubOwner(true)
+          // No public_accounts row — verify they actually own a club before labelling them as owner
+          const { data: loc } = await supabase.from('locations').select('id').eq('user_id', userId).limit(1)
+          if (loc && loc.length > 0) {
+            setIsClubOwner(true)
+          } else {
+            // Not a club owner either — auto-create public account (row may have failed during signup due to RLS)
+            const { data: newAcct } = await supabase.from('public_accounts')
+              .insert({ auth_user_id: userId, email: userEmail })
+              .select('id,display_name,email').single()
+            if (newAcct) { setPublicAccount(newAcct); await loadFavorites(newAcct.id) }
+          }
         }
       }
       setAuthLoading(false)
@@ -554,12 +564,32 @@ export default function PublicFinderPage() {
   async function handleAuthSuccess() {
     setAuthModal(null)
     const { data: { session } } = await supabase.auth.getSession()
-    if (session) await loadPublicAccount(session.user.id)
+    if (!session) return
+    const userId = session.user.id
+    const userEmail = session.user.email
+    // Try loading existing public account
+    const { data: existing } = await supabase.from('public_accounts').select('id,display_name,email').eq('auth_user_id', userId).single()
+    if (existing) {
+      setPublicAccount(existing)
+      await loadFavorites(existing.id)
+    } else {
+      // Check if this is actually a club owner
+      const { data: loc } = await supabase.from('locations').select('id').eq('user_id', userId).limit(1)
+      if (loc && loc.length > 0) {
+        setIsClubOwner(true)
+      } else {
+        // Auto-create public account row (may have been missed during signup due to RLS)
+        const { data: newAcct } = await supabase.from('public_accounts')
+          .insert({ auth_user_id: userId, email: userEmail })
+          .select('id,display_name,email').single()
+        if (newAcct) { setPublicAccount(newAcct); await loadFavorites(newAcct.id) }
+      }
+    }
   }
 
   async function handleSignOut() {
     await supabase.auth.signOut()
-    setPublicAccount(null); setFavIds(new Set()); setSavedClubs([])
+    setPublicAccount(null); setFavIds(new Set()); setSavedClubs([]); setIsClubOwner(false)
   }
 
   async function geocodeAddress(address) {
