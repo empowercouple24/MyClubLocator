@@ -9296,6 +9296,34 @@ input.input-ok {
 }
 .pfp-auth-link--accent:hover { background: rgba(255,255,255,0.25); }
 
+/* ── Saved clubs toggle ──────────────────────────────────── */
+.pfp-saved-toggle {
+  position: relative; display: flex; align-items: center; justify-content: center;
+  background: rgba(255,255,255,0.1); border: none; border-radius: 6px;
+  padding: 5px 6px; cursor: pointer; color: rgba(255,255,255,0.7);
+  transition: background 0.15s;
+}
+.pfp-saved-toggle:hover { background: rgba(255,255,255,0.2); }
+.pfp-saved-toggle--active { background: rgba(255,255,255,0.2); color: #fff; }
+.pfp-saved-badge {
+  position: absolute; top: -5px; right: -6px;
+  background: #e24b4a; color: #fff; font-size: 9px; font-weight: 700;
+  min-width: 16px; height: 16px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0 4px; line-height: 1;
+}
+.pfp-saved-back {
+  background: none; border: none; color: #888; cursor: pointer; padding: 4px;
+  display: flex; align-items: center; transition: color 0.15s;
+}
+.pfp-saved-back:hover { color: #333; }
+.pfp-saved-empty {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: 28px 16px; text-align: center;
+}
+.pfp-saved-empty p { margin: 0; font-size: 13px; color: #888; }
+.pfp-saved-empty-sub { font-size: 12px !important; color: #aaa !important; }
+
 /* Map wrapper */
 .pfp-body { flex: 1; position: relative; overflow: hidden; }.pfp-map-wrap { position: absolute; inset: 0; z-index: 0; }
 .pfp-map-wrap .leaflet-container { height: 100%; width: 100%; }
