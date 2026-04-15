@@ -12,14 +12,38 @@ export default function Layout() {
   const location = useLocation()
   const isMapPage = location.pathname === '/app/map'
   const [anyPaused, setAnyPaused] = useState(false)
+  const [unreadCount, setUnreadCount] = useState(0)
 
   useEffect(() => {
     if (!isAdmin) return
-    async function checkAccess() {
-      const { data } = await supabase.from('app_settings').select(ACCESS_KEYS.join(',')).eq('id', 1).single()
-      if (data) setAnyPaused(ACCESS_KEYS.some(k => data[k] === false))
+    async function checkAdmin() {
+      const [{ data: settingsData }, { count: contactCount }, { count: notifCount }] = await Promise.all([
+        supabase.from('app_settings').select(ACCESS_KEYS.join(',')).eq('id', 1).single(),
+        supabase.from('contact_submissions').select('id', { count: 'exact', head: true }).or('is_read.eq.false,is_read.is.null'),
+        supabase.from('notifications').select('id', { count: 'exact', head: true }).or('is_read.eq.false,is_read.is.null'),
+      ])
+      if (settingsData) setAnyPaused(ACCESS_KEYS.some(k => settingsData[k] === false))
+      setUnreadCount((contactCount || 0) + (notifCount || 0))
     }
-    checkAccess()
+    checkAdmin()
+
+    // Live-update badge when new messages arrive
+    const sub = supabase.channel('layout-badge')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'contact_submissions' }, () => {
+        setUnreadCount(prev => prev + 1)
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications' }, () => {
+        setUnreadCount(prev => prev + 1)
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'contact_submissions', filter: 'is_read=eq.true' }, () => {
+        setUnreadCount(prev => Math.max(0, prev - 1))
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'notifications', filter: 'is_read=eq.true' }, () => {
+        setUnreadCount(prev => Math.max(0, prev - 1))
+      })
+      .subscribe()
+
+    return () => { supabase.removeChannel(sub) }
   }, [isAdmin])
 
   async function handleLogout() {
@@ -82,6 +106,9 @@ export default function Layout() {
           <NavLink to="/app/admin" className={({ isActive }) => isActive ? 'active' : ''}>
             <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
               Admin
+              {unreadCount > 0 && (
+                <span className="tab-unread-badge">{unreadCount > 99 ? '99+' : unreadCount}</span>
+              )}
               {anyPaused && (
                 <span style={{
                   width: 7, height: 7, borderRadius: '50%',
