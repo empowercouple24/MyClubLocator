@@ -65,7 +65,7 @@ export default function Layout() {
             <line x1="2" y1="9" x2="0.5" y2="9" stroke="#4CAF82" strokeWidth="1.5" strokeLinecap="round"/>
             <line x1="16" y1="9" x2="17.5" y2="9" stroke="#4CAF82" strokeWidth="1.5" strokeLinecap="round"/>
           </svg>
-          My<span>Club</span> Locator
+          My<span>Club</span>Locator
         </NavLink>
         <nav className="topbar-nav">
           {isMapPage && <button
