@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useCallback, useRef } from 'react'
+import { lazy, Suspense, useEffect, useState, useCallback, useRef } from 'react'
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom'
 import { useAuth } from './lib/AuthContext'
 import { supabase } from './lib/supabase'
@@ -22,8 +22,28 @@ const MapPage = lazy(() => import('./pages/MapPage'))
 const INACTIVITY_MS = 30 * 60 * 1000 // 30 minutes
 
 function RequireAuth({ children }) {
-  const { session } = useAuth()
+  const { session, isAdmin } = useAuth()
+  const [checked, setChecked] = useState(false)
+  const [allowed, setAllowed] = useState(true)
+
+  useEffect(() => {
+    if (!session) { setChecked(true); return }
+    if (isAdmin) { setChecked(true); setAllowed(true); return }
+    async function verify() {
+      const uid = session.user.id
+      const { data: pubAcct } = await supabase.from('public_accounts').select('id').eq('auth_user_id', uid).single()
+      if (pubAcct) {
+        const { data: locs } = await supabase.from('locations').select('id').eq('user_id', uid).limit(1)
+        if (!locs || locs.length === 0) { setAllowed(false); setChecked(true); return }
+      }
+      setAllowed(true); setChecked(true)
+    }
+    verify()
+  }, [session, isAdmin])
+
   if (!session) return <Navigate to="/" replace />
+  if (!checked) return <div className="loading">Loading…</div>
+  if (!allowed) return <Navigate to="/find" replace />
   return children
 }
 
