@@ -949,6 +949,8 @@ export default function MapPage() {
   })
   const [panelWidth,     setPanelWidth]     = useState('normal')   // 'normal' | 'wide'
   const [panelCollapsed, setPanelCollapsed] = useState(false)
+  const [panelAutoHide, setPanelAutoHide] = useState(false)
+  const autoHideTimer = useRef(null)
   const panelWasCollapsedBeforeDemo = useRef(false) // tracks whether panel was collapsed before market data was toggled on
   const [clickBehavior,  setClickBehavior]  = useState('zoom')     // 'zoom' | 'pan' | 'stay'
   const [homeBehavior,   setHomeBehavior]   = useState('zoom')     // 'zoom' | 'pan' | 'stay'
@@ -988,6 +990,7 @@ export default function MapPage() {
       if (data?.preferences?.demoViewMode)   setDemoViewMode(data.preferences.demoViewMode)
       if (data?.preferences?.markerShapes)   setMarkerShapes(s => ({ ...s, ...data.preferences.markerShapes }))
       if (data?.preferences?.markerSizeScale) { setMarkerSizeScale(data.preferences.markerSizeScale); _iconCache = {} }
+      if (data?.preferences?.panelAutoHide !== undefined) setPanelAutoHide(data.preferences.panelAutoHide)
     }
     loadPanelPrefs()
     loadSavedViews()
@@ -1136,6 +1139,31 @@ export default function MapPage() {
     setPanelCollapsed(next)
     savePanelPrefs(panelWidth, next)
   }
+
+  async function saveAutoHide(val) {
+    setPanelAutoHide(val)
+    if (!val) { clearTimeout(autoHideTimer.current) }
+    if (!user) return
+    const { data: existing } = await supabase.from('user_demo_preferences').select('preferences').eq('user_id', user.id).single()
+    const merged = { ...(existing?.preferences || {}), panelAutoHide: val }
+    await supabase.from('user_demo_preferences').upsert({ user_id: user.id, preferences: merged }, { onConflict: 'user_id' })
+  }
+
+  function resetAutoHideTimer() {
+    clearTimeout(autoHideTimer.current)
+    if (!panelAutoHide || panelCollapsed) return
+    autoHideTimer.current = setTimeout(() => {
+      setPanelCollapsed(true)
+    }, 6000)
+  }
+
+  // Start auto-hide timer when panel is expanded and autoHide is on
+  useEffect(() => {
+    if (panelAutoHide && !panelCollapsed) {
+      resetAutoHideTimer()
+    }
+    return () => clearTimeout(autoHideTimer.current)
+  }, [panelAutoHide, panelCollapsed])
 
   // Load saved default view on mount (after locations load)
   const defaultViewApplied = useRef(false)
@@ -1349,6 +1377,8 @@ export default function MapPage() {
     setCustomMiles('')
     // Auto-expand the panel if it's collapsed
     if (panelCollapsed) setPanelCollapsed(false)
+    // Reset auto-hide timer so user has time to view details
+    if (panelAutoHide) { clearTimeout(autoHideTimer.current); autoHideTimer.current = setTimeout(() => setPanelCollapsed(true), 8000) }
     if (clickBehavior === 'zoom') {
       setMapCenter([loc.lat, loc.lng])
       setMapZoom(14)
@@ -1752,6 +1782,14 @@ export default function MapPage() {
                     ))}
                   </div>
                 </div>
+                <div className="tb2-set-row"><span className="tb2-set-label">Auto-hide panel</span>
+                  <div className="tb2-set-seg">
+                    {[{val:true,label:'On'},{val:false,label:'Off'}].map(({val,label}) => (
+                      <button key={label} className={`tb2-set-btn${panelAutoHide===val?' active':''}`}
+                        onClick={() => saveAutoHide(val)}>{label}</button>
+                    ))}
+                  </div>
+                </div>
                 <div className="tb2-set-row"><span className="tb2-set-label">Marker shape</span>
                   <div className="tb2-set-seg">
                     {[
@@ -1800,6 +1838,8 @@ export default function MapPage() {
         ].filter(Boolean).join(' ')}
         onClick={panelCollapsed ? togglePanelCollapsed : undefined}
         style={panelCollapsed ? { cursor: 'pointer' } : {}}
+        onMouseEnter={() => { if (panelAutoHide) clearTimeout(autoHideTimer.current) }}
+        onMouseLeave={() => { if (panelAutoHide && !panelCollapsed) resetAutoHideTimer() }}
       >
         {/* Collapse/expand tab — only for left/right positions */}
         {panelPosition !== 'bottom' && (
