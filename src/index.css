@@ -8440,21 +8440,52 @@ input.input-ok {
 }
 
 /* Disclaimer screen */
-.pf-disclaimer-screen {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+/* ── Disclaimer overlay (over blurred map) ──────────────── */
+.pfp-map-wrap { transition: filter 0.6s ease; }
+.pfp-body--blurred .pfp-map-wrap { filter: blur(6px) brightness(0.45); }
+
+.pf-disc-overlay {
+  position: absolute; inset: 0; z-index: 600;
+  display: flex; align-items: center; justify-content: center;
   padding: 24px 16px;
+  background: rgba(10, 30, 22, 0.55);
+  animation: pfDiscIn 0.5s ease both;
 }
-.pf-disclaimer-card {
-  background: #fff;
-  border: 0.5px solid #e8ede9;
-  border-radius: 14px;
-  padding: 28px 24px;
+@keyframes pfDiscIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.pf-disc-overlay--out {
+  animation: pfDiscOut 0.6s ease both;
+}
+@keyframes pfDiscOut {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
+.pf-disc-card {
+  background: rgba(255,255,255,0.97);
+  backdrop-filter: blur(12px);
+  border: 0.5px solid rgba(255,255,255,0.3);
+  border-radius: 16px;
+  padding: 32px 28px;
   max-width: 480px;
   width: 100%;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.08);
+  animation: pfCardIn 0.5s ease 0.1s both;
 }
+@keyframes pfCardIn {
+  from { opacity: 0; transform: translateY(20px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.pf-disc-overlay--out .pf-disc-card {
+  animation: pfCardOut 0.45s ease both;
+}
+@keyframes pfCardOut {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to   { opacity: 0; transform: translateY(-16px) scale(0.97); }
+}
+
 .pf-disclaimer-icon {
   width: 52px;
   height: 52px;
