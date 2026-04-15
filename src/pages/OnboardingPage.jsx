@@ -41,6 +41,12 @@ export default function OnboardingPage() {
   useEffect(() => {
     async function check() {
       if (!user) return
+      // Block public-only accounts from onboarding
+      const { data: pubAcct } = await supabase.from('public_accounts').select('id').eq('auth_user_id', user.id).single()
+      if (pubAcct) {
+        const { data: locs } = await supabase.from('locations').select('id').eq('user_id', user.id).limit(1)
+        if (!locs || locs.length === 0) { navigate('/find', { replace: true }); return }
+      }
       const { data } = await supabase
         .from('user_terms_acceptance')
         .select('onboarding_done')

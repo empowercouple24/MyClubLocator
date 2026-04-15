@@ -197,7 +197,23 @@ export default function LandingPage() {
     setError(''); setLoading(true)
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) { setError(error.message); setLoading(false) }
-    else { navigate('/app/map') }
+    else {
+      // Block public-only accounts from owner portal
+      const { data: { session } } = await supabase.auth.getSession()
+      const uid = session?.user?.id
+      if (uid) {
+        const { data: pubAcct } = await supabase.from('public_accounts').select('id').eq('auth_user_id', uid).single()
+        if (pubAcct) {
+          const { data: ownerLoc } = await supabase.from('locations').select('id').eq('user_id', uid).limit(1)
+          if (!ownerLoc || ownerLoc.length === 0) {
+            await supabase.auth.signOut()
+            setError('This account is for club search only. Use the Find page to sign in.')
+            setLoading(false); return
+          }
+        }
+      }
+      navigate('/app/map')
+    }
   }
 
   async function handleSignUp(e) {

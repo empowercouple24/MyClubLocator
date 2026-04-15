@@ -212,6 +212,17 @@ export default function AuthPage() {
     const user = authData.user
     if (user.id === ADMIN_ID) { navigate('/app/map'); return }
 
+    // Block public-only accounts from owner portal
+    const { data: pubAcct } = await supabase.from('public_accounts').select('id').eq('auth_user_id', user.id).single()
+    if (pubAcct) {
+      const { data: ownerLoc } = await supabase.from('locations').select('id').eq('user_id', user.id).limit(1)
+      if (!ownerLoc || ownerLoc.length === 0) {
+        await supabase.auth.signOut()
+        setError('This account is registered for club search only. Use the Find page to sign in, or create a club owner account.')
+        setLoading(false); return
+      }
+    }
+
     const { data: settings } = await supabase
       .from('app_settings').select('member_login_enabled, login_msg_approved_enabled, login_msg_approved, login_msg_pending_enabled, login_msg_pending, login_msg_no_profile_enabled, login_msg_no_profile').eq('id', 1).single()
     if (settings && settings.member_login_enabled === false) {
