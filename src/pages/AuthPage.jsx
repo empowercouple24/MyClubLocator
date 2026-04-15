@@ -95,21 +95,38 @@ function timeAgo(dateStr) {
 
 // ── Network dots for hero background ──
 function NetworkDots() {
+  const [activeNodes, setActiveNodes] = useState(new Set())
+  const [activeLines, setActiveLines] = useState(new Set())
+
+  const nodes = [[15,30],[30,45],[50,35],[70,50],[85,40],[40,60],[60,55],[75,65],[20,70],[45,25],[65,72],[25,55],[10,50],[80,30],[90,55],[55,72],[35,18],[78,22],[18,82],[62,82],[92,65],[8,35],[48,68],[72,15],[38,78]]
+  const lines = [[0,1],[1,2],[2,3],[3,4],[5,6],[6,7],[0,12],[12,11],[11,5],[8,11],[9,2],[10,7],[13,4],[13,3],[14,7],[14,10],[15,10],[15,6],[16,9],[16,2],[17,4],[17,13],[18,8],[18,11],[19,10],[19,15],[20,14],[20,7],[21,12],[21,0],[22,6],[22,15],[23,17],[23,13],[24,18],[24,8]]
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      const count = 3 + Math.floor(Math.random() * 4)
+      const newNodes = new Set()
+      for (let i = 0; i < count; i++) newNodes.add(Math.floor(Math.random() * nodes.length))
+      setActiveNodes(newNodes)
+      const newLines = new Set()
+      lines.forEach(([a, b], li) => { if (newNodes.has(a) || newNodes.has(b)) newLines.add(li) })
+      setActiveLines(newLines)
+    }, 1800)
+    return () => clearInterval(id)
+  }, [])
+
   return (
     <div className="auth-map-bg">
       <svg viewBox="0 0 100 100" preserveAspectRatio="none">
-        <line x1="15" y1="30" x2="30" y2="45" stroke="rgba(76,175,130,0.06)" strokeWidth="0.3"/>
-        <line x1="30" y1="45" x2="50" y2="35" stroke="rgba(76,175,130,0.06)" strokeWidth="0.3"/>
-        <line x1="50" y1="35" x2="70" y2="50" stroke="rgba(76,175,130,0.06)" strokeWidth="0.3"/>
-        <line x1="70" y1="50" x2="85" y2="40" stroke="rgba(76,175,130,0.06)" strokeWidth="0.3"/>
-        <line x1="40" y1="60" x2="60" y2="55" stroke="rgba(76,175,130,0.06)" strokeWidth="0.3"/>
-        <line x1="60" y1="55" x2="75" y2="65" stroke="rgba(76,175,130,0.06)" strokeWidth="0.3"/>
-        <line x1="20" y1="70" x2="45" y2="60" stroke="rgba(76,175,130,0.06)" strokeWidth="0.3"/>
-        <line x1="10" y1="50" x2="25" y2="42" stroke="rgba(76,175,130,0.04)" strokeWidth="0.3"/>
-        <line x1="80" y1="30" x2="90" y2="55" stroke="rgba(76,175,130,0.04)" strokeWidth="0.3"/>
+        {lines.map(([a, b], i) => (
+          <line key={i} x1={nodes[a][0]} y1={nodes[a][1]} x2={nodes[b][0]} y2={nodes[b][1]}
+            stroke={activeLines.has(i) ? 'rgba(76,175,130,0.25)' : 'rgba(76,175,130,0.06)'}
+            strokeWidth={activeLines.has(i) ? '0.4' : '0.3'}
+            style={{ transition: 'stroke 1.2s ease, stroke-width 1.2s ease' }}
+          />
+        ))}
       </svg>
-      {[[15,30],[30,45,1],[50,35],[70,50,1],[85,40],[40,60,1],[60,55],[75,65,1],[20,70],[45,25,1],[65,72],[25,55],[10,50,1],[80,30],[90,55],[55,72,1]].map(([x,y,g],i) => (
-        <div key={i} className={`auth-bg-dot${g ? ' glow' : ''}`} style={{ left: x+'%', top: y+'%' }} />
+      {nodes.map(([x, y], i) => (
+        <div key={i} className={`auth-bg-dot ${activeNodes.has(i) ? 'auth-bg-dot--electric' : ''}`} style={{ left: x+'%', top: y+'%' }} />
       ))}
     </div>
   )

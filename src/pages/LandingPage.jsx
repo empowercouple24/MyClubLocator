@@ -23,20 +23,40 @@ function FacebookIcon() {
 }
 
 function NetworkDotsBg() {
+  const [activeNodes, setActiveNodes] = useState(new Set())
+  const [activeLines, setActiveLines] = useState(new Set())
+
+  const nodes = [[10,20],[25,35],[45,28],[65,42],[85,32],[35,55],[55,48],[75,60],[15,65],[40,22],[70,72],[90,58],[20,80],[50,70],[80,15],[5,45],[60,18],[92,42],[48,85],[30,10],[72,28],[18,48],[58,65],[88,72],[42,38],[12,88],[78,82],[95,20],[52,12],[68,55]]
+  const lines = [[0,1],[1,2],[2,3],[3,4],[5,6],[6,7],[7,3],[8,5],[9,2],[10,7],[11,6],[0,8],[4,14],[14,3],[15,0],[15,8],[16,2],[16,9],[17,4],[17,7],[18,10],[18,11],[12,8],[13,6],[13,10],[19,9],[19,1],[20,3],[20,4],[21,15],[21,0],[22,6],[22,10],[23,7],[23,17],[24,2],[24,5],[25,12],[25,8],[26,10],[26,23],[27,14],[27,17],[28,16],[28,9],[29,3],[29,22]]
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      // Light up 3-6 random nodes
+      const count = 3 + Math.floor(Math.random() * 4)
+      const newNodes = new Set()
+      for (let i = 0; i < count; i++) newNodes.add(Math.floor(Math.random() * nodes.length))
+      setActiveNodes(newNodes)
+      // Light up lines connected to active nodes
+      const newLines = new Set()
+      lines.forEach(([a, b], li) => { if (newNodes.has(a) || newNodes.has(b)) newLines.add(li) })
+      setActiveLines(newLines)
+    }, 1800)
+    return () => clearInterval(id)
+  }, [])
+
   return (
     <div className="ld-bg">
       <svg viewBox="0 0 100 100" preserveAspectRatio="none">
-        <line x1="10" y1="20" x2="25" y2="35" stroke="rgba(76,175,130,0.04)" strokeWidth="0.3"/>
-        <line x1="25" y1="35" x2="45" y2="28" stroke="rgba(76,175,130,0.04)" strokeWidth="0.3"/>
-        <line x1="45" y1="28" x2="65" y2="42" stroke="rgba(76,175,130,0.04)" strokeWidth="0.3"/>
-        <line x1="65" y1="42" x2="85" y2="32" stroke="rgba(76,175,130,0.04)" strokeWidth="0.3"/>
-        <line x1="35" y1="55" x2="55" y2="48" stroke="rgba(76,175,130,0.04)" strokeWidth="0.3"/>
-        <line x1="55" y1="48" x2="75" y2="60" stroke="rgba(76,175,130,0.04)" strokeWidth="0.3"/>
-        <line x1="15" y1="65" x2="40" y2="55" stroke="rgba(76,175,130,0.04)" strokeWidth="0.3"/>
-        <line x1="70" y1="72" x2="90" y2="58" stroke="rgba(76,175,130,0.03)" strokeWidth="0.3"/>
+        {lines.map(([a, b], i) => (
+          <line key={i} x1={nodes[a][0]} y1={nodes[a][1]} x2={nodes[b][0]} y2={nodes[b][1]}
+            stroke={activeLines.has(i) ? 'rgba(76,175,130,0.25)' : 'rgba(76,175,130,0.04)'}
+            strokeWidth={activeLines.has(i) ? '0.4' : '0.3'}
+            style={{ transition: 'stroke 1.2s ease, stroke-width 1.2s ease' }}
+          />
+        ))}
       </svg>
-      {[[10,20],[25,35,1],[45,28],[65,42,1],[85,32],[35,55,1],[55,48],[75,60,1],[15,65],[40,22,1],[70,72],[90,58,1],[20,80],[50,70,1]].map(([x,y,g],i) => (
-        <div key={i} className={`ld-dot${g ? ' glow' : ''}`} style={{ left: x+'%', top: y+'%' }} />
+      {nodes.map(([x, y], i) => (
+        <div key={i} className={`ld-dot ${activeNodes.has(i) ? 'ld-dot--electric' : ''}`} style={{ left: x+'%', top: y+'%' }} />
       ))}
     </div>
   )

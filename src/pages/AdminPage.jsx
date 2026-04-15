@@ -459,6 +459,8 @@ export default function AdminPage() {
     if (!isAdmin) { navigate('/app/map'); return }
     loadMembers()
     loadSettings()
+    loadContacts()
+    loadNotifications()
   }, [isAdmin])
 
   // Live-apply theme vars as admin changes pickers (for preview on other pages after save)
