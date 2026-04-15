@@ -194,9 +194,16 @@ function ClubLogo({ url, name }) {
 }
 
 function DisclaimerScreen({ text, onAccept }) {
+  const [dismissing, setDismissing] = useState(false)
+
+  function handleAccept() {
+    setDismissing(true)
+    setTimeout(() => onAccept(), 600)
+  }
+
   return (
-    <div className="pf-disclaimer-screen">
-      <div className="pf-disclaimer-card">
+    <div className={`pf-disc-overlay ${dismissing ? 'pf-disc-overlay--out' : ''}`}>
+      <div className="pf-disc-card">
         <div className="pf-disclaimer-icon">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
             <circle cx="12" cy="12" r="10" stroke="#854F0B" strokeWidth="1.5"/>
@@ -206,7 +213,7 @@ function DisclaimerScreen({ text, onAccept }) {
         </div>
         <h2 className="pf-disclaimer-title">Before you search</h2>
         <div className="pf-disclaimer-text rte-content" dangerouslySetInnerHTML={{ __html: text }} />
-        <button className="pf-accept-btn" onClick={onAccept}>I understand — continue to search</button>
+        <button className="pf-accept-btn" onClick={handleAccept}>I understand — continue to search</button>
       </div>
     </div>
   )
@@ -448,6 +455,7 @@ export default function PublicFinderPage() {
   const [settings, setSettings]             = useState(null)
   const [loadingSettings, setLoadingSettings] = useState(true)
   const [accepted, setAccepted]             = useState(fromOwner || hasInitCoords) // owners & landing search bypass disclaimer
+  const [dismissing, setDismissing]         = useState(false)
   const [flyTo, setFlyTo] = useState(
     hasInitCoords
       ? { lat: initLat, lng: initLng, zoom: initZoom, _t: Date.now() }
@@ -673,17 +681,7 @@ export default function PublicFinderPage() {
     )
   }
 
-  if (settings?.public_finder_disclaimer_enabled && !accepted) {
-    return (
-      <div className="pf-page">
-        <div className="pf-topbar">
-          <button className="pf-back-btn" onClick={() => navigate('/')}>← Back</button>
-          <div className="pf-brand"><svg width="14" height="14" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="3.5" fill="#fff"/><circle cx="9" cy="9" r="7" stroke="#fff" strokeWidth="1.5" fill="none"/><line x1="9" y1="2" x2="9" y2="0.5" stroke="#fff" strokeWidth="1.5" strokeLinecap="round"/><line x1="9" y1="16" x2="9" y2="17.5" stroke="#fff" strokeWidth="1.5" strokeLinecap="round"/><line x1="2" y1="9" x2="0.5" y2="9" stroke="#fff" strokeWidth="1.5" strokeLinecap="round"/><line x1="16" y1="9" x2="17.5" y2="9" stroke="#fff" strokeWidth="1.5" strokeLinecap="round"/></svg><span>My Club Locator</span></div>
-        </div>
-        <DisclaimerScreen text={settings.public_finder_disclaimer} onAccept={() => setAccepted(true)} />
-      </div>
-    )
-  }
+  const showDisclaimer = settings?.public_finder_disclaimer_enabled && !accepted
 
   const pinColor  = markerColors.other    || '#6B8DD6'
   const selColor  = markerColors.selected || '#F59E0B'
@@ -727,12 +725,12 @@ export default function PublicFinderPage() {
         </div>
       </div>
 
-      <div className="pfp-body">
+      <div className={`pfp-body ${showDisclaimer ? 'pfp-body--blurred' : ''}`}>
         {/* Map — full size, behind everything */}
         <div className="pfp-map-wrap">
           <MapContainer
-            center={fromOwner && !isNaN(initLat) ? [initLat, initLng] : [39.5, -98.35]}
-            zoom={fromOwner && !isNaN(initZoom) ? initZoom : 4}
+            center={hasInitCoords ? [initLat, initLng] : [39.5, -98.35]}
+            zoom={hasInitCoords ? initZoom : 4}
             style={{ height: '100%', width: '100%' }}
             zoomControl={false}
           >
@@ -775,6 +773,7 @@ export default function PublicFinderPage() {
         </div>
 
         {/* Overlay layer — sits above the map, pointer-events only where needed */}
+        {!showDisclaimer && (
         <div className="pfp-overlay">
           {/* Search box */}
           <div className="pfp-search-float">
@@ -872,6 +871,12 @@ export default function PublicFinderPage() {
             </div>
           )}
         </div>
+        )}
+
+        {/* Disclaimer overlay — sits above blurred map */}
+        {showDisclaimer && (
+          <DisclaimerScreen text={settings.public_finder_disclaimer} onAccept={() => setAccepted(true)} />
+        )}
       </div>
 
       {authModal && (
