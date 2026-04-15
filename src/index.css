@@ -9470,13 +9470,17 @@ input.input-ok {
 }
 .pfp-note-toggle:hover { background: #e4f5ed; }
 .pfp-note-form { margin-top: 4px; }
-.pfp-directions-btn {
-  display: flex; align-items: center; gap: 6px;
-  font-size: 12px; font-weight: 500; color: #1a6b3a;
+.pfp-gmaps-btn {
+  display: inline-flex; align-items: center; gap: 8px; justify-content: center;
+  width: 100%; padding: 9px 14px; border-radius: 8px;
+  font-size: 13px; font-weight: 600; cursor: pointer;
+  border: 1px solid #c2d8c8; background: #e8f5ee; color: #1a6b3a;
+  text-decoration: none;
+  transition: background .15s, border-color .15s;
   margin-top: 10px; padding-top: 10px;
-  border-top: 0.5px solid #e8ede9; text-decoration: none;
+  border-top: 0.5px solid #e8ede9;
 }
-.pfp-directions-btn:hover { color: #0f5c2e; }
+.pfp-gmaps-btn:hover { background: #d4eddc; border-color: #93c4a3; }
 
 /* User marker pulse animation */
 @keyframes pfUserPulse {
@@ -9692,24 +9696,6 @@ input.input-ok {
 }
 .saved-views-delete:hover { color: #c0392b; }
 
-/* ── Route button ─────────────────────────────────────────── */
-.pfp-route-btn {
-  display: flex; align-items: center; gap: 7px;
-  font-size: 12px; font-weight: 500;
-  color: #185FA5; background: #E6F1FB;
-  border: 0.5px solid #B5D4F4; border-radius: 8px;
-  padding: 8px 12px; cursor: pointer; width: 100%;
-  margin-top: 6px; transition: background 0.15s;
-}
-.pfp-route-btn:hover:not(:disabled) { background: #d0e8f7; }
-.pfp-route-btn:disabled { opacity: 0.6; cursor: default; }
-.pfp-route-btn--active { color: #9a2a2a; background: #fdecea; border-color: #F7C1C1; }
-.pfp-route-btn--active:hover { background: #fbd5d3; }
-.pfp-route-spinner {
-  width: 12px; height: 12px; border: 2px solid rgba(24,95,165,0.3);
-  border-top-color: #185FA5; border-radius: 50%;
-  animation: spin 0.7s linear infinite; flex-shrink: 0;
-}
 
 .pfp-panel-footer-owner-btn {
   display: flex; align-items: center; gap: 7px;
@@ -10105,7 +10091,7 @@ input.input-ok {
   .pfp-card-name { font-size: 14px; }
   .pfp-card-meta { font-size: 11.5px; }
   .pfp-detail-row { font-size: 12.5px; }
-  .pfp-directions-btn { font-size: 12.5px; padding: 8px 0; }
+  .pfp-gmaps-btn { font-size: 12.5px; padding: 8px 12px; }
   .pfp-share-btn { font-size: 12px; }
 
   /* Demographics panel: compact */
