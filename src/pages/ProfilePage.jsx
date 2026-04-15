@@ -2599,7 +2599,8 @@ export default function ProfilePage() {
 
       <div style={{ height: 16 }} />
 
-      {/* Save & finish prompt */}
+      {/* Save & finish prompt — only when unsaved changes exist */}
+      {(isPersonDirty || clubDirty) && (
       <div className="profile-finish-bar">
         <button className="ocp-btn ocp-btn--secondary" onClick={async () => {
           if (isPersonDirty) await savePersonFields()
@@ -2615,6 +2616,7 @@ export default function ProfilePage() {
           {saving ? 'Saving…' : 'Save & go to map →'}
         </button>
       </div>
+      )}
 
       <div style={{ height: 32 }} />
 
