@@ -1041,8 +1041,9 @@ body:has(.admin-page-wrap) {
 }
 .tb2-row-primary, .tb2-row-secondary {
   display: flex; align-items: center; gap: 3px;
-  background: #fff; border-radius: 10px; padding: 4px 5px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.12); border: 0.5px solid #e0e8e0;
+  background: rgba(255,255,255,0.85); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  border-radius: 10px; padding: 4px 5px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.12); border: 0.5px solid rgba(224,232,224,0.7);
 }
 
 @media (max-width: 1100px) {
