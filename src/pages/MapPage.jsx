@@ -1285,21 +1285,17 @@ export default function MapPage() {
   function handleToolbarEnter(setter) {
     clearTimeout(toolbarCloseTimer.current)
     clearTimeout(toolbarHoverTimer.current)
-    toolbarHoverTimer.current = setTimeout(() => {
-      const allSetters = [setShowSavedViews, setShowClubFilter, setShowBasemapPicker, setPrefsOpen]
-      allSetters.forEach(s => { if (s !== setter) s(false) })
-      setHomeToast(false)
-      setter(true)
-      activeDropdownRef.current = setter
-    }, 200)
+    const allSetters = [setShowSavedViews, setShowClubFilter, setShowBasemapPicker, setPrefsOpen]
+    allSetters.forEach(s => { if (s !== setter) s(false) })
+    setHomeToast(false)
+    setter(true)
+    activeDropdownRef.current = setter
   }
 
   function handleToolbarLeave() {
     clearTimeout(toolbarHoverTimer.current)
-    toolbarCloseTimer.current = setTimeout(() => {
-      closeAllToolbarDropdowns()
-      activeDropdownRef.current = null
-    }, 1500)
+    closeAllToolbarDropdowns()
+    activeDropdownRef.current = null
   }
 
   function handleToolbarPanelEnter() {
@@ -1308,10 +1304,8 @@ export default function MapPage() {
   }
 
   function handleToolbarPanelLeave() {
-    toolbarCloseTimer.current = setTimeout(() => {
-      closeAllToolbarDropdowns()
-      activeDropdownRef.current = null
-    }, 1500)
+    closeAllToolbarDropdowns()
+    activeDropdownRef.current = null
   }
 
   // Click still works for mobile / direct toggle
