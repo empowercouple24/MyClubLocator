@@ -289,6 +289,10 @@ function ClubCard({ club, expanded, onExpand, onClose, isFav, onToggleFav, onAut
   const [noteSubmitting, setNoteSubmitting] = useState(false)
   const [noteSent, setNoteSent]         = useState(false)
   const [noteOpen, setNoteOpen]         = useState(false)
+  const [viewerIdx, setViewerIdx]       = useState(null)
+
+  const fbHandle = club.social_facebook ? club.social_facebook.replace(/^(https?:\/\/)?(www\.)?facebook\.com\//, '').replace(/^@/, '').replace(/\/$/, '').trim() : ''
+  const igHandle = club.social_instagram ? club.social_instagram.replace(/^(https?:\/\/)?(www\.)?instagram\.com\//, '').replace(/^@/, '').replace(/\/$/, '').trim() : ''
 
   async function submitNote() {
     if (!noteText.trim() || !publicAccountId) return
@@ -360,7 +364,19 @@ function ClubCard({ club, expanded, onExpand, onClose, isFav, onToggleFav, onAut
           {isLoggedIn && club.club_phone && (
             <div className="pfp-detail-row">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" style={{flexShrink:0}}><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.93 11.5a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.84 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 8.91a16 16 0 0 0 5.61 5.61l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" stroke="#888" strokeWidth="1.5"/></svg>
-              <span>{club.club_phone}</span>
+              <a href={`tel:${club.club_phone.replace(/[^\d+]/g, '')}`} className="pfp-phone-link">{club.club_phone}</a>
+            </div>
+          )}
+          {fbHandle && (
+            <div className="pfp-detail-row">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" style={{flexShrink:0}}><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" stroke="#888" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              <a href={`https://facebook.com/${fbHandle}`} target="_blank" rel="noopener noreferrer" className="pfp-link">facebook.com/{fbHandle}</a>
+            </div>
+          )}
+          {igHandle && (
+            <div className="pfp-detail-row">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" style={{flexShrink:0}}><rect x="2" y="2" width="20" height="20" rx="5" stroke="#888" strokeWidth="1.5"/><circle cx="12" cy="12" r="5" stroke="#888" strokeWidth="1.5"/><circle cx="17.5" cy="6.5" r="1" fill="#888"/></svg>
+              <a href={`https://instagram.com/${igHandle}`} target="_blank" rel="noopener noreferrer" className="pfp-link">@{igHandle}</a>
             </div>
           )}
           {isLoggedIn && owners.length > 0 && (
@@ -372,8 +388,29 @@ function ClubCard({ club, expanded, onExpand, onClose, isFav, onToggleFav, onAut
           {isLoggedIn && photos.length > 0 && (
             <div className="pfp-photo-strip">
               {photos.slice(0, 4).map((url, i) => (
-                <div key={i} className="pfp-photo-cell"><img src={url} alt="" /></div>
+                <div key={i} className="pfp-photo-cell pfp-photo-cell--clickable" onClick={() => setViewerIdx(i)}><img src={url} alt="" /></div>
               ))}
+            </div>
+          )}
+          {viewerIdx !== null && (
+            <div className="pfp-viewer-overlay" onClick={() => setViewerIdx(null)}>
+              <div className="pfp-viewer-wrap" onClick={e => e.stopPropagation()}>
+                <button className="pfp-viewer-close" onClick={() => setViewerIdx(null)}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
+                </button>
+                <img className="pfp-viewer-img" src={photos[viewerIdx]} alt="" />
+                {photos.length > 1 && (
+                  <div className="pfp-viewer-nav">
+                    <button className="pfp-viewer-arrow" disabled={viewerIdx === 0} onClick={() => setViewerIdx(viewerIdx - 1)}>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                    </button>
+                    <span className="pfp-viewer-count">{viewerIdx + 1} / {photos.length}</span>
+                    <button className="pfp-viewer-arrow" disabled={viewerIdx === photos.length - 1} onClick={() => setViewerIdx(viewerIdx + 1)}>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           )}
           {!isLoggedIn && (owners.length > 0 || club.club_phone || photos.length > 0) && (
@@ -523,7 +560,7 @@ export default function PublicFinderPage() {
   async function loadFavorites(accountId) {
     const { data } = await supabase
       .from('public_favorites')
-      .select('location_id, locations(id,club_name,address,city,state,zip,lat,lng,logo_url,club_website,club_phone,club_email,first_name,last_name,owner2_first_name,owner2_last_name,photo_urls,hours_monday_open,hours_monday_close,hours_tuesday_open,hours_tuesday_close,hours_wednesday_open,hours_wednesday_close,hours_thursday_open,hours_thursday_close,hours_friday_open,hours_friday_close,hours_saturday_open,hours_saturday_close,hours_sunday_open,hours_sunday_close)')
+      .select('location_id, locations(id,club_name,address,city,state,zip,lat,lng,logo_url,club_website,club_phone,club_email,first_name,last_name,owner2_first_name,owner2_last_name,photo_urls,social_facebook,social_instagram,hours_monday_open,hours_monday_close,hours_tuesday_open,hours_tuesday_close,hours_wednesday_open,hours_wednesday_close,hours_thursday_open,hours_thursday_close,hours_friday_open,hours_friday_close,hours_saturday_open,hours_saturday_close,hours_sunday_open,hours_sunday_close)')
       .eq('public_account_id', accountId)
     if (data) {
       setFavIds(new Set(data.map(f => f.location_id)))
