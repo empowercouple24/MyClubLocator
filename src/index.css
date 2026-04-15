@@ -1031,6 +1031,8 @@ body:has(.admin-page-wrap) {
 .map-toolbar-v2 {
   position: absolute; top: 12px; left: 12px; z-index: 500;
   display: flex; align-items: center; gap: 3px;
+  flex-wrap: wrap;
+  max-width: calc(100vw - 420px);
   background: #fff; border-radius: 10px; padding: 4px 5px;
   box-shadow: 0 2px 10px rgba(0,0,0,0.12); border: 0.5px solid #e0e8e0;
   pointer-events: auto;
@@ -1168,7 +1170,7 @@ body:has(.admin-page-wrap) {
 
 /* Mobile responsive */
 @media (max-width: 768px) {
-  .map-toolbar-v2 { left: 8px; right: 8px; flex-wrap: wrap; gap: 2px; padding: 3px 4px; }
+  .map-toolbar-v2 { left: 8px; right: auto; max-width: calc(100vw - 24px); gap: 2px; padding: 3px 4px; }
   .tb2-search input, .tb2-search .map-search-ac-input { width: 110px; font-size: 10px; }
   .tb2-btn { width: 30px; height: 30px; }
   .tb2-sep { height: 20px; }
