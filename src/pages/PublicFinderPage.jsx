@@ -657,9 +657,14 @@ export default function PublicFinderPage() {
       displayResults = mapDist(nearby).slice(0, 25)
       setResults(displayResults); setResultsFallback(false)
     } else {
-      const { data: fallback } = await supabase.rpc('nearby_clubs', { search_lat: lat, search_lng: lng, radius_miles: 99999 })
-      displayResults = mapDist(fallback).slice(0, 5)
-      setResults(displayResults); setResultsFallback(true)
+      const { data: wider } = await supabase.rpc('nearby_clubs', { search_lat: lat, search_lng: lng, radius_miles: radius * 2 })
+      if (wider && wider.length > 0) {
+        displayResults = mapDist(wider).slice(0, 10)
+        setResults(displayResults); setResultsFallback(true)
+      } else {
+        setResults([]); setResultsFallback(true)
+        displayResults = []
+      }
     }
     setPanelOpen(true); setSearching(false)
     // Fit map to show user location + all result pins
@@ -898,7 +903,7 @@ export default function PublicFinderPage() {
               <div className="pfp-panel-header" onClick={() => setPanelOpen(o => !o)}>
                 <span className="pfp-panel-count">
                   {resultsFallback
-                    ? <span className="pfp-fallback-text">No clubs within {Math.abs(settings?.search_radius_miles ?? 20)} mi — showing nearest</span>
+                    ? <span className="pfp-fallback-text">{results.length === 0 ? `No clubs found within ${Math.abs((settings?.search_radius_miles ?? 20) * 2)} mi` : `None within ${Math.abs(settings?.search_radius_miles ?? 20)} mi — showing within ${Math.abs((settings?.search_radius_miles ?? 20) * 2)} mi`}</span>
                     : <>{results.length} club{results.length !== 1 ? 's' : ''} found nearby</>
                   }
                 </span>
