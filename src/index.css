@@ -10300,23 +10300,14 @@ input.input-ok {
   width: 4px; height: 4px;
   border-radius: 50%;
   background: rgba(76,175,130,0.2);
+  transform: translate(-50%,-50%);
+  transition: width 1.2s ease, height 1.2s ease, background 1.2s ease, box-shadow 1.2s ease;
 }
-.auth-bg-dot.glow {
-  width: 6px; height: 6px;
-  background: rgba(76,175,130,0.45);
-  box-shadow: 0 0 10px rgba(76,175,130,0.25);
-  animation: authDotGlow 3s infinite alternate;
+.auth-bg-dot--electric {
+  width: 7px; height: 7px;
+  background: rgba(76,175,130,0.7);
+  box-shadow: 0 0 10px rgba(76,175,130,0.5), 0 0 20px rgba(76,175,130,0.2);
 }
-@keyframes authDotGlow {
-  0% { opacity: 0.35; }
-  100% { opacity: 1; }
-}
-.auth-bg-dot:nth-child(3)  { animation-delay: 0.5s; }
-.auth-bg-dot:nth-child(5)  { animation-delay: 1.2s; }
-.auth-bg-dot:nth-child(7)  { animation-delay: 0.8s; }
-.auth-bg-dot:nth-child(9)  { animation-delay: 1.8s; }
-.auth-bg-dot:nth-child(11) { animation-delay: 2.2s; }
-.auth-bg-dot:nth-child(13) { animation-delay: 0.3s; }
 
 .auth-hero-divider {
   position: absolute;
@@ -10848,12 +10839,16 @@ input.input-ok {
 }
 .ld-bg { position: fixed; inset: 0; pointer-events: none; z-index: 0; }
 .ld-bg svg { position: absolute; inset: 0; width: 100%; height: 100%; }
-.ld-dot { position: absolute; width: 4px; height: 4px; border-radius: 50%; background: rgba(76,175,130,0.18); }
-.ld-dot.glow { width: 6px; height: 6px; background: rgba(76,175,130,0.4); box-shadow: 0 0 12px rgba(76,175,130,0.2); animation: ldPulse 3s infinite alternate; }
-@keyframes ldPulse { 0%{opacity:0.3} 100%{opacity:1} }
-.ld-dot:nth-child(3){animation-delay:.6s} .ld-dot:nth-child(5){animation-delay:1.4s}
-.ld-dot:nth-child(7){animation-delay:.9s} .ld-dot:nth-child(9){animation-delay:2s}
-.ld-dot:nth-child(11){animation-delay:.3s} .ld-dot:nth-child(13){animation-delay:1.7s}
+.ld-dot {
+  position: absolute; width: 4px; height: 4px; border-radius: 50%;
+  background: rgba(76,175,130,0.15); transform: translate(-50%,-50%);
+  transition: width 1.2s ease, height 1.2s ease, background 1.2s ease, box-shadow 1.2s ease;
+}
+.ld-dot--electric {
+  width: 7px; height: 7px;
+  background: rgba(76,175,130,0.7);
+  box-shadow: 0 0 10px rgba(76,175,130,0.5), 0 0 20px rgba(76,175,130,0.2);
+}
 
 .ld-content {
   position: relative; z-index: 1;
