@@ -253,6 +253,13 @@ body {
   border-bottom-color: #1D9E75;
 }
 
+.tab-unread-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 17px; height: 17px; padding: 0 5px;
+  border-radius: 9px; font-size: 10px; font-weight: 700;
+  background: #E24B4A; color: #fff; line-height: 1;
+}
+
 /* Map page */
 .map-page {
   height: calc(100vh - 104px);
