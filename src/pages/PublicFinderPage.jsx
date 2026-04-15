@@ -447,14 +447,20 @@ function ClubCard({ club, expanded, onExpand, onClose, isFav, onToggleFav, onAut
             </div>
           )}
           <a className="pfp-gmaps-btn" href={mapsUrl} target="_blank" rel="noopener noreferrer">
-            <svg width="20" height="20" viewBox="0 0 92 92" xmlns="http://www.w3.org/2000/svg">
-              <path d="M72.8 20.2L60.5 36.8l12-3.4 9.1-9.1c-2.3-2.5-5.5-4.1-8.8-4.1z" fill="#1A73E8"/>
-              <path d="M46 6C32.7 6 22 16.7 22 30c0 20 24 56 24 56s24-36 24-56C70 16.7 59.3 6 46 6zm0 36c-6.6 0-12-5.4-12-12s5.4-12 12-12 12 5.4 12 12-5.4 12-12 12z" fill="#EA4335"/>
-              <path d="M46 30c0-6.6 5.4-12 12-12 2.8 0 5.4 1 7.4 2.6L72.8 10C66.8 4.4 59 2 50 2 36.7 2 25.4 9.8 20.2 20.8L35.5 33C38 26.8 41.5 30 46 30z" fill="#FBBC04"/>
-              <path d="M22 30c0-2 .3-3.9.7-5.8L7.4 12.5C4.3 17.8 2 24 2 30c0 6.2 2 12.2 5.5 17.5l15-12.3c-.3-1.7-.5-3.4-.5-5.2z" fill="#4285F4"/>
-              <path d="M46 54c-4.5 0-8.4-2.5-10.5-6.2L20.2 60c5.2 10.2 15.5 18 28.8 18 8 0 15-2.8 20.5-7.6l-14.7-11.5C52.2 52 49.3 54 46 54z" fill="#34A853"/>
+            <svg width="18" height="18" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+              <defs><clipPath id="gpin"><path d="M50 2C27.5 2 9 20.5 9 43c0 31.5 41 55 41 55s41-23.5 41-55C91 20.5 72.5 2 50 2z"/></clipPath></defs>
+              <g clipPath="url(#gpin)">
+                <path d="M9 2h41v49L9 80z" fill="#EA4335"/>
+                <path d="M50 2h41v78L50 51z" fill="#4285F4"/>
+                <path d="M9 80l41-29 41 29v18H9z" fill="#34A853"/>
+                <path d="M9 2v78l41-29V2z" fill="#FBBC04" opacity="0.8"/>
+                <path d="M50 2v49l41-29V2z" fill="#4285F4" opacity="0.6"/>
+                <path d="M50 51l-41 29h82z" fill="#34A853" opacity="0.8"/>
+              </g>
+              <path d="M50 2C27.5 2 9 20.5 9 43c0 31.5 41 55 41 55s41-23.5 41-55C91 20.5 72.5 2 50 2z" fill="none" stroke="none"/>
+              <circle cx="50" cy="40" r="14" fill="#1B1B1B"/>
             </svg>
-            Get directions using Google Maps
+            Get directions in Google Maps
           </a>
           <ShareLocationButton club={club} className="pfp-share-btn" />
         </div>
@@ -498,9 +504,6 @@ export default function PublicFinderPage() {
   const [expandedId, setExpandedId]         = useState(null)
   const [hoveredId, setHoveredId]           = useState(null)
   const [panelOpen, setPanelOpen]           = useState(false)
-  const [routeCoords, setRouteCoords]       = useState(null)   // [[lat,lng], ...]
-  const [routeClubId, setRouteClubId]       = useState(null)   // which club the route is for
-  const [routeLoading, setRouteLoading]     = useState(false)
   const [favIds, setFavIds]                 = useState(new Set())
   const [savedClubs, setSavedClubs]         = useState([])
   const [isClubOwner, setIsClubOwner]       = useState(false)
@@ -668,7 +671,6 @@ export default function PublicFinderPage() {
 
   function handleCardExpand(id) {
     setExpandedId(id)
-    if (id !== routeClubId) { setRouteCoords(null); setRouteClubId(null) }
     const club = results?.find(r => r.id === id)
     if (!club?.lat || !club?.lng) return
     // If we have user location, fit both points in view; otherwise just fly to club
@@ -682,7 +684,6 @@ export default function PublicFinderPage() {
 
   function handlePinClick(id) {
     setExpandedId(id); setPanelOpen(true)
-    if (id !== routeClubId) { setRouteCoords(null); setRouteClubId(null) }
     const club = results?.find(r => r.id === id)
     if (!club?.lat || !club?.lng) return
     if (userLat && userLng) {
@@ -692,29 +693,6 @@ export default function PublicFinderPage() {
       setFlyTo({ lat: club.lat, lng: club.lng, zoom: 14, _t: Date.now() })
     }
     setTimeout(() => document.getElementById(`pfp-card-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 150)
-  }
-
-  async function fetchRoute(club) {
-    if (!userLat || !userLng || !club.lat || !club.lng) return
-    if (routeClubId === club.id && routeCoords) { setRouteCoords(null); setRouteClubId(null); return }
-    setRouteLoading(true)
-    try {
-      const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${userLng},${userLat};${club.lng},${club.lat}?geometries=geojson&overview=full&access_token=${MAPBOX_TOKEN}`
-      const res  = await fetch(url)
-      const data = await res.json()
-      if (data.routes?.[0]) {
-        const coords = data.routes[0].geometry.coordinates.map(([lng, lat]) => [lat, lng])
-        setRouteCoords(coords)
-        setRouteClubId(club.id)
-        // Fit map to show full route
-        if (coords.length > 1) {
-          const lats = coords.map(c => c[0]), lngs = coords.map(c => c[1])
-          const bounds = [[Math.min(...lats), Math.min(...lngs)], [Math.max(...lats), Math.max(...lngs)]]
-          setFlyTo({ bounds, _t: Date.now() })
-        }
-      }
-    } catch {}
-    setRouteLoading(false)
   }
 
   if (loadingSettings || authLoading) return <div className="loading">Loading…</div>
