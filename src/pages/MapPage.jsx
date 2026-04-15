@@ -193,6 +193,18 @@ function MapClickHandler({ onMapClick, active }) {
   return null
 }
 
+function ToolbarDismiss({ onMapClick }) {
+  const map = useMap()
+  const cbRef = useRef(onMapClick)
+  useEffect(() => { cbRef.current = onMapClick }, [onMapClick])
+  useEffect(() => {
+    function handler() { cbRef.current() }
+    map.on('click', handler)
+    return () => map.off('click', handler)
+  }, [map])
+  return null
+}
+
 function MapController({ center, zoom, panelPosition }) {
   const map = useMap()
   useEffect(() => {
@@ -1235,14 +1247,63 @@ export default function MapPage() {
     setSavedViews(v => v.filter(x => x.id !== id))
   }
 
-  function closeAllToolbarDropdowns() { setShowSavedViews(false); setShowClubFilter(false); setShowBasemapPicker(false); setPrefsOpen(false) }
-  function toggleToolbarDropdown(setter) {
-    return () => {
-      // Close all OTHER dropdowns first
+  function closeAllToolbarDropdowns() { setShowSavedViews(false); setShowClubFilter(false); setShowBasemapPicker(false); setPrefsOpen(false); setHomeToast(false) }
+
+  // Hover-based toolbar: open on hover after 200ms, close 1.5s after mouse leaves
+  const toolbarHoverTimer = useRef(null)
+  const toolbarCloseTimer = useRef(null)
+  const activeDropdownRef = useRef(null)
+
+  function handleToolbarEnter(setter) {
+    clearTimeout(toolbarCloseTimer.current)
+    clearTimeout(toolbarHoverTimer.current)
+    toolbarHoverTimer.current = setTimeout(() => {
       const allSetters = [setShowSavedViews, setShowClubFilter, setShowBasemapPicker, setPrefsOpen]
       allSetters.forEach(s => { if (s !== setter) s(false) })
-      // Then toggle the target
+      setHomeToast(false)
+      setter(true)
+      activeDropdownRef.current = setter
+    }, 200)
+  }
+
+  function handleToolbarLeave() {
+    clearTimeout(toolbarHoverTimer.current)
+    toolbarCloseTimer.current = setTimeout(() => {
+      closeAllToolbarDropdowns()
+      activeDropdownRef.current = null
+    }, 1500)
+  }
+
+  function handleToolbarPanelEnter() {
+    clearTimeout(toolbarCloseTimer.current)
+    clearTimeout(toolbarHoverTimer.current)
+  }
+
+  function handleToolbarPanelLeave() {
+    toolbarCloseTimer.current = setTimeout(() => {
+      closeAllToolbarDropdowns()
+      activeDropdownRef.current = null
+    }, 1500)
+  }
+
+  // Click still works for mobile / direct toggle
+  function handleToolbarClick(setter) {
+    return () => {
+      const allSetters = [setShowSavedViews, setShowClubFilter, setShowBasemapPicker, setPrefsOpen]
+      allSetters.forEach(s => { if (s !== setter) s(false) })
+      setHomeToast(false)
       setter(v => !v)
+    }
+  }
+
+  // Home button with no-view-set message
+  const [homeToast, setHomeToast] = useState(false)
+  function handleHomeClick() {
+    if (hasDefaultView) {
+      flyToDefaultView()
+    } else {
+      setHomeToast(true)
+      setTimeout(() => setHomeToast(false), 4000)
     }
   }
 
@@ -1425,6 +1486,7 @@ export default function MapPage() {
             <ScrollZoomController enabled={scrollZoom} />
             <MapController center={mapCenter} zoom={mapZoom} panelPosition={panelPosition} />
             <MapClickHandler active={demoActive} onMapClick={(lat, lng) => { setDemoLat(lat); setDemoLng(lng) }} />
+            <ToolbarDismiss onMapClick={closeAllToolbarDropdowns} />
             <TileLayer key={activeBase.id} attribution={activeBase.attribution} url={activeBase.url} />
             {countyGeoJson && (
               <GeoJSON
@@ -1503,15 +1565,18 @@ export default function MapPage() {
           <div className="tb2-sep" />
 
           {/* Home */}
-          {hasDefaultView && (
-            <>
-              <button className="tb2-btn" onClick={flyToDefaultView} title="Go to default view">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><path d="M9 22V12h6v10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                <span className="tb2-tip">Home view</span>
-              </button>
-              <div className="tb2-sep" />
-            </>
-          )}
+          <div className="tb2-dropdown-wrap">
+            <button className={`tb2-btn${hasDefaultView ? '' : ' tb2-btn--dim'}`} onClick={handleHomeClick} title={hasDefaultView ? 'Go to home view' : 'Set a home view'}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><path d="M9 22V12h6v10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              <span className="tb2-tip">Home view</span>
+            </button>
+            {homeToast && (
+              <div className="tb2-dropdown tb2-dropdown--home-toast">
+                <p style={{ margin: 0, fontSize: 12, color: '#555', lineHeight: 1.5 }}>No home view set yet. Navigate to your preferred map position, then open <strong>Saved Views</strong> (♡) and click <strong>Set to current</strong>.</p>
+              </div>
+            )}
+          </div>
+          <div className="tb2-sep" />
 
           {/* Zoom */}
           <button className="tb2-btn" onClick={() => mapRef.current && mapRef.current.zoomIn()} title="Zoom in">
@@ -1527,13 +1592,13 @@ export default function MapPage() {
           <div className="tb2-sep" />
 
           {/* Show clubs (marker pin) */}
-          <div className="tb2-dropdown-wrap">
-            <button className={`tb2-btn${showClubFilter ? ' active' : ''}`} onClick={toggleToolbarDropdown(setShowClubFilter)}>
+          <div className="tb2-dropdown-wrap" onMouseEnter={() => handleToolbarEnter(setShowClubFilter)} onMouseLeave={handleToolbarLeave}>
+            <button className={`tb2-btn${showClubFilter ? ' active' : ''}`} onClick={handleToolbarClick(setShowClubFilter)}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="10" r="3.5" fill="currentColor"/><path d="M12 2C7.58 2 4 5.58 4 10c0 5.5 8 12 8 12s8-6.5 8-12c0-4.42-3.58-8-8-8z" stroke="currentColor" strokeWidth="1.5"/></svg>
               <span className="tb2-tip">Show clubs</span>
             </button>
             {showClubFilter && (
-              <div className="tb2-dropdown tb2-dropdown--show">
+              <div className="tb2-dropdown tb2-dropdown--show" onMouseEnter={handleToolbarPanelEnter} onMouseLeave={handleToolbarPanelLeave}>
                 <div className="tb2-dropdown-title">Show on map</div>
                 {[
                   { val: 'all', label: 'All clubs', dots: [] },
@@ -1558,13 +1623,13 @@ export default function MapPage() {
           <div className="tb2-sep" />
 
           {/* Saved views (heart) */}
-          <div className="tb2-dropdown-wrap">
-            <button className={`tb2-btn${showSavedViews ? ' active' : ''}`} onClick={toggleToolbarDropdown(setShowSavedViews)}>
+          <div className="tb2-dropdown-wrap" onMouseEnter={() => handleToolbarEnter(setShowSavedViews)} onMouseLeave={handleToolbarLeave}>
+            <button className={`tb2-btn${showSavedViews ? ' active' : ''}`} onClick={handleToolbarClick(setShowSavedViews)}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 000-7.78z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
               <span className="tb2-tip">Saved views</span>
             </button>
             {showSavedViews && (
-              <div className="tb2-dropdown tb2-dropdown--views">
+              <div className="tb2-dropdown tb2-dropdown--views" onMouseEnter={handleToolbarPanelEnter} onMouseLeave={handleToolbarPanelLeave}>
                 <div className="tb2-dropdown-title">Saved views</div>
                 <div className="tb2-views-default">
                   <span style={{ fontSize: 11, color: '#666' }}>Home view</span>
@@ -1617,13 +1682,13 @@ export default function MapPage() {
           <div className="tb2-sep" />
 
           {/* Basemap */}
-          <div className="tb2-dropdown-wrap">
-            <button className={`tb2-btn${showBasemapPicker ? ' active' : ''}`} onClick={toggleToolbarDropdown(setShowBasemapPicker)}>
+          <div className="tb2-dropdown-wrap" onMouseEnter={() => handleToolbarEnter(setShowBasemapPicker)} onMouseLeave={handleToolbarLeave}>
+            <button className={`tb2-btn${showBasemapPicker ? ' active' : ''}`} onClick={handleToolbarClick(setShowBasemapPicker)}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 2L2 7l10 5 10-5-10-5z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/><path d="M2 17l10 5 10-5" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/><path d="M2 12l10 5 10-5" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/></svg>
               <span className="tb2-tip">Base map</span>
             </button>
             {showBasemapPicker && (
-              <div className="tb2-dropdown tb2-dropdown--basemap">
+              <div className="tb2-dropdown tb2-dropdown--basemap" onMouseEnter={handleToolbarPanelEnter} onMouseLeave={handleToolbarPanelLeave}>
                 <div className="tb2-dropdown-title">Base map</div>
                 <div className="tb2-basemap-grid">
                   {BASE_MAPS.map(b => (
@@ -1640,13 +1705,13 @@ export default function MapPage() {
           <div className="tb2-sep" />
 
           {/* Settings */}
-          <div className="tb2-dropdown-wrap">
-            <button className={`tb2-btn${prefsOpen ? ' active' : ''}`} onClick={toggleToolbarDropdown(setPrefsOpen)}>
+          <div className="tb2-dropdown-wrap" onMouseEnter={() => handleToolbarEnter(setPrefsOpen)} onMouseLeave={handleToolbarLeave}>
+            <button className={`tb2-btn${prefsOpen ? ' active' : ''}`} onClick={handleToolbarClick(setPrefsOpen)}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.5"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" stroke="currentColor" strokeWidth="1.5"/></svg>
               <span className="tb2-tip">Settings</span>
             </button>
             {prefsOpen && (
-              <div className="tb2-dropdown tb2-dropdown--settings">
+              <div className="tb2-dropdown tb2-dropdown--settings" onMouseEnter={handleToolbarPanelEnter} onMouseLeave={handleToolbarPanelLeave}>
                 <div className="tb2-dropdown-title">Settings</div>
                 <div className="tb2-set-row"><span className="tb2-set-label">On marker click</span>
                   <div className="tb2-set-seg">
