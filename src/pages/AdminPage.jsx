@@ -2682,13 +2682,69 @@ export default function AdminPage() {
                           </div>
                           {r.status === 'pending' && (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flexShrink: 0, marginTop: 2 }}>
-                              <button className="notif-action-btn" style={{ fontSize: 11 }}
-                                onClick={e => { e.stopPropagation(); updateRequestStatus(r.id, 'resolved') }}>
-                                ✓ Resolve
-                              </button>
+
+                              {/* Club removal request actions */}
+                              {r.type === 'club_removal_request' && r.location_id && (<>
+                                <button className="notif-action-btn" style={{ fontSize: 11, background: '#FEF3C7', color: '#92400E' }}
+                                  onClick={async e => { e.stopPropagation()
+                                    await supabase.from('locations').update({
+                                      status: 'orphaned', orphaned_at: new Date().toISOString(),
+                                      former_owner_id: r.user_id, former_owner_email: r.user_email,
+                                      former_owner_name: r.user_name, user_id: null, map_visible: false,
+                                    }).eq('id', r.location_id)
+                                    updateRequestStatus(r.id, 'resolved'); loadMembers(); if (orphansLoaded) loadOrphanedClubs()
+                                  }}>
+                                  🔸 Orphan club
+                                </button>
+                                <button className="notif-action-btn" style={{ fontSize: 11, background: '#FEE2E2', color: '#991B1B' }}
+                                  onClick={async e => { e.stopPropagation()
+                                    if (!window.confirm('Permanently delete this club? Cannot be undone.')) return
+                                    await supabase.from('locations').delete().eq('id', r.location_id)
+                                    updateRequestStatus(r.id, 'resolved'); loadMembers()
+                                  }}>
+                                  🗑 Delete club
+                                </button>
+                              </>)}
+
+                              {/* Account removal request actions */}
+                              {r.type === 'account_removal_request' && r.user_id && (<>
+                                <button className="notif-action-btn" style={{ fontSize: 11, background: '#FEF3C7', color: '#92400E' }}
+                                  onClick={async e => { e.stopPropagation()
+                                    const { data: userClubs } = await supabase.from('locations').select('id').eq('user_id', r.user_id)
+                                    for (const club of (userClubs || [])) {
+                                      await supabase.from('locations').update({
+                                        status: 'orphaned', orphaned_at: new Date().toISOString(),
+                                        former_owner_id: r.user_id, former_owner_email: r.user_email,
+                                        former_owner_name: r.user_name, user_id: null, map_visible: false,
+                                      }).eq('id', club.id)
+                                    }
+                                    updateRequestStatus(r.id, 'resolved'); loadMembers(); if (orphansLoaded) loadOrphanedClubs()
+                                    alert(`${(userClubs || []).length} club(s) orphaned. Delete their auth account in Supabase Dashboard.`)
+                                  }}>
+                                  👤 Orphan all & remove
+                                </button>
+                              </>)}
+
+                              {/* Edit suggestion actions */}
+                              {r.type === 'edit_suggestion' && (
+                                <button className="notif-action-btn" style={{ fontSize: 11 }}
+                                  onClick={e => { e.stopPropagation(); updateRequestStatus(r.id, 'resolved') }}>
+                                  ✓ Applied
+                                </button>
+                              )}
+
+                              {/* Orphan notice — informational only */}
+                              {r.type === 'orphan_notice' && (
+                                <button className="notif-action-btn" style={{ fontSize: 11 }}
+                                  onClick={e => { e.stopPropagation(); updateRequestStatus(r.id, 'resolved') }}>
+                                  ✓ Acknowledged
+                                </button>
+                              )}
+
+                              {/* Deny / Dismiss — always available */}
                               <button className="notif-action-btn" style={{ fontSize: 11, background: '#F3F4F6', color: '#6B7280' }}
                                 onClick={e => { e.stopPropagation(); updateRequestStatus(r.id, 'dismissed') }}>
-                                Dismiss
+                                {r.type === 'club_removal_request' || r.type === 'account_removal_request' ? 'Deny' : 'Dismiss'}
                               </button>
                             </div>
                           )}
