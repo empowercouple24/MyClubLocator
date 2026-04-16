@@ -428,6 +428,9 @@ export default function AdminPage() {
   const [requestsLoaded, setRequestsLoaded] = useState(false)
   const [requestFilter, setRequestFilter] = useState('all') // 'all' | type filter
   const [requestStatus, setRequestStatus] = useState('pending') // 'pending' | 'in_progress' | 'resolved' | 'dismissed' | 'all'
+  const [relinkModal, setRelinkModal] = useState(null) // orphan club being re-linked
+  const [relinkSearch, setRelinkSearch] = useState('')
+  const [relinkUserId, setRelinkUserId] = useState(null)
 
   // Unread counts — per type
   const unreadContacts = contacts.filter(c => !c.is_read).length
@@ -2294,10 +2297,7 @@ export default function AdminPage() {
                         </div>
                         <div className="admin-club-card-actions">
                           <button className="admin-club-card-btn admin-club-card-btn--approve"
-                            onClick={() => {
-                              const uid = prompt('Enter the new owner\'s user ID to re-link this club:')
-                              if (uid && uid.trim()) relinkOrphan(c.id, uid.trim())
-                            }}>
+                            onClick={() => { setRelinkModal(c); setRelinkSearch(''); setRelinkUserId(null) }}>
                             Re-link to user
                           </button>
                           <button className="admin-club-card-btn admin-club-card-btn--remove"
@@ -2724,6 +2724,74 @@ export default function AdminPage() {
           </div>
         </div>
       )}
+
+      {/* ── Re-link modal ── */}
+      {relinkModal && (() => {
+        const userMap = {}
+        members.forEach(m => {
+          if (!m.user_id) return
+          if (!userMap[m.user_id]) {
+            userMap[m.user_id] = {
+              user_id: m.user_id,
+              name: [m.first_name, m.last_name].filter(Boolean).join(' ') || '',
+              email: m.owner_email || m.club_email || '',
+              club_name: m.club_name || '',
+            }
+          }
+        })
+        const users = Object.values(userMap)
+        const q = relinkSearch.toLowerCase()
+        const filtered = q
+          ? users.filter(u => u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q) || u.club_name.toLowerCase().includes(q))
+          : users
+        return (
+          <div className="modal-overlay" onClick={() => setRelinkModal(null)}>
+            <div className="modal-card" style={{ maxWidth: 440 }} onClick={e => e.stopPropagation()}>
+              <h2 className="modal-title" style={{ fontSize: 18 }}>Re-link "{relinkModal.club_name || 'Unnamed Club'}"</h2>
+              <p className="modal-message" style={{ marginBottom: 10 }}>Choose an existing user to assign this club to.</p>
+              <input
+                type="text"
+                placeholder="Search by name, email, or club…"
+                value={relinkSearch}
+                onChange={e => { setRelinkSearch(e.target.value); setRelinkUserId(null) }}
+                style={{ width: '100%', padding: '8px 10px', border: '1px solid #d0d0d0', borderRadius: 6, fontSize: 14, marginBottom: 8, boxSizing: 'border-box' }}
+                autoFocus
+              />
+              <div style={{ maxHeight: 220, overflowY: 'auto', border: '1px solid #e8e8e8', borderRadius: 6, marginBottom: 12 }}>
+                {filtered.length === 0 ? (
+                  <div style={{ padding: '16px 12px', textAlign: 'center', color: '#888', fontSize: 13 }}>No users found</div>
+                ) : filtered.map(u => (
+                  <div key={u.user_id}
+                    onClick={() => setRelinkUserId(u.user_id)}
+                    style={{
+                      padding: '10px 12px', cursor: 'pointer', borderBottom: '1px solid #f0f0f0',
+                      background: relinkUserId === u.user_id ? '#E1F5EE' : 'transparent',
+                    }}>
+                    <div style={{ fontSize: 14, fontWeight: 500 }}>
+                      {u.name || 'No name'}
+                      {relinkUserId === u.user_id && <span style={{ marginLeft: 6, color: '#059669' }}>✓</span>}
+                    </div>
+                    <div style={{ fontSize: 12, color: '#888' }}>
+                      {u.email}{u.club_name ? ` · ${u.club_name}` : ''}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button className="modal-btn-primary"
+                  disabled={!relinkUserId}
+                  style={{ opacity: relinkUserId ? 1 : 0.5, flex: 1 }}
+                  onClick={() => { relinkOrphan(relinkModal.id, relinkUserId); setRelinkModal(null) }}>
+                  Assign to this user
+                </button>
+                <button className="modal-btn-secondary" onClick={() => setRelinkModal(null)} style={{ flex: 0 }}>
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
     </div>
   )
 }
