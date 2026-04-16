@@ -1550,15 +1550,16 @@ function ClubEditor({ club, clubIndex, userId, isOnly, allClubs, onSaved, onRemo
             Save & go to map →
           </button>
         </div>
-        {!isOnly && (
-          <div className="remove-club-zone">
-            <button className="remove-club-btn" onClick={() => setShowRemovePrompt(true)}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-              Request club removal
-            </button>
-          </div>
-        )}
       </div>
+
+      {!isOnly && (
+        <div className="remove-club-zone">
+          <button className="remove-club-btn" onClick={() => setShowRemovePrompt(true)}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            Request club removal
+          </button>
+        </div>
+      )}
 
       {showRemovePrompt && (
         <RemoveClubPrompt
@@ -1788,16 +1789,23 @@ function AccountRemovalSection({ userId, userEmail, userName, clubCount }) {
   }
 
   return (
-    <div className="profile-section" style={{ borderTop: '1px solid #eee', marginTop: 8 }}>
-      <button type="button" className="survey-toggle-btn" onClick={() => setOpen(o => !o)}
-        style={{ padding: '14px 0' }}>
-        <span className="sec-label" style={{ margin: 0, color: '#999', fontSize: 13 }}>Account removal</span>
-        <svg className={`survey-chevron ${open ? 'open' : ''}`} width="12" height="12" viewBox="0 0 16 16" fill="none">
+    <div className="sec-card cf-section" style={{ marginTop: 0 }}>
+      <button type="button" className="survey-toggle-btn" onClick={() => setOpen(o => !o)} style={{ borderRadius: 10, marginBottom: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
+            <path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            <circle cx="8.5" cy="7" r="4" stroke="currentColor" strokeWidth="1.5"/>
+            <line x1="18" y1="8" x2="18" y2="14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            <line x1="15" y1="11" x2="21" y2="11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+          </svg>
+          <span className="sec-label" style={{ margin: 0 }}>Account Removal</span>
+        </div>
+        <svg className={`survey-chevron ${open ? 'open' : ''}`} width="18" height="18" viewBox="0 0 16 16" fill="none">
           <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
       </button>
       {open && (
-        <div style={{ paddingBottom: 16 }}>
+        <div style={{ padding: '14px 16px 16px' }}>
           {submitted ? (
             <div style={{ textAlign: 'center', padding: '20px 0' }}>
               <div style={{ fontSize: 28, marginBottom: 8 }}>✅</div>
@@ -2792,11 +2800,10 @@ export default function ProfilePage() {
       </div>
       )}
 
-      <div style={{ height: 32 }} />
+      <div style={{ height: 8 }} />
 
       {/* My Team — only shown if user meets min level */}
       {meetsTeamLevel && (<>
-        <div style={{ height: 32 }} />
         <MyTeamSection userId={user?.id} userLevel={personForm.herbalife_level} />
       </>)}
 
