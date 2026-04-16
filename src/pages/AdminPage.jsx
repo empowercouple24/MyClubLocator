@@ -431,6 +431,7 @@ export default function AdminPage() {
   const [relinkModal, setRelinkModal] = useState(null) // orphan club being re-linked
   const [relinkSearch, setRelinkSearch] = useState('')
   const [relinkUserId, setRelinkUserId] = useState(null)
+  const [clubSort, setClubSort] = useState('name_az')
 
   // Unread counts — per type
   const unreadContacts = contacts.filter(c => !c.is_read).length
@@ -2186,8 +2187,17 @@ export default function AdminPage() {
       {/* ── CLUBS TAB ── */}
       {tab === 'clubs' && (
         <div>
-          <div className="admin-section" style={{ marginBottom: 16 }}>
-            <p className="admin-section-desc">All registered clubs across the platform. Use this view to manage individual club listings.</p>
+          <div className="admin-section" style={{ marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+            <p className="admin-section-desc" style={{ margin: 0 }}>All registered clubs across the platform. Use this view to manage individual club listings.</p>
+            <select className="dir-sort" value={clubSort} onChange={e => setClubSort(e.target.value)} style={{ fontSize: 13 }}>
+              <option value="newest">Newest first</option>
+              <option value="oldest">Oldest first</option>
+              <option value="name_az">Club name A–Z</option>
+              <option value="name_za">Club name Z–A</option>
+              <option value="city_az">City A–Z</option>
+              <option value="state_az">State A–Z</option>
+              <option value="owner_az">Owner name A–Z</option>
+            </select>
           </div>
 
           {loadingMembers ? (
@@ -2196,10 +2206,24 @@ export default function AdminPage() {
             <div style={{ textAlign: 'center', padding: 40, color: '#888' }}>No clubs registered yet.</div>
           ) : (
             <div className="admin-clubs-grid">
-              {members.map(m => {
-                const person = allUsers.find(u => u.user_id === m.user_id) || {}
-                const ownerName = [person.first_name, person.last_name].filter(Boolean).join(' ')
-                const initials = (person.first_name?.[0] || '') + (person.last_name?.[0] || '')
+              {[...members].sort((a, b) => {
+                const na = (a.club_name || '').toLowerCase(), nb = (b.club_name || '').toLowerCase()
+                const ca = (a.city || '').toLowerCase(), cb = (b.city || '').toLowerCase()
+                const sa = (a.state || '').toLowerCase(), sb = (b.state || '').toLowerCase()
+                const oa = [a.first_name, a.last_name].filter(Boolean).join(' ').toLowerCase()
+                const ob = [b.first_name, b.last_name].filter(Boolean).join(' ').toLowerCase()
+                switch (clubSort) {
+                  case 'oldest': return new Date(a.created_at) - new Date(b.created_at)
+                  case 'name_az': return na.localeCompare(nb)
+                  case 'name_za': return nb.localeCompare(na)
+                  case 'city_az': return ca.localeCompare(cb)
+                  case 'state_az': return sa.localeCompare(sb) || ca.localeCompare(cb)
+                  case 'owner_az': return oa.localeCompare(ob)
+                  default: return new Date(b.created_at) - new Date(a.created_at)
+                }
+              }).map(m => {
+                const ownerName = [m.first_name, m.last_name].filter(Boolean).join(' ')
+                const initials = (m.first_name?.[0] || '') + (m.last_name?.[0] || '')
                 return (
                   <div key={m.id} className="admin-club-card">
                     <div className="admin-club-card-hdr">
