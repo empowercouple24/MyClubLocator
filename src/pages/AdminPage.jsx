@@ -554,7 +554,7 @@ export default function AdminPage() {
           })
         }
       }
-      setMembers(data)
+      setMembers(data.filter(m => !m.status || m.status === 'active'))
     }
     setLoadingMembers(false)
   }
@@ -813,7 +813,7 @@ export default function AdminPage() {
 
   async function handleOrphanClub(member) {
     setActionLoading(member.id)
-    await supabase.from('locations').update({
+    const { error: updateErr } = await supabase.from('locations').update({
       status: 'orphaned',
       orphaned_at: new Date().toISOString(),
       former_owner_id: member.user_id,
@@ -822,8 +822,9 @@ export default function AdminPage() {
       user_id: null,
       map_visible: false,
     }).eq('id', member.id)
+    if (updateErr) { console.error('Orphan update error:', updateErr); alert('Orphan failed: ' + updateErr.message) }
     // Create admin notification
-    await supabase.from('admin_requests').insert({
+    const { error: insertErr } = await supabase.from('admin_requests').insert({
       type: 'orphan_notice',
       status: 'pending',
       location_id: member.id,
@@ -832,6 +833,7 @@ export default function AdminPage() {
       user_name: [member.first_name, member.last_name].filter(Boolean).join(' ') || null,
       details: { reason: 'Admin orphaned club', former_user_id: member.user_id },
     })
+    if (insertErr) console.error('Admin request insert error:', insertErr)
     await loadMembers()
     if (orphansLoaded) loadOrphanedClubs()
     setConfirmRemove(null)
