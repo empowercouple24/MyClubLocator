@@ -375,6 +375,7 @@ export default function AdminPage() {
     demo_growth: true,
     demo_commute: true,
     demo_competitors: true,
+    show_orphaned_clubs: false,
   })
   const [loadingSettings, setLoadingSettings] = useState(true)
   const [savingSettings, setSavingSettings]   = useState(false)
@@ -418,6 +419,16 @@ export default function AdminPage() {
   const [allTeams, setAllTeams]         = useState([])
   const [teamsLoaded, setTeamsLoaded]   = useState(false)
 
+  // Orphaned clubs state
+  const [orphanedClubs, setOrphanedClubs] = useState([])
+  const [orphansLoaded, setOrphansLoaded] = useState(false)
+
+  // Admin requests state
+  const [adminRequests, setAdminRequests] = useState([])
+  const [requestsLoaded, setRequestsLoaded] = useState(false)
+  const [requestFilter, setRequestFilter] = useState('all') // 'all' | type filter
+  const [requestStatus, setRequestStatus] = useState('pending') // 'pending' | 'in_progress' | 'resolved' | 'dismissed' | 'all'
+
   // Unread counts — per type
   const unreadContacts = contacts.filter(c => !c.is_read).length
   const unreadByType = {}
@@ -426,6 +437,11 @@ export default function AdminPage() {
   })
   const unreadNotifs   = Object.values(unreadByType).reduce((a, b) => a + b, 0)
   const totalUnread    = unreadContacts + unreadNotifs
+  const unreadRequests = adminRequests.filter(r => !r.is_read).length
+  const unreadRequestsByType = {}
+  adminRequests.filter(r => !r.is_read).forEach(r => {
+    unreadRequestsByType[r.type] = (unreadRequestsByType[r.type] || 0) + 1
+  })
 
   // Real-time subscriptions
   useEffect(() => {
@@ -448,10 +464,17 @@ export default function AdminPage() {
         loadMembers()
       })
       .subscribe()
+    // Subscribe to admin_requests
+    const reqSub = supabase.channel('admin-requests')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'admin_requests' }, payload => {
+        setAdminRequests(prev => [payload.new, ...prev])
+      })
+      .subscribe()
     return () => {
       supabase.removeChannel(contactSub)
       supabase.removeChannel(notifSub)
       supabase.removeChannel(locSub)
+      supabase.removeChannel(reqSub)
     }
   }, [isAdmin])
 
@@ -599,6 +622,71 @@ export default function AdminPage() {
     setNotifications(prev => prev.map(n => ({ ...n, is_read: true })))
   }
 
+  async function loadOrphanedClubs() {
+    const { data } = await supabase
+      .from('locations')
+      .select('*')
+      .eq('status', 'orphaned')
+      .order('orphaned_at', { ascending: false })
+    if (data) setOrphanedClubs(data)
+    setOrphansLoaded(true)
+  }
+
+  async function loadAdminRequests() {
+    const { data } = await supabase
+      .from('admin_requests')
+      .select('*')
+      .order('created_at', { ascending: false })
+    if (data) setAdminRequests(data)
+    setRequestsLoaded(true)
+  }
+
+  async function markRequestRead(id) {
+    await supabase.from('admin_requests').update({ is_read: true }).eq('id', id)
+    setAdminRequests(prev => prev.map(r => r.id === id ? { ...r, is_read: true } : r))
+  }
+
+  async function updateRequestStatus(id, newStatus) {
+    const updates = { status: newStatus }
+    if (newStatus === 'resolved' || newStatus === 'dismissed') updates.resolved_at = new Date().toISOString()
+    await supabase.from('admin_requests').update(updates).eq('id', id)
+    setAdminRequests(prev => prev.map(r => r.id === id ? { ...r, ...updates, is_read: true } : r))
+  }
+
+  async function toggleOrphanVisibility(clubId, currentVisible) {
+    await supabase.from('locations').update({ map_visible: !currentVisible }).eq('id', clubId)
+    setOrphanedClubs(prev => prev.map(c => c.id === clubId ? { ...c, map_visible: !currentVisible } : c))
+  }
+
+  async function relinkOrphan(clubId, newUserId) {
+    await supabase.from('locations').update({
+      user_id: newUserId,
+      status: 'active',
+      orphaned_at: null,
+      map_visible: true,
+    }).eq('id', clubId)
+    setOrphanedClubs(prev => prev.filter(c => c.id !== clubId))
+    setMemberMsg('Club re-linked to new owner.')
+    setTimeout(() => setMemberMsg(''), 3000)
+  }
+
+  async function deleteOrphanPermanently(clubId) {
+    // Clean up storage
+    const club = orphanedClubs.find(c => c.id === clubId)
+    if (club) {
+      try {
+        const folder = `${club.former_owner_id || club.user_id || 'orphan'}/${club.id}`
+        const { data: files } = await supabase.storage.from('club-photos').list(folder)
+        if (files?.length) {
+          const paths = files.map(f => `${folder}/${f.name}`)
+          await supabase.storage.from('club-photos').remove(paths)
+        }
+      } catch (err) { console.warn('Storage cleanup error:', err.message) }
+    }
+    await supabase.from('locations').delete().eq('id', clubId)
+    setOrphanedClubs(prev => prev.filter(c => c.id !== clubId))
+  }
+
   async function loadClubNotes() {
     const { data } = await supabase
       .from('club_notes')
@@ -672,9 +760,13 @@ export default function AdminPage() {
       if (!contactsLoaded) loadContacts()
       if (!notifLoaded) loadNotifications()
       if (!notesLoaded) loadClubNotes()
+      if (!requestsLoaded) loadAdminRequests()
     }
     if (t === 'teams') {
       if (!teamsLoaded) loadTeams()
+    }
+    if (t === 'clubs') {
+      if (!orphansLoaded) loadOrphanedClubs()
     }
   }
 
@@ -714,8 +806,75 @@ export default function AdminPage() {
     await supabase.from('locations').delete().eq('id', member.id)
     await loadMembers()
     setConfirmRemove(null)
-    setMemberMsg(`${member.club_name || 'Club'} removed from registry.`)
+    setMemberMsg(`${member.club_name || 'Club'} permanently deleted.`)
     setTimeout(() => setMemberMsg(''), 3000)
+    setActionLoading(null)
+  }
+
+  async function handleOrphanClub(member) {
+    setActionLoading(member.id)
+    await supabase.from('locations').update({
+      status: 'orphaned',
+      orphaned_at: new Date().toISOString(),
+      former_owner_id: member.user_id,
+      former_owner_email: member.owner_email || member.club_email || null,
+      former_owner_name: [member.first_name, member.last_name].filter(Boolean).join(' ') || null,
+      user_id: null,
+      map_visible: false,
+    }).eq('id', member.id)
+    // Create admin notification
+    await supabase.from('admin_requests').insert({
+      type: 'orphan_notice',
+      status: 'pending',
+      location_id: member.id,
+      location_name: member.club_name || 'Unnamed Club',
+      user_email: member.owner_email || member.club_email || null,
+      user_name: [member.first_name, member.last_name].filter(Boolean).join(' ') || null,
+      details: { reason: 'Admin orphaned club', former_user_id: member.user_id },
+    })
+    await loadMembers()
+    if (orphansLoaded) loadOrphanedClubs()
+    setConfirmRemove(null)
+    setMemberMsg(`${member.club_name || 'Club'} orphaned and hidden from map.`)
+    setTimeout(() => setMemberMsg(''), 3000)
+    setActionLoading(null)
+  }
+
+  async function handleOrphanUser(member) {
+    setActionLoading(member.id)
+    // Find ALL clubs belonging to this user
+    const { data: userClubs } = await supabase
+      .from('locations').select('*').eq('user_id', member.user_id)
+    const ownerName = [member.first_name, member.last_name].filter(Boolean).join(' ') || null
+    const ownerEmail = member.owner_email || member.club_email || null
+    for (const club of (userClubs || [])) {
+      await supabase.from('locations').update({
+        status: 'orphaned',
+        orphaned_at: new Date().toISOString(),
+        former_owner_id: member.user_id,
+        former_owner_email: ownerEmail,
+        former_owner_name: ownerName,
+        user_id: null,
+        map_visible: false,
+      }).eq('id', club.id)
+    }
+    // Create single admin notification for the user removal
+    await supabase.from('admin_requests').insert({
+      type: 'orphan_notice',
+      status: 'pending',
+      user_email: ownerEmail,
+      user_name: ownerName,
+      details: {
+        reason: 'Admin removed user — all clubs orphaned',
+        former_user_id: member.user_id,
+        clubs_orphaned: (userClubs || []).map(c => ({ id: c.id, name: c.club_name })),
+      },
+    })
+    await loadMembers()
+    if (orphansLoaded) loadOrphanedClubs()
+    setConfirmRemove(null)
+    setMemberMsg(`User removed. ${(userClubs || []).length} club(s) orphaned. Delete their auth account in Supabase Dashboard.`)
+    setTimeout(() => setMemberMsg(''), 6000)
     setActionLoading(null)
   }
 
@@ -784,6 +943,7 @@ export default function AdminPage() {
       demo_growth:                settings.demo_growth,
       demo_commute:               settings.demo_commute,
       demo_competitors:           settings.demo_competitors,
+      show_orphaned_clubs:        settings.show_orphaned_clubs,
       col_widths:                 JSON.stringify(colWidths),
     }
     const { error } = await supabase
@@ -890,6 +1050,12 @@ export default function AdminPage() {
                         background: '#0D9488', color: '#fff', borderRadius: '10px',
                         fontSize: 10, fontWeight: 600, padding: '1px 6px', lineHeight: '16px'
                       }}>{unreadByType.team_joined}</span>
+                    )}
+                    {unreadRequests > 0 && (
+                      <span title="Pending requests" style={{
+                        background: '#F59E0B', color: '#fff', borderRadius: '10px',
+                        fontSize: 10, fontWeight: 600, padding: '1px 6px', lineHeight: '16px'
+                      }}>{unreadRequests}</span>
                     )}
                   </span>
                 )
@@ -1483,6 +1649,13 @@ export default function AdminPage() {
                           <span className="au-toggle-label">Enable member login</span>
                           <ToggleSwitch on={settings.member_login_enabled !== false} onChange={v => setSettings(s => ({ ...s, member_login_enabled: v }))} />
                         </div>
+                        <div className="au-toggle-row" style={{ marginTop: 12, paddingTop: 12, borderTop: '0.5px solid #f0f0f0' }}>
+                          <div style={{ flex: 1 }}>
+                            <span className="au-toggle-label">Show orphaned clubs on map</span>
+                            <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>When enabled, orphaned clubs with per-club visibility turned on will appear on the public map and owner map. Individual club visibility can be toggled in Clubs → Orphaned Clubs.</div>
+                          </div>
+                          <ToggleSwitch on={settings.show_orphaned_clubs} onChange={v => setSettings(s => ({ ...s, show_orphaned_clubs: v }))} />
+                        </div>
                       </div>
                     </div>
 
@@ -2067,6 +2240,79 @@ export default function AdminPage() {
               })}
             </div>
           )}
+
+          {/* ── Orphaned Clubs ── */}
+          <div className="admin-section" style={{ marginTop: 24, padding: 0, overflow: 'hidden' }}>
+            <button type="button" className="survey-toggle-btn" style={{ padding: '14px 20px' }}
+              onClick={() => { if (!orphansLoaded) loadOrphanedClubs() }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
+                <h3 className="admin-section-title" style={{ margin: 0 }}>Orphaned Clubs</h3>
+                {orphanedClubs.length > 0 && (
+                  <span className="survey-progress-badge">{orphanedClubs.length}</span>
+                )}
+              </div>
+              <svg className={`survey-chevron ${orphansLoaded ? 'open' : ''}`} width="14" height="14" viewBox="0 0 16 16" fill="none">
+                <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+            {orphansLoaded && (
+              <div style={{ padding: '14px 20px 16px' }}>
+                {orphanedClubs.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: 20, color: '#888', fontSize: 14 }}>
+                    No orphaned clubs. When you remove a user or orphan a club, they'll appear here.
+                  </div>
+                ) : (
+                  <div className="admin-clubs-grid">
+                    {orphanedClubs.map(c => (
+                      <div key={c.id} className="admin-club-card" style={{ borderLeft: '3px solid #F59E0B' }}>
+                        <div className="admin-club-card-hdr">
+                          {c.logo_url
+                            ? <img className="admin-club-card-logo" src={c.logo_url} alt="" />
+                            : <div className="admin-club-card-initials" style={{ background: '#F59E0B' }}>?</div>
+                          }
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div className="admin-club-card-name">{c.club_name || 'Unnamed Club'}</div>
+                            <div className="admin-club-card-sub">{c.city ? `${c.city}, ${c.state || ''}` : 'No location'}</div>
+                          </div>
+                          <div className="admin-club-card-status" style={{ background: '#FEF3C7', color: '#92400E' }}>
+                            Orphaned
+                          </div>
+                        </div>
+                        <div className="admin-club-card-body">
+                          <div className="admin-club-card-row"><span>Former owner</span><span>{c.former_owner_name || '—'}</span></div>
+                          <div className="admin-club-card-row"><span>Former email</span><span>{c.former_owner_email || '—'}</span></div>
+                          <div className="admin-club-card-row"><span>Orphaned</span><span>{c.orphaned_at ? new Date(c.orphaned_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}</span></div>
+                          <div className="admin-club-card-row"><span>Address</span><span>{c.address || '—'}</span></div>
+                          <div className="admin-club-card-row">
+                            <span>Visible on map</span>
+                            <span>
+                              <ToggleSwitch on={c.map_visible !== false} onChange={() => toggleOrphanVisibility(c.id, c.map_visible !== false)} />
+                            </span>
+                          </div>
+                        </div>
+                        <div className="admin-club-card-actions">
+                          <button className="admin-club-card-btn admin-club-card-btn--approve"
+                            onClick={() => {
+                              const uid = prompt('Enter the new owner\'s user ID to re-link this club:')
+                              if (uid && uid.trim()) relinkOrphan(c.id, uid.trim())
+                            }}>
+                            Re-link to user
+                          </button>
+                          <button className="admin-club-card-btn admin-club-card-btn--remove"
+                            onClick={() => {
+                              if (window.confirm(`Permanently delete "${c.club_name || 'this club'}"? This cannot be undone.`))
+                                deleteOrphanPermanently(c.id)
+                            }}>
+                            Delete permanently
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -2173,6 +2419,13 @@ export default function AdminPage() {
               {clubNotes.filter(n => !n.forwarded).length > 0 && (
                 <span className="msg-unread-badge">{clubNotes.filter(n => !n.forwarded).length}</span>
               )}
+            </button>
+            <button
+              className={`msg-subtab ${msgSubTab === 'requests' ? 'active' : ''}`}
+              onClick={() => { setMsgSubTab('requests'); if (!requestsLoaded) loadAdminRequests() }}
+            >
+              Requests
+              {unreadRequests > 0 && <span className="msg-unread-badge">{unreadRequests}</span>}
             </button>
           </div>
 
@@ -2314,24 +2567,155 @@ export default function AdminPage() {
             </div>
           )}
 
+          {/* ── Requests sub-tab ── */}
+          {msgSubTab === 'requests' && (
+            <div>
+              {/* Filters */}
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+                <select className="dir-sort" value={requestFilter} onChange={e => setRequestFilter(e.target.value)} style={{ fontSize: 13 }}>
+                  <option value="all">All types</option>
+                  <option value="club_removal_request">Club removal</option>
+                  <option value="account_removal_request">Account removal</option>
+                  <option value="claim_request">Claim requests</option>
+                  <option value="edit_suggestion">Edit suggestions</option>
+                  <option value="orphan_notice">Orphan notices</option>
+                </select>
+                <select className="dir-sort" value={requestStatus} onChange={e => setRequestStatus(e.target.value)} style={{ fontSize: 13 }}>
+                  <option value="pending">Pending</option>
+                  <option value="in_progress">In progress</option>
+                  <option value="resolved">Resolved</option>
+                  <option value="dismissed">Dismissed</option>
+                  <option value="all">All statuses</option>
+                </select>
+              </div>
+
+              {!requestsLoaded ? (
+                <div className="admin-loading">Loading requests…</div>
+              ) : (() => {
+                const filtered = adminRequests.filter(r => {
+                  if (requestFilter !== 'all' && r.type !== requestFilter) return false
+                  if (requestStatus !== 'all' && r.status !== requestStatus) return false
+                  return true
+                })
+                if (filtered.length === 0) return (
+                  <div className="admin-empty">No requests match these filters.</div>
+                )
+                return (
+                  <div className="notif-list">
+                    {filtered.map(r => {
+                      const typeLabels = {
+                        club_removal_request: { icon: '🏠', label: 'Club removal', color: '#F59E0B' },
+                        account_removal_request: { icon: '👤', label: 'Account removal', color: '#e53e3e' },
+                        claim_request: { icon: '🔗', label: 'Claim request', color: '#2563EB' },
+                        edit_suggestion: { icon: '✏️', label: 'Edit suggestion', color: '#059669' },
+                        orphan_notice: { icon: '🔸', label: 'Orphan notice', color: '#F59E0B' },
+                      }
+                      const t = typeLabels[r.type] || { icon: '📋', label: r.type, color: '#888' }
+                      const statusColors = { pending: '#FEF3C7', in_progress: '#DBEAFE', resolved: '#D1FAE5', dismissed: '#F3F4F6' }
+                      const statusTextColors = { pending: '#92400E', in_progress: '#1E40AF', resolved: '#065F46', dismissed: '#6B7280' }
+                      const details = r.details || {}
+                      return (
+                        <div key={r.id}
+                          className={`notif-card ${!r.is_read ? 'unread' : ''}`}
+                          onClick={() => { if (!r.is_read) markRequestRead(r.id) }}
+                          style={{ alignItems: 'flex-start' }}
+                        >
+                          {!r.is_read && <div className="msg-unread-dot" />}
+                          <div className="notif-body" style={{ flex: 1 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 4 }}>
+                              <span>{t.icon}</span>
+                              <span style={{ fontSize: 11, fontWeight: 600, background: t.color + '22', color: t.color, padding: '1px 8px', borderRadius: 10 }}>{t.label}</span>
+                              <span style={{ fontSize: 11, fontWeight: 500, background: statusColors[r.status] || '#F3F4F6', color: statusTextColors[r.status] || '#6B7280', padding: '1px 8px', borderRadius: 10 }}>{r.status}</span>
+                              {(r.tags || []).map(tag => (
+                                <span key={tag} style={{ fontSize: 10, fontWeight: 500, background: '#E5E7EB', color: '#374151', padding: '1px 6px', borderRadius: 8 }}>#{tag}</span>
+                              ))}
+                            </div>
+                            <div className="notif-title" style={{ marginBottom: 2 }}>
+                              {r.user_name || r.user_email || 'Anonymous'}
+                              {r.location_name && <span style={{ color: '#888', fontWeight: 400 }}> — {r.location_name}</span>}
+                            </div>
+                            {details.reason && (
+                              <div style={{ fontSize: 13, color: '#555', marginBottom: 3 }}>Reason: {details.reason}</div>
+                            )}
+                            {details.explanation && (
+                              <div style={{ fontSize: 13, color: '#555', marginBottom: 3 }}>{details.explanation}</div>
+                            )}
+                            {details.feedback && (
+                              <div style={{ fontSize: 13, color: '#555', fontStyle: 'italic', marginBottom: 3 }}>Feedback: {details.feedback}</div>
+                            )}
+                            {details.clubs_orphaned && (
+                              <div style={{ fontSize: 12, color: '#888', marginBottom: 3 }}>
+                                Clubs orphaned: {details.clubs_orphaned.map(c => c.name || 'Unnamed').join(', ')}
+                              </div>
+                            )}
+                            <div className="notif-time">
+                              {new Date(r.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                              {' · '}
+                              {new Date(r.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                            </div>
+                          </div>
+                          {r.status === 'pending' && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flexShrink: 0, marginTop: 2 }}>
+                              <button className="notif-action-btn" style={{ fontSize: 11 }}
+                                onClick={e => { e.stopPropagation(); updateRequestStatus(r.id, 'resolved') }}>
+                                ✓ Resolve
+                              </button>
+                              <button className="notif-action-btn" style={{ fontSize: 11, background: '#F3F4F6', color: '#6B7280' }}
+                                onClick={e => { e.stopPropagation(); updateRequestStatus(r.id, 'dismissed') }}>
+                                Dismiss
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )
+              })()}
+            </div>
+          )}
+
         </div>
       )}
 
       {/* ── Confirm remove modal ── */}
       {confirmRemove && (
         <div className="modal-overlay" onClick={() => setConfirmRemove(null)}>
-          <div className="modal-card" style={{ maxWidth: 400 }} onClick={e => e.stopPropagation()}>
-            <h2 className="modal-title" style={{ fontSize: 18 }}>Remove this club?</h2>
-            <p className="modal-message">
-              This will permanently remove <strong>{confirmRemove.club_name || 'this club'}</strong> from the registry and the map. This cannot be undone.
+          <div className="modal-card" style={{ maxWidth: 460 }} onClick={e => e.stopPropagation()}>
+            <h2 className="modal-title" style={{ fontSize: 18 }}>What would you like to do?</h2>
+            <p className="modal-message" style={{ marginBottom: 6 }}>
+              Club: <strong>{confirmRemove.club_name || 'Unnamed'}</strong><br />
+              Owner: {confirmRemove.first_name} {confirmRemove.last_name} ({confirmRemove.owner_email || confirmRemove.club_email || '—'})
             </p>
-            <div className="modal-actions">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
+              <button className="modal-btn-primary" style={{ background: '#F59E0B', color: '#000', fontWeight: 600 }}
+                onClick={() => handleOrphanClub(confirmRemove)}
+                disabled={!!actionLoading}>
+                {actionLoading === confirmRemove.id ? 'Orphaning…' : '🔸 Orphan this club'}
+              </button>
+              <div style={{ fontSize: 12, color: '#777', padding: '0 4px', marginTop: -4, marginBottom: 4 }}>
+                Hides from map, keeps data. Owner account stays active.
+              </div>
+
+              <button className="modal-btn-primary" style={{ background: '#7C3AED' }}
+                onClick={() => handleOrphanUser(confirmRemove)}
+                disabled={!!actionLoading}>
+                {actionLoading === confirmRemove.id ? 'Processing…' : '👤 Remove user (orphan all their clubs)'}
+              </button>
+              <div style={{ fontSize: 12, color: '#777', padding: '0 4px', marginTop: -4, marginBottom: 4 }}>
+                Orphans all clubs for this user. You'll need to delete their auth account in Supabase.
+              </div>
+
               <button className="modal-btn-primary" style={{ background: '#e53e3e' }}
                 onClick={() => handleRemove(confirmRemove)}
-                disabled={actionLoading === confirmRemove.id}>
-                {actionLoading === confirmRemove.id ? 'Removing…' : 'Yes, remove permanently'}
+                disabled={!!actionLoading}>
+                {actionLoading === confirmRemove.id ? 'Deleting…' : '🗑 Delete club permanently'}
               </button>
-              <button className="modal-btn-secondary" onClick={() => setConfirmRemove(null)}>
+              <div style={{ fontSize: 12, color: '#777', padding: '0 4px', marginTop: -4, marginBottom: 4 }}>
+                Permanently removes this club and its photos. Cannot be undone.
+              </div>
+
+              <button className="modal-btn-secondary" onClick={() => setConfirmRemove(null)} style={{ marginTop: 4 }}>
                 Cancel
               </button>
             </div>

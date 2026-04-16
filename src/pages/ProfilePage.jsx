@@ -660,15 +660,72 @@ function AddClubPrompt({ clubCount, onConfirm, onCancel }) {
 }
 
 // ── Remove Club Confirmation Modal ────────────────────────────
-function RemoveClubPrompt({ clubName, onConfirm, onCancel }) {
+function RemoveClubPrompt({ clubName, clubId, userId, userEmail, userName, onDone, onCancel }) {
+  const [reason, setReason] = useState('')
+  const [explanation, setExplanation] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [submitted, setSubmitted] = useState(false)
+
+  async function handleSubmit() {
+    if (!reason) return
+    setSubmitting(true)
+    await supabase.from('admin_requests').insert({
+      type: 'club_removal_request',
+      user_id: userId,
+      user_email: userEmail || null,
+      user_name: userName || null,
+      location_id: clubId,
+      location_name: clubName || 'Unnamed Club',
+      details: { reason, explanation },
+    })
+    setSubmitting(false)
+    setSubmitted(true)
+  }
+
+  if (submitted) return (
+    <div className="modal-overlay" onClick={onDone}>
+      <div className="modal-box add-club-modal" onClick={e => e.stopPropagation()}>
+        <div className="add-club-modal-icon" style={{ fontSize: 28 }}>✅</div>
+        <h3>Request submitted</h3>
+        <p>Your request to remove "{clubName || 'this club'}" has been sent to the admin for review. You'll be notified when it's processed.</p>
+        <div className="add-club-modal-btns">
+          <button className="btn-save" onClick={onDone}>Got it</button>
+        </div>
+      </div>
+    </div>
+  )
+
   return (
     <div className="modal-overlay" onClick={onCancel}>
       <div className="modal-box add-club-modal" onClick={e => e.stopPropagation()}>
-        <div className="add-club-modal-icon" style={{ fontSize: 28 }}>⚠️</div>
-        <h3>Remove "{clubName || 'this club'}"?</h3>
-        <p>This will permanently delete this club's profile, address, hours, and photos. This cannot be undone.</p>
+        <div className="add-club-modal-icon" style={{ fontSize: 28 }}>🏠</div>
+        <h3>Request club removal</h3>
+        <p style={{ marginBottom: 12 }}>To remove "{clubName || 'this club'}" from the map, submit a request to the admin. This cannot be done instantly to protect club data.</p>
+        <div style={{ marginBottom: 12 }}>
+          <label style={{ display: 'block', fontSize: 13, fontWeight: 500, marginBottom: 4 }}>Why are you removing this club? *</label>
+          <select value={reason} onChange={e => setReason(e.target.value)}
+            style={{ width: '100%', padding: '8px 10px', border: '1px solid #d0d0d0', borderRadius: 6, fontSize: 14 }}>
+            <option value="">Select a reason…</option>
+            <option value="Club closing permanently">Club closing permanently</option>
+            <option value="Relocating to a new address">Relocating to a new address</option>
+            <option value="Transferring ownership">Transferring ownership</option>
+            <option value="Duplicate listing">Duplicate listing</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div style={{ marginBottom: 14 }}>
+          <label style={{ display: 'block', fontSize: 13, fontWeight: 500, marginBottom: 4 }}>Additional details (optional)</label>
+          <textarea value={explanation} onChange={e => setExplanation(e.target.value)}
+            placeholder="Anything else you'd like us to know…"
+            rows={3}
+            style={{ width: '100%', padding: '8px 10px', border: '1px solid #d0d0d0', borderRadius: 6, fontSize: 14, resize: 'vertical' }} />
+        </div>
         <div className="add-club-modal-btns">
-          <button className="btn-save" style={{ background: '#C0392B' }} onClick={onConfirm}>Yes, Remove Club</button>
+          <button className="btn-save" style={{ background: '#C0392B', opacity: reason ? 1 : 0.5 }}
+            disabled={!reason || submitting}
+            onClick={handleSubmit}>
+            {submitting ? 'Submitting…' : 'Submit removal request'}
+          </button>
           <button className="add-club-cancel-btn" onClick={onCancel}>Cancel</button>
         </div>
       </div>
@@ -1497,7 +1554,7 @@ function ClubEditor({ club, clubIndex, userId, isOnly, allClubs, onSaved, onRemo
           <div className="remove-club-zone">
             <button className="remove-club-btn" onClick={() => setShowRemovePrompt(true)}>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-              Remove this club
+              Request club removal
             </button>
           </div>
         )}
@@ -1506,7 +1563,11 @@ function ClubEditor({ club, clubIndex, userId, isOnly, allClubs, onSaved, onRemo
       {showRemovePrompt && (
         <RemoveClubPrompt
           clubName={form.club_name}
-          onConfirm={() => { setShowRemovePrompt(false); handleRemove() }}
+          clubId={form.id}
+          userId={userId}
+          userEmail={userEmail}
+          userName={personData ? [personData.first_name, personData.last_name].filter(Boolean).join(' ') : ''}
+          onDone={() => setShowRemovePrompt(false)}
           onCancel={() => setShowRemovePrompt(false)}
         />
       )}
@@ -1688,6 +1749,119 @@ function ContactFeedbackSection({ userName, userEmail }) {
               {sending ? 'Sending…' : 'Send message'}
             </button>
           </form>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Account Removal Request Section ──────────────────────────
+const REMOVAL_REASONS = [
+  { value: 'closing',       label: 'Closing my club' },
+  { value: 'transferring',  label: 'Selling / transferring ownership' },
+  { value: 'switching',     label: 'Switching to a different platform' },
+  { value: 'personal',      label: 'Personal reasons' },
+  { value: 'other',         label: 'Other' },
+]
+
+function AccountRemovalSection({ userId, userEmail, userName, clubCount }) {
+  const [open, setOpen] = useState(false)
+  const [reason, setReason] = useState('')
+  const [explanation, setExplanation] = useState('')
+  const [feedback, setFeedback] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [submitted, setSubmitted] = useState(false)
+  const [confirmText, setConfirmText] = useState('')
+
+  async function handleSubmit() {
+    if (!reason || confirmText !== 'REMOVE') return
+    setSubmitting(true)
+    await supabase.from('admin_requests').insert({
+      type: 'account_removal_request',
+      user_id: userId,
+      user_email: userEmail || null,
+      user_name: userName || null,
+      details: { reason, explanation, feedback, club_count: clubCount },
+    })
+    setSubmitting(false)
+    setSubmitted(true)
+  }
+
+  return (
+    <div className="profile-section" style={{ borderTop: '1px solid #eee', marginTop: 8 }}>
+      <button type="button" className="survey-toggle-btn" onClick={() => setOpen(o => !o)}
+        style={{ padding: '14px 0' }}>
+        <span className="sec-label" style={{ margin: 0, color: '#999', fontSize: 13 }}>Account removal</span>
+        <svg className={`survey-chevron ${open ? 'open' : ''}`} width="12" height="12" viewBox="0 0 16 16" fill="none">
+          <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      </button>
+      {open && (
+        <div style={{ paddingBottom: 16 }}>
+          {submitted ? (
+            <div style={{ textAlign: 'center', padding: '20px 0' }}>
+              <div style={{ fontSize: 28, marginBottom: 8 }}>✅</div>
+              <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 6 }}>Request submitted</div>
+              <div style={{ fontSize: 13, color: '#666' }}>
+                Your account removal request has been sent to the admin. You'll be contacted when it's been processed.
+                Your clubs will be preserved for potential future owners.
+              </div>
+            </div>
+          ) : (
+            <>
+              <div style={{ background: '#FEF3C7', border: '1px solid #F59E0B', borderRadius: 8, padding: '10px 14px', marginBottom: 14, fontSize: 13, color: '#92400E', lineHeight: 1.5 }}>
+                <strong>What happens when your account is removed:</strong><br />
+                Your login will be deactivated and your club{clubCount > 1 ? 's' : ''} will be hidden from the map but preserved in the system.
+                A new owner can claim {clubCount > 1 ? 'them' : 'it'} in the future. This process is handled by an admin and may take a few days.
+              </div>
+
+              <div style={{ marginBottom: 12 }}>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 500, marginBottom: 4 }}>Why are you leaving? *</label>
+                <select value={reason} onChange={e => setReason(e.target.value)}
+                  style={{ width: '100%', padding: '8px 10px', border: '1px solid #d0d0d0', borderRadius: 6, fontSize: 14 }}>
+                  <option value="">Select a reason…</option>
+                  {REMOVAL_REASONS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+                </select>
+              </div>
+
+              <div style={{ marginBottom: 12 }}>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 500, marginBottom: 4 }}>Tell us more (optional)</label>
+                <textarea value={explanation} onChange={e => setExplanation(e.target.value)}
+                  placeholder="Any details about why you're leaving…"
+                  rows={2}
+                  style={{ width: '100%', padding: '8px 10px', border: '1px solid #d0d0d0', borderRadius: 6, fontSize: 14, resize: 'vertical' }} />
+              </div>
+
+              <div style={{ marginBottom: 14 }}>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 500, marginBottom: 4 }}>Any feedback for us? (optional)</label>
+                <textarea value={feedback} onChange={e => setFeedback(e.target.value)}
+                  placeholder="What could we have done better?"
+                  rows={2}
+                  style={{ width: '100%', padding: '8px 10px', border: '1px solid #d0d0d0', borderRadius: 6, fontSize: 14, resize: 'vertical' }} />
+              </div>
+
+              <div style={{ marginBottom: 14 }}>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 500, marginBottom: 4, color: '#C0392B' }}>
+                  Type REMOVE to confirm *
+                </label>
+                <input type="text" value={confirmText} onChange={e => setConfirmText(e.target.value)}
+                  placeholder="Type REMOVE"
+                  style={{ width: '100%', padding: '8px 10px', border: '1px solid #d0d0d0', borderRadius: 6, fontSize: 14 }} />
+              </div>
+
+              <button
+                onClick={handleSubmit}
+                disabled={!reason || confirmText !== 'REMOVE' || submitting}
+                style={{
+                  width: '100%', padding: '10px 16px', background: '#C0392B',
+                  color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600,
+                  cursor: reason && confirmText === 'REMOVE' ? 'pointer' : 'not-allowed',
+                  opacity: reason && confirmText === 'REMOVE' ? 1 : 0.5,
+                }}>
+                {submitting ? 'Submitting…' : 'Submit account removal request'}
+              </button>
+            </>
+          )}
         </div>
       )}
     </div>
@@ -2630,6 +2804,14 @@ export default function ProfilePage() {
       <ContactFeedbackSection
         userName={[personForm.first_name, personForm.last_name].filter(Boolean).join(' ')}
         userEmail={personForm.owner_email}
+      />
+
+      {/* Account Removal */}
+      <AccountRemovalSection
+        userId={user?.id}
+        userEmail={personForm.owner_email}
+        userName={[personForm.first_name, personForm.last_name].filter(Boolean).join(' ')}
+        clubCount={clubs.length}
       />
 
       <div style={{ height: 32 }} />

@@ -906,6 +906,7 @@ export default function MapPage() {
     growth: true, commute: true, competitors: true,
   }
   const [enabledFactors, setEnabledFactors] = useState(defaultEnabledFactors)
+  const [showOrphanedClubs, setShowOrphanedClubs] = useState(false)
 
   // Load admin-controlled demo factor toggles from app_settings
   useEffect(() => {
@@ -936,6 +937,7 @@ export default function MapPage() {
       if (data.global_marker_size) {
         setMarkerSizeScale(data.global_marker_size === 'large' ? 1.5 : data.global_marker_size === 'medium' ? 1.25 : 1)
       }
+      if (data.show_orphaned_clubs !== undefined) setShowOrphanedClubs(data.show_orphaned_clubs)
     }
     loadSettings()
   }, [])
@@ -1350,7 +1352,14 @@ export default function MapPage() {
     return () => supabase.removeChannel(channel)
   }, [])
 
-  const myClub = locations.find(l => l.user_id === user?.id) || null
+  // Filter out orphaned clubs unless global toggle + per-club override allow them
+  const visibleLocations = locations.filter(l => {
+    if (!l.status || l.status === 'active') return true
+    if (l.status === 'orphaned') return showOrphanedClubs && l.map_visible !== false
+    return false
+  })
+
+  const myClub = visibleLocations.find(l => l.user_id === user?.id) || null
 
   // Zoom map to fit the radius circle whenever radiusMiles or selected changes
   useEffect(() => {
@@ -1440,7 +1449,7 @@ export default function MapPage() {
   // Combined team set for legend/filter: owned teams + member teams
   const allTeamLocationIds = new Set([...teamLocationIds, ...memberTeamLocationIds])
 
-  const filteredLocations = locations.filter(loc => {
+  const filteredLocations = visibleLocations.filter(loc => {
     // Visibility mode filter
     const isOwn  = loc.user_id === user?.id
     const isTeam = allTeamLocationIds.has(loc.id)
@@ -1477,7 +1486,7 @@ export default function MapPage() {
   })
 
   const activeBase = BASE_MAPS.find(b => b.id === baseMap) || BASE_MAPS[0]
-  const defaultCenter = locations.length > 0 ? [locations[0].lat, locations[0].lng] : [39.5, -98.35]
+  const defaultCenter = visibleLocations.length > 0 ? [visibleLocations[0].lat, visibleLocations[0].lng] : [39.5, -98.35]
   const hasFilter = cityFilter || radiusMiles || visibilityMode !== 'all'
 
   return (
@@ -1504,7 +1513,7 @@ export default function MapPage() {
         )}
 
         {loading ? <div className="loading">Loading map…</div> : (
-          <MapContainer center={defaultCenter} zoom={locations.length > 0 ? 11 : 5} zoomControl={false} style={{ height: '100%', width: '100%' }}>
+          <MapContainer center={defaultCenter} zoom={visibleLocations.length > 0 ? 11 : 5} zoomControl={false} style={{ height: '100%', width: '100%' }}>
             <MapRefCapture mapRef={mapRef} />
             <MapExtentTracker />
             <ScrollZoomController enabled={scrollZoom} />
@@ -1972,7 +1981,7 @@ export default function MapPage() {
               <DemographicsPanel
                 lat={demoLat}
                 lng={demoLng}
-                locations={locations}
+                locations={visibleLocations}
                 enabledFactors={enabledFactors}
                 active={demoActive}
                 viewMode={demoViewMode}

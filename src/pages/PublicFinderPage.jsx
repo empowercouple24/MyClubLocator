@@ -302,6 +302,10 @@ function ClubCard({ club, expanded, onExpand, onClose, isFav, onToggleFav, onAut
   const [noteSubmitting, setNoteSubmitting] = useState(false)
   const [noteSent, setNoteSent]         = useState(false)
   const [noteOpen, setNoteOpen]         = useState(false)
+  const [editOpen, setEditOpen]         = useState(false)
+  const [editText, setEditText]         = useState('')
+  const [editSubmitting, setEditSubmitting] = useState(false)
+  const [editSent, setEditSent]         = useState(false)
   const [viewerIdx, setViewerIdx]       = useState(null)
   const touchRef = useRef(null)
 
@@ -315,6 +319,20 @@ function ClubCard({ club, expanded, onExpand, onClose, isFav, onToggleFav, onAut
     await supabase.from('notifications').insert({ type: 'club_note', title: 'New note on a club', body: `A public user left a note on ${club.club_name || 'a club'}: "${noteText.trim().slice(0, 80)}${noteText.length > 80 ? '…' : ''}"`, user_id: null })
     setNoteSubmitting(false); setNoteSent(true); setNoteText('')
     setTimeout(() => { setNoteSent(false); setNoteOpen(false) }, 2500)
+  }
+
+  async function submitEdit() {
+    if (!editText.trim()) return
+    setEditSubmitting(true)
+    await supabase.from('admin_requests').insert({
+      type: 'edit_suggestion',
+      user_id: publicAccountId ? null : null,
+      location_id: club.id,
+      location_name: club.club_name || 'Unnamed Club',
+      details: { suggestion: editText.trim() },
+    })
+    setEditSubmitting(false); setEditSent(true); setEditText('')
+    setTimeout(() => { setEditSent(false); setEditOpen(false) }, 2500)
   }
 
   return (
@@ -470,6 +488,25 @@ function ClubCard({ club, expanded, onExpand, onClose, isFav, onToggleFav, onAut
               {noteSent && <div className="pf-note-sent">Note submitted — thank you!</div>}
             </div>
           )}
+          {/* Suggest an Edit — available to everyone */}
+          <div className="pfp-note-section" style={{ borderTop: 'none', paddingTop: 0 }}>
+            {!editOpen && !editSent && (
+              <button className="pfp-note-toggle" onClick={() => setEditOpen(true)} style={{ color: '#888' }}>
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                Suggest an edit
+              </button>
+            )}
+            {editOpen && !editSent && (
+              <div className="pfp-note-form">
+                <textarea className="pf-note-input" rows={2} placeholder="e.g. Hours changed, club closed, wrong phone number…" value={editText} onChange={e => setEditText(e.target.value)} autoFocus />
+                <div className="pf-note-actions">
+                  <button className="pf-note-cancel" onClick={() => { setEditOpen(false); setEditText('') }}>Cancel</button>
+                  <button className="pf-note-submit" onClick={submitEdit} disabled={editSubmitting || !editText.trim()}>{editSubmitting ? 'Sending…' : 'Submit'}</button>
+                </div>
+              </div>
+            )}
+            {editSent && <div className="pf-note-sent">Suggestion submitted — thank you!</div>}
+          </div>
           <a className="pfp-gmaps-btn" href={mapsUrl} target="_blank" rel="noopener noreferrer">
             <svg width="18" height="18" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
               <defs><clipPath id="gpin"><path d="M50 2C27.5 2 9 20.5 9 43c0 31.5 41 55 41 55s41-23.5 41-55C91 20.5 72.5 2 50 2z"/></clipPath></defs>
@@ -537,7 +574,7 @@ export default function PublicFinderPage() {
   useEffect(() => {
     async function load() {
       const [{ data: s }, session] = await Promise.all([
-        supabase.from('app_settings').select('public_search_enabled,public_accounts_enabled,public_login_enabled,public_finder_welcome,public_finder_disclaimer_enabled,public_finder_disclaimer,search_radius_miles,marker_color_own,marker_color_other,marker_color_selected,global_marker_size').eq('id', 1).single(),
+        supabase.from('app_settings').select('public_search_enabled,public_accounts_enabled,public_login_enabled,public_finder_welcome,public_finder_disclaimer_enabled,public_finder_disclaimer,search_radius_miles,marker_color_own,marker_color_other,marker_color_selected,global_marker_size,show_orphaned_clubs').eq('id', 1).single(),
         supabase.auth.getSession(),
       ])
       setSettings(s)
@@ -649,7 +686,12 @@ export default function PublicFinderPage() {
   async function doSearch(lat, lng) {
     setSearching(true); setExpandedId(null); setShowSaved(false)
     const radius = Math.abs(settings?.search_radius_miles ?? 20)
-    const mapDist = rows => (rows || []).map(r => ({ ...r, distanceMiles: r.distance_miles }))
+    const filterOrphans = rows => (rows || []).filter(r => {
+      if (!r.status || r.status === 'active') return true
+      if (r.status === 'orphaned') return settings?.show_orphaned_clubs && r.map_visible !== false
+      return false
+    })
+    const mapDist = rows => filterOrphans(rows).map(r => ({ ...r, distanceMiles: r.distance_miles }))
     const { data: nearby, error } = await supabase.rpc('nearby_clubs', { search_lat: lat, search_lng: lng, radius_miles: radius })
     if (error) { console.error('nearby_clubs error:', error); setSearching(false); return }
     let displayResults
