@@ -583,15 +583,19 @@ export default function PublicFinderPage() {
       if (session.data.session) {
         const userId = session.data.session.user.id
         const userEmail = session.data.session.user.email
+        console.log('[PublicFinder] Session user:', userId, userEmail)
         // Check if this is a public account or a club owner
-        const { data: pubAcct } = await supabase.from('public_accounts').select('id').eq('auth_user_id', userId).single()
+        const { data: pubAcct, error: pubErr } = await supabase.from('public_accounts').select('id').eq('auth_user_id', userId).single()
+        console.log('[PublicFinder] Public account lookup:', { pubAcct, pubErr })
         if (pubAcct) {
           await loadPublicAccount(userId)
         } else {
           // No public_accounts row — verify they actually own a club before labelling them as owner
-          const { data: loc } = await supabase.from('locations').select('id').eq('user_id', userId).limit(1)
+          const { data: loc, error: locErr } = await supabase.from('locations').select('id').eq('user_id', userId).limit(1)
+          console.log('[PublicFinder] Locations lookup:', { loc, locErr })
           if (loc && loc.length > 0) {
             setIsClubOwner(true)
+            console.log('[PublicFinder] Setting isClubOwner = true')
           } else {
             // Not a club owner either — auto-create public account (row may have failed during signup due to RLS)
             const { data: newAcct } = await supabase.from('public_accounts')
