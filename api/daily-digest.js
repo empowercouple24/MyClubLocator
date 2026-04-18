@@ -15,7 +15,7 @@
 //   SUPABASE_SERVICE_ROLE_KEY  — service-role key (NEVER expose to client)
 //   CRON_SECRET                — random string; Vercel Cron sends it as Authorization header
 //
-// SCHEDULE: Configured in vercel.json — runs daily at 13:00 UTC (≈ 8am Cincinnati / 9am EDT)
+// SCHEDULE: Configured in vercel.json — runs daily at 00:00 UTC (= 8 PM EDT / 7 PM EST)
 // ═══════════════════════════════════════════════════════════════════════════
 
 import { createClient } from '@supabase/supabase-js'
@@ -186,7 +186,7 @@ function buildSubject({ newUsers, newClubs, additions }) {
   if (additions > 0) parts.push(`${additions} club ${additions === 1 ? 'addition' : 'additions'}`)
   if (newClubs > 0 && parts.length === 0) parts.push(`${newClubs} new ${newClubs === 1 ? 'club' : 'clubs'}`)
   const summary = parts.join(' · ')
-  const date = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  const date = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'America/New_York' })
   return `[MyClubLocator] Daily digest · ${summary} · ${date}`
 }
 
@@ -204,7 +204,8 @@ function fmtDate(iso) {
   if (!iso) return ''
   try {
     return new Date(iso).toLocaleString('en-US', {
-      month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
+      month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
+      timeZone: 'America/New_York'
     })
   } catch { return '' }
 }
@@ -294,8 +295,8 @@ function sectionHeader(label, count, accent) {
 
 function buildDigestHtml({ groupA, groupB, since }) {
   const totalClubs = groupA.reduce((sum, u) => sum + u.clubs.length, 0) + groupB.reduce((sum, u) => sum + u.clubs.length, 0)
-  const sinceFmt = new Date(since).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
-  const nowFmt = new Date().toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+  const sinceFmt = new Date(since).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' })
+  const nowFmt = new Date().toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' })
 
   const groupASection = groupA.length ? `
     ${sectionHeader('New User Profiles', groupA.length, { bg: '#E8F5EE', fg: '#2d7a52' })}
