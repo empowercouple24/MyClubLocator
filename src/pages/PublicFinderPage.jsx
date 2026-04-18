@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { MapContainer, TileLayer, Marker, Tooltip, useMap, useMapEvents } from 'react-leaflet'
+import { MapContainer, TileLayer, Marker, Tooltip, useMap, useMapEvents, Polyline } from 'react-leaflet'
 import { divIcon } from 'leaflet'
 import { supabase } from '../lib/supabase'
 import { geocodeSingle } from '../lib/geocode'
@@ -570,6 +570,12 @@ export default function PublicFinderPage() {
   const [favIds, setFavIds]                 = useState(new Set())
   const [savedClubs, setSavedClubs]         = useState([])
   const [isClubOwner, setIsClubOwner]       = useState(false)
+  // Route to nearest/selected club (public user preference, persisted)
+  const [showRoute, setShowRoute]           = useState(() => {
+    try { const v = localStorage.getItem('pfp_show_route'); return v === null ? true : v === 'true' } catch { return true }
+  })
+  const [routeCoords, setRouteCoords]       = useState(null)
+  const [prefsOpen, setPrefsOpen]           = useState(false)
 
   useEffect(() => {
     async function load() {
@@ -617,6 +623,46 @@ export default function PublicFinderPage() {
     autoGeoFired.current = true
     handleGeolocate()
   }, [accepted])
+
+  // Persist route-toggle preference
+  useEffect(() => {
+    try { localStorage.setItem('pfp_show_route', String(showRoute)) } catch {}
+  }, [showRoute])
+
+  // Fetch & draw route line from user's location to the selected (or closest) club.
+  // Targets:
+  //   - expandedId (if clicked) → route to that club
+  //   - else results[0] (closest) → auto route to nearest
+  useEffect(() => {
+    if (!showRoute || !userLat || !userLng || !results || results.length === 0) {
+      setRouteCoords(null)
+      return
+    }
+    const target = results.find(r => r.id === expandedId) || results[0]
+    if (!target?.lat || !target?.lng) { setRouteCoords(null); return }
+    let cancelled = false
+    async function fetchRoute() {
+      // Fallback straight line while (or if) Mapbox is unavailable
+      const straight = [[userLat, userLng], [target.lat, target.lng]]
+      if (!MAPBOX_TOKEN) { if (!cancelled) setRouteCoords(straight); return }
+      try {
+        const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${userLng},${userLat};${target.lng},${target.lat}?geometries=geojson&overview=full&access_token=${MAPBOX_TOKEN}`
+        const res = await fetch(url)
+        if (!res.ok) throw new Error('Directions request failed: ' + res.status)
+        const json = await res.json()
+        const route = json?.routes?.[0]
+        if (!route?.geometry?.coordinates) { if (!cancelled) setRouteCoords(straight); return }
+        // Mapbox returns [lng,lat]; Leaflet wants [lat,lng]
+        const coords = route.geometry.coordinates.map(([lng, lat]) => [lat, lng])
+        if (!cancelled) setRouteCoords(coords)
+      } catch (e) {
+        console.warn('Route fetch failed, falling back to straight line:', e)
+        if (!cancelled) setRouteCoords(straight)
+      }
+    }
+    fetchRoute()
+    return () => { cancelled = true }
+  }, [showRoute, userLat, userLng, results, expandedId])
 
   async function loadPublicAccount(authUserId) {
     const { data } = await supabase.from('public_accounts').select('id,display_name,email').eq('auth_user_id', authUserId).single()
@@ -844,6 +890,13 @@ export default function PublicFinderPage() {
             <TileLayer url={MAPBOX_URL} attribution={MAPBOX_ATTR} />
             <FindExtentTracker />
             {flyTo && <MapFlyTo key={flyTo._t} lat={flyTo.lat} lng={flyTo.lng} zoom={flyTo.zoom} bounds={flyTo.bounds} />}
+            {showRoute && routeCoords && routeCoords.length > 1 && (
+              <>
+                <Polyline positions={routeCoords} pathOptions={{ color: '#2563eb', weight: 9,  opacity: 0.18, className: 'pfp-route-halo' }} />
+                <Polyline positions={routeCoords} pathOptions={{ color: '#3b82f6', weight: 4.5, opacity: 0.9,  className: 'pfp-route-line' }} />
+                <Polyline positions={routeCoords} pathOptions={{ color: '#ffffff', weight: 4,   opacity: 0.95, dashArray: '10 28', className: 'pfp-route-strobe' }} />
+              </>
+            )}
             {userLat && userLng && <Marker position={[userLat, userLng]} icon={isGeolocated ? userIcon : searchPinIcon} />}
             {(results || []).map(club => {
               if (!club.lat || !club.lng) return null
@@ -880,6 +933,23 @@ export default function PublicFinderPage() {
           <div className="pfp-search-float">
             <form className="pfp-search-form" onSubmit={handleSearchSubmit}>
               <div className="pfp-search-row">
+                <button
+                  type="button"
+                  className="pfp-geo-btn"
+                  onClick={handleGeolocate}
+                  disabled={geoLocating}
+                  title={geoLocating ? 'Locating…' : 'Use my location'}
+                  aria-label="Use my location"
+                >
+                  {geoLocating
+                    ? <div className="pfp-geo-spinner" />
+                    : <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <circle cx="12" cy="12" r="4" fill="currentColor"/>
+                        <path d="M12 2v3M12 19v3M2 12h3M19 12h3" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                        <circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="1.5" strokeDasharray="3 2"/>
+                      </svg>
+                  }
+                </button>
                 <AddressAutocomplete
                   value={query}
                   onChange={setQuery}
@@ -895,10 +965,6 @@ export default function PublicFinderPage() {
                 </button>
               </div>
             </form>
-            <button className="pfp-geo-btn" onClick={handleGeolocate} disabled={geoLocating}>
-              {geoLocating ? <div className="pfp-search-spinner" style={{width:12,height:12}} /> : <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4" fill="currentColor"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/><circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="1.5" strokeDasharray="3 2"/></svg>}
-              {geoLocating ? 'Locating…' : 'Use my location'}
-            </button>
             {geoError && <div className="pfp-geo-error">{geoError}</div>}
           </div>
 
@@ -993,6 +1059,47 @@ export default function PublicFinderPage() {
                       </>
                     )}
                   </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Floating preferences panel — route toggle etc. */}
+          {userLat && userLng && results && results.length > 0 && (
+            <div className={`pfp-prefs ${prefsOpen ? 'pfp-prefs--open' : ''}`}>
+              <button
+                className="pfp-prefs-trigger"
+                onClick={() => setPrefsOpen(o => !o)}
+                title="Map preferences"
+                aria-label="Map preferences"
+                aria-expanded={prefsOpen}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <circle cx="12" cy="12" r="3"/>
+                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                </svg>
+              </button>
+              {prefsOpen && (
+                <div className="pfp-prefs-body">
+                  <div className="pfp-prefs-title">Map preferences</div>
+                  <label className="pfp-prefs-row">
+                    <span className="pfp-prefs-label">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M4 20l7-16 3 7 7 2-7 3z"/>
+                      </svg>
+                      Route to nearest club
+                    </span>
+                    <span
+                      className={`pfp-prefs-switch ${showRoute ? 'pfp-prefs-switch--on' : ''}`}
+                      role="switch"
+                      aria-checked={showRoute}
+                      tabIndex={0}
+                      onClick={() => setShowRoute(v => !v)}
+                      onKeyDown={e => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); setShowRoute(v => !v) } }}
+                    >
+                      <span className="pfp-prefs-switch-knob" />
+                    </span>
+                  </label>
                 </div>
               )}
             </div>
