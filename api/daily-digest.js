@@ -52,15 +52,36 @@ export default async function handler(req, res) {
     const newUserIds = new Set(newUsers.map(u => u.id))
 
     // ── 2. Fetch all locations created in the last 24h ──
-    const { data: newClubs, error: clubsErr } = await supabase
+    // Query minimal safe columns; optional fields wrapped in try-catch fallback
+    let allClubs = []
+    let clubsErr = null
+
+    // First try with all useful columns (status, approved are newer)
+    const fullQuery = await supabase
       .from('locations')
       .select('id, user_id, club_name, first_name, last_name, club_email, city, state, address, zip, created_at, status, approved')
       .gte('created_at', since)
       .order('created_at', { ascending: true })
 
-    if (clubsErr) throw new Error(`locations query failed: ${clubsErr.message}`)
+    if (fullQuery.error) {
+      // Fall back to bare-minimum columns if some don't exist
+      console.warn('[daily-digest] Full column query failed, falling back to minimal:', fullQuery.error.message)
+      const minimalQuery = await supabase
+        .from('locations')
+        .select('id, user_id, club_name, first_name, last_name, city, state, created_at')
+        .gte('created_at', since)
+        .order('created_at', { ascending: true })
 
-    const allClubs = newClubs || []
+      if (minimalQuery.error) {
+        clubsErr = minimalQuery.error
+      } else {
+        allClubs = minimalQuery.data || []
+      }
+    } else {
+      allClubs = fullQuery.data || []
+    }
+
+    if (clubsErr) throw new Error(`locations query failed: ${clubsErr.message}`)
 
     // ── 3. Split clubs into "from new user" vs "from existing user" ──
     const clubsByNewUser = new Map() // user_id -> [club, club, ...]
@@ -79,11 +100,27 @@ export default async function handler(req, res) {
     let existingUserInfo = new Map() // user_id -> { name, email }
 
     if (existingUserIds.length) {
-      const { data: ownerRows } = await supabase
+      // Try with club_index ordering, fall back without if it fails
+      let ownerRows = []
+      const orderedQuery = await supabase
         .from('locations')
         .select('user_id, first_name, last_name, club_email')
         .in('user_id', existingUserIds)
         .order('club_index', { ascending: true })
+
+      if (orderedQuery.error) {
+        console.warn('[daily-digest] Ordered owner query failed, falling back:', orderedQuery.error.message)
+        const fallbackQuery = await supabase
+          .from('locations')
+          .select('user_id, first_name, last_name')
+          .in('user_id', existingUserIds)
+
+        if (!fallbackQuery.error) {
+          ownerRows = fallbackQuery.data || []
+        }
+      } else {
+        ownerRows = orderedQuery.data || []
+      }
 
       // Take the first row per user_id (typically club_index=0, the primary)
       for (const row of ownerRows || []) {
@@ -172,7 +209,8 @@ export default async function handler(req, res) {
 
   } catch (err) {
     console.error('[daily-digest] Error:', err)
-    return res.status(500).json({ error: err.message })
+    console.error('[daily-digest] Stack:', err.stack)
+    return res.status(500).json({ error: err.message, stack: err.stack })
   }
 }
 
