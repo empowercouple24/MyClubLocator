@@ -52,36 +52,50 @@ export default async function handler(req, res) {
     const newUserIds = new Set(newUsers.map(u => u.id))
 
     // ── 2. Fetch all locations created in the last 24h ──
-    // Query minimal safe columns; optional fields wrapped in try-catch fallback
+    // Query strategy: try full → minimal → no-filter (filter in JS), log details on each failure
     let allClubs = []
-    let clubsErr = null
+    let lastError = null
 
-    // First try with all useful columns (status, approved are newer)
+    // Attempt 1: full column list with created_at filter
     const fullQuery = await supabase
       .from('locations')
       .select('id, user_id, club_name, first_name, last_name, club_email, city, state, address, zip, created_at, status, approved')
       .gte('created_at', since)
       .order('created_at', { ascending: true })
 
-    if (fullQuery.error) {
-      // Fall back to bare-minimum columns if some don't exist
-      console.warn('[daily-digest] Full column query failed, falling back to minimal:', fullQuery.error.message)
+    if (!fullQuery.error) {
+      allClubs = fullQuery.data || []
+    } else {
+      console.warn('[daily-digest] Attempt 1 (full columns + filter) failed:', JSON.stringify(fullQuery.error))
+      lastError = fullQuery.error
+
+      // Attempt 2: minimal columns with created_at filter
       const minimalQuery = await supabase
         .from('locations')
         .select('id, user_id, club_name, first_name, last_name, city, state, created_at')
         .gte('created_at', since)
         .order('created_at', { ascending: true })
 
-      if (minimalQuery.error) {
-        clubsErr = minimalQuery.error
-      } else {
+      if (!minimalQuery.error) {
         allClubs = minimalQuery.data || []
-      }
-    } else {
-      allClubs = fullQuery.data || []
-    }
+      } else {
+        console.warn('[daily-digest] Attempt 2 (minimal + filter) failed:', JSON.stringify(minimalQuery.error))
+        lastError = minimalQuery.error
 
-    if (clubsErr) throw new Error(`locations query failed: ${clubsErr.message}`)
+        // Attempt 3: no filter, get everything and filter in JS (last resort, expensive but bulletproof)
+        const allQuery = await supabase
+          .from('locations')
+          .select('id, user_id, club_name, first_name, last_name, city, state, created_at')
+
+        if (!allQuery.error) {
+          allClubs = (allQuery.data || []).filter(c => c.created_at && c.created_at >= since)
+          console.warn('[daily-digest] Attempt 3 succeeded — created_at filter is the problem')
+        } else {
+          console.error('[daily-digest] Attempt 3 (no filter) ALSO failed:', JSON.stringify(allQuery.error))
+          throw new Error(`locations query failed (3 attempts): ${JSON.stringify(allQuery.error)}`)
+        }
+      }
+    }
 
     // ── 3. Split clubs into "from new user" vs "from existing user" ──
     const clubsByNewUser = new Map() // user_id -> [club, club, ...]
