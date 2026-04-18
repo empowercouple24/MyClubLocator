@@ -114,27 +114,42 @@ export default async function handler(req, res) {
     let existingUserInfo = new Map() // user_id -> { name, email }
 
     if (existingUserIds.length) {
-      // Try with club_index ordering, fall back without if it fails
-      let ownerRows = []
-      const orderedQuery = await supabase
-        .from('locations')
-        .select('user_id, first_name, last_name, club_email')
-        .in('user_id', existingUserIds)
-        .order('club_index', { ascending: true })
-
-      if (orderedQuery.error) {
-        console.warn('[daily-digest] Ordered owner query failed, falling back:', orderedQuery.error.message)
-        const fallbackQuery = await supabase
+      try {
+        // Try with club_index ordering, fall back without if it fails
+        let ownerRows = []
+        const orderedQuery = await supabase
           .from('locations')
-          .select('user_id, first_name, last_name')
+          .select('user_id, first_name, last_name, club_email')
           .in('user_id', existingUserIds)
+          .order('club_index', { ascending: true })
 
-        if (!fallbackQuery.error) {
-          ownerRows = fallbackQuery.data || []
+        if (orderedQuery.error) {
+          console.warn('[daily-digest] Ordered owner query failed:', JSON.stringify(orderedQuery.error))
+          // Try without the order clause
+          const noOrderQuery = await supabase
+            .from('locations')
+            .select('user_id, first_name, last_name, club_email')
+            .in('user_id', existingUserIds)
+
+          if (noOrderQuery.error) {
+            console.warn('[daily-digest] No-order owner query failed:', JSON.stringify(noOrderQuery.error))
+            // Try without club_email column
+            const minimalOwnerQuery = await supabase
+              .from('locations')
+              .select('user_id, first_name, last_name')
+              .in('user_id', existingUserIds)
+
+            if (!minimalOwnerQuery.error) {
+              ownerRows = minimalOwnerQuery.data || []
+            } else {
+              console.error('[daily-digest] Even minimal owner query failed:', JSON.stringify(minimalOwnerQuery.error))
+            }
+          } else {
+            ownerRows = noOrderQuery.data || []
+          }
+        } else {
+          ownerRows = orderedQuery.data || []
         }
-      } else {
-        ownerRows = orderedQuery.data || []
-      }
 
       // Take the first row per user_id (typically club_index=0, the primary)
       for (const row of ownerRows || []) {
@@ -150,13 +165,22 @@ export default async function handler(req, res) {
       // Also fetch auth emails as fallback
       for (const uid of existingUserIds) {
         if (!existingUserInfo.get(uid)?.email) {
-          const { data: authUser } = await supabase.auth.admin.getUserById(uid)
-          if (authUser?.user?.email) {
-            const info = existingUserInfo.get(uid) || { name: null, email: null }
-            info.email = authUser.user.email
-            existingUserInfo.set(uid, info)
+          try {
+            const { data: authUser } = await supabase.auth.admin.getUserById(uid)
+            if (authUser?.user?.email) {
+              const info = existingUserInfo.get(uid) || { name: null, email: null }
+              info.email = authUser.user.email
+              existingUserInfo.set(uid, info)
+            }
+          } catch (e) {
+            console.warn('[daily-digest] getUserById failed for', uid, ':', e.message)
           }
         }
+      }
+      } catch (ownerErr) {
+        // Owner-info enrichment failed entirely — log and continue without it
+        // The digest will still send, just without owner names/emails for Group B
+        console.error('[daily-digest] Owner-info section threw:', ownerErr.message, ownerErr.stack)
       }
     }
 
