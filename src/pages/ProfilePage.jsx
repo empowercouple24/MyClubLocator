@@ -1421,7 +1421,7 @@ function ClubEditor({ club, clubIndex, userId, isOnly, allClubs, onSaved, onRemo
       </div>
 
       {/* Financial Details — owner-only, private */}
-      <div className="club-section">
+      <div className="club-section financial-details-section">
         <div className="sec-label" style={{ marginBottom: 4 }}>
           Financial details <span className="private-tag">Private</span>
         </div>
@@ -1429,45 +1429,37 @@ function ClubEditor({ club, clubIndex, userId, isOnly, allClubs, onSaved, onRemo
           Used to calculate price per sq ft for your own benchmarking. Visible only to you and admins — never shown publicly.
         </div>
 
-        <div className="financial-inputs">
-          <div className="form-field">
-            <label className="field-label">Monthly rent</label>
-            <div className="input-with-prefix">
-              <span className="input-prefix">$</span>
-              <input
-                type="text"
-                inputMode="decimal"
-                name="monthly_rent"
-                value={form.monthly_rent == null ? '' : String(form.monthly_rent)}
-                onChange={e => {
-                  const raw = e.target.value.replace(/[^0-9.]/g, '')
-                  setField('monthly_rent', raw === '' ? null : raw)
-                }}
-                placeholder="3,200"
-                className="field-input has-prefix"
-              />
-            </div>
-            <div className="field-hint">Base rent only — exclude CAM/utilities</div>
+        <div className="fgrid">
+          <div className="pf">
+            <label>Monthly rent <span className="optional-tag">optional</span></label>
+            <input
+              type="text"
+              inputMode="decimal"
+              name="monthly_rent"
+              value={form.monthly_rent == null ? '' : String(form.monthly_rent)}
+              onChange={e => {
+                const raw = e.target.value.replace(/[^0-9.]/g, '')
+                setField('monthly_rent', raw === '' ? null : raw)
+              }}
+              placeholder="$ 3,200"
+            />
+            <span className="field-hint">Base rent only — exclude CAM/utilities</span>
           </div>
 
-          <div className="form-field">
-            <label className="field-label">Square footage</label>
-            <div className="input-with-suffix">
-              <input
-                type="text"
-                inputMode="numeric"
-                name="square_footage"
-                value={form.square_footage == null ? '' : String(form.square_footage)}
-                onChange={e => {
-                  const raw = e.target.value.replace(/[^0-9]/g, '')
-                  setField('square_footage', raw === '' ? null : raw)
-                }}
-                placeholder="1,450"
-                className="field-input has-suffix"
-              />
-              <span className="input-suffix">sq ft</span>
-            </div>
-            <div className="field-hint">Interior usable space</div>
+          <div className="pf">
+            <label>Square footage <span className="optional-tag">optional</span></label>
+            <input
+              type="text"
+              inputMode="numeric"
+              name="square_footage"
+              value={form.square_footage == null ? '' : String(form.square_footage)}
+              onChange={e => {
+                const raw = e.target.value.replace(/[^0-9]/g, '')
+                setField('square_footage', raw === '' ? null : raw)
+              }}
+              placeholder="1,450 sq ft"
+            />
+            <span className="field-hint">Interior usable space</span>
           </div>
         </div>
 
@@ -1477,7 +1469,7 @@ function ClubEditor({ club, clubIndex, userId, isOnly, allClubs, onSaved, onRemo
           const showCalc = isFinite(rent) && isFinite(sqft) && rent > 0 && sqft > 0
           const pps = showCalc ? (rent / sqft).toFixed(2) : null
           return (
-            <div className={`per-sqft-display ${showCalc ? '' : 'empty'}`}>
+            <div className={`per-sqft-display ${showCalc ? '' : 'empty'}`} style={{ marginTop: 12 }}>
               <span className="per-sqft-label">Price per sq ft (monthly)</span>
               <span className="per-sqft-value">{showCalc ? `$${pps}` : 'Fill both fields to see calculation'}</span>
             </div>
@@ -2174,7 +2166,7 @@ export default function ProfilePage() {
       const firstIncomplete = clubs.findIndex(c => c.id && (c.monthly_rent == null || c.monthly_rent === '') && (c.square_footage == null || c.square_footage === ''))
       if (firstIncomplete >= 0) setActiveTab(firstIncomplete)
       setTimeout(() => {
-        const el = document.querySelector('.financial-inputs')
+        const el = document.querySelector('.financial-details-section')
         if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
       }, 250)
     }
@@ -2659,7 +2651,7 @@ export default function ProfilePage() {
                 type="button"
                 className="rent-prompt-banner-cta"
                 onClick={() => {
-                  const el = document.querySelector('.financial-inputs')
+                  const el = document.querySelector('.financial-details-section')
                   if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
                 }}
               >
