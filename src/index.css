@@ -7052,18 +7052,26 @@ body:has(.admin-page-wrap) {
 }
 
 /* ── Tooltip level pill ──────────────────────────────────────── */
+/* Base pill — colors come from .lvl-tier-* modifier classes below */
 .ct-level-pill {
   display: inline-block;
   font-size: 10px;
   font-weight: 600;
   padding: 1px 7px;
   border-radius: 20px;
-  background: #fdf6cc;
-  color: #7a5200;
-  border: 0.5px solid #c9a800;
+  background: #eef2f7;
+  color: #555;
+  border: 0.5px solid transparent;
   margin-top: 2px;
   white-space: nowrap;
 }
+
+/* Tier color variants — matches DirectoryPage LevelPill component */
+.ct-level-pill.lvl-tier-gold     { background: #fdf6cc; color: #7a5200; border-color: #c9a800; }
+.ct-level-pill.lvl-tier-silver   { background: #f0f0f4; color: #3a3a50; border-color: #b0b0c8; }
+.ct-level-pill.lvl-tier-lavender { background: #f8f8ff; color: #3a3060; border-color: #c8c0e8; }
+.ct-level-pill.lvl-tier-green    { background: #e8f8f0; color: #0c5a32; border-color: #A8DFC4; }
+.ct-level-pill.lvl-tier-grey     { background: #f0f0f0; color: #555;    border-color: #ccc;    }
 
 /* ── Tooltip address ─────────────────────────────────────────── */
 .ct-addr {
