@@ -11448,3 +11448,51 @@ input.input-ok {
   border: 0.5px solid #d6d6d6;
 }
 .rent-prompt-modal-btn--secondary:hover { background: #f5f5f5; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Directory card navigational actions (View on map)
+   Appears for everyone, above the owner-only edit actions
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.dc-nav-actions {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 0.5px solid #f0f0f0;
+}
+.dc-nav-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 9px 12px;
+  background: #ffffff;
+  border: 0.5px solid #c8cad0;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #444;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.dc-nav-btn:hover {
+  background: #f5f7fa;
+  border-color: #8a9bb0;
+  color: #1A3C2E;
+}
+.dc-nav-btn:active {
+  transform: scale(0.99);
+}
+.dc-nav-btn-icon {
+  font-size: 13px;
+  opacity: 0.9;
+}
+
+/* When the nav row is immediately followed by edit actions (owner view),
+   tighten the gap between them and remove the double top-border. */
+.dc-nav-actions + .dc-edit-actions {
+  margin-top: 8px;
+  padding-top: 0;
+  border-top: none;
+}
