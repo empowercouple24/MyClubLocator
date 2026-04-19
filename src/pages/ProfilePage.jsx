@@ -735,7 +735,7 @@ function RemoveClubPrompt({ clubName, clubId, userId, userEmail, userName, onDon
 }
 
 // ── ClubEditor: renders one club's fields ─────────────────────
-function ClubEditor({ club, clubIndex, userId, isOnly, allClubs, onSaved, onRemove, userEmail, personData, onDirtyChange, saveRef, onNextSection }) {
+function ClubEditor({ club, clubIndex, userId, isOnly, allClubs, onSaved, onRemove, userEmail, personData, onDirtyChange, saveRef, onNextSection, adminMode }) {
   const [form, setForm]       = useState({ ...DEFAULT_CLUB, ...club })
   const [savedForm, setSavedForm] = useState({ ...DEFAULT_CLUB, ...club })
   const [errors, setErrors]   = useState({})
@@ -1607,13 +1607,15 @@ function ClubEditor({ club, clubIndex, userId, isOnly, allClubs, onSaved, onRemo
           })} disabled={saving || !requiredFilled}>
             Save & go to next section →
           </button>
-          <button className="btn-save btn-save--map" onClick={() => handleSave('map')} disabled={saving || !requiredFilled}>
-            Save & go to map →
-          </button>
+          {!adminMode && (
+            <button className="btn-save btn-save--map" onClick={() => handleSave('map')} disabled={saving || !requiredFilled}>
+              Save & go to map →
+            </button>
+          )}
         </div>
       </div>
 
-      {!isOnly && (
+      {!isOnly && !adminMode && (
         <div className="remove-club-zone">
           <button className="remove-club-btn" onClick={() => setShowRemovePrompt(true)}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
@@ -1939,12 +1941,19 @@ function AccountRemovalSection({ userId, userEmail, userName, clubCount }) {
 
 // ── Main ProfilePage ──────────────────────────────────────────
 export default function ProfilePage() {
-  const { user } = useAuth()
+  const { user, isAdmin } = useAuth()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const initClubTab = parseInt(searchParams.get('club'))
   const initClubId = searchParams.get('club_id')      // deep link by UUID (more reliable than index)
   const initFocus = searchParams.get('focus')         // 'owner' → scroll to Owner section on mount
+  const initAsAdmin = searchParams.get('as_admin') === '1'  // admin editing someone else's club
+
+  // Admin masquerade state — populated only if isAdmin && as_admin=1 && club_id belongs to another user
+  const [adminMode, setAdminMode] = useState(false)
+  const [adminTargetUserId, setAdminTargetUserId] = useState(null)  // the owner being edited
+  const [adminTargetName, setAdminTargetName] = useState('')        // "Jillian Hill" — for banner copy
+  const [adminTargetClubName, setAdminTargetClubName] = useState('')
 
   const [personForm, setPersonForm] = useState(DEFAULT_PERSON)
   const [savedPersonForm, setSavedPersonForm] = useState(null)
@@ -2007,6 +2016,78 @@ export default function ProfilePage() {
       // Only do the full load once — tab switches / auth refreshes should not wipe unsaved state
       if (hasLoadedRef.current) return
       hasLoadedRef.current = true
+
+      // ── Admin masquerade path ─────────────────────────────────────────
+      // When admin opens ?club_id=<uuid>&as_admin=1 for a club that's NOT theirs,
+      // load that club + all siblings under the same owner + the owner's person fields.
+      // Everything that follows uses the same code path, so the full ProfilePage
+      // form works against the target owner's data instead of the admin's own.
+      if (isAdmin && initAsAdmin && initClubId) {
+        // First, fetch the target club to learn its user_id
+        const { data: targetClub, error: tcErr } = await supabase
+          .from('locations')
+          .select('*')
+          .eq('id', initClubId)
+          .single()
+
+        if (tcErr || !targetClub) {
+          console.error('[ProfilePage] admin-mode: target club not found', tcErr)
+          // Fall through to normal load — admin sees their own profile
+        } else if (targetClub.user_id !== user.id) {
+          // Genuine cross-user admin edit — switch to masquerade mode
+          setAdminMode(true)
+          setAdminTargetUserId(targetClub.user_id)
+          const ownerName = [targetClub.first_name, targetClub.last_name].filter(Boolean).join(' ').trim()
+          setAdminTargetName(ownerName || '(unnamed owner)')
+          setAdminTargetClubName(targetClub.club_name || '(unnamed club)')
+
+          // Now fetch ALL clubs belonging to that owner (same as a normal load would)
+          const { data: allClubs } = await supabase
+            .from('locations')
+            .select('*')
+            .eq('user_id', targetClub.user_id)
+            .order('club_index', { ascending: true })
+
+          const data = allClubs || [targetClub]
+
+          // Load person fields from first row
+          const row0 = data[0]
+          const pf = { ...DEFAULT_PERSON }
+          Object.keys(DEFAULT_PERSON).forEach(k => { if (row0[k] != null) pf[k] = row0[k] })
+          setPersonForm(pf)
+
+          if (row0.owner2_first_name) setShowOwner2(true)
+          if (row0.owner3_first_name) setShowOwner3(true)
+          if (row0.owner_photo_url)  setOwnerPhotoUrl(row0.owner_photo_url)
+          if (row0.owner2_photo_url) setOwner2PhotoUrl(row0.owner2_photo_url)
+          if (row0.owner3_photo_url) setOwner3PhotoUrl(row0.owner3_photo_url)
+          setSavedPersonForm({ ...pf, _p1: row0.owner_photo_url || null, _p2: row0.owner2_photo_url || null, _p3: row0.owner3_photo_url || null })
+
+          // Keep the owner card expanded by default in admin mode so admin sees what they're editing
+          setOwner1Collapsed(false)
+
+          // Build clubs array
+          const clubsArr = data.map(row => ({ ...DEFAULT_CLUB, ...row }))
+          setClubs(clubsArr)
+
+          // Auto-switch to the specific club tab matching initClubId
+          const idx = clubsArr.findIndex(c => c.id === initClubId)
+          if (idx >= 0) setActiveTab(idx)
+
+          // Also load the admin's own app_settings bits for the UI (fonts, themes, etc.)
+          try {
+            const { data: appS } = await supabase.from('app_settings')
+              .select('team_info_modal_enabled, team_info_message, team_info_video_enabled, team_info_video_url, team_creation_min_level')
+              .eq('id', 1).single()
+            if (appS) setTeamInfoSettings(appS)
+          } catch {}
+
+          setLoading(false)
+          return   // ← skip normal load path entirely
+        }
+        // else: admin is editing their own club; fall through to normal load
+      }
+      // ──────────────────────────────────────────────────────────────────
 
       const { data } = await supabase
         .from('locations')
@@ -2144,6 +2225,7 @@ export default function ProfilePage() {
   // dismiss-then-reload doesn't re-open it within the same session.
   useEffect(() => {
     if (loading) return
+    if (adminMode) return  // ← admin shouldn't be prompted to complete owner's rent/sqft
     if (!clubs || clubs.length === 0) return
     // Already dismissed this session?
     try {
@@ -2186,10 +2268,11 @@ export default function ProfilePage() {
   async function saveCroppedOwnerPhoto(blob) {
     const target = cropTarget
     setCropSrc(null); setCropTarget(null)
+    const photoUserId = adminMode ? adminTargetUserId : user.id
     const configs = {
-      owner1: { set: setOwnerPhotoUrl, setLoading: setUploadingOwnerPhoto, path: user.id + '/owner-photo.jpg' },
-      owner2: { set: setOwner2PhotoUrl, setLoading: setUploadingOwner2Photo, path: user.id + '/owner2-photo.jpg' },
-      owner3: { set: setOwner3PhotoUrl, setLoading: setUploadingOwner3Photo, path: user.id + '/owner3-photo.jpg' },
+      owner1: { set: setOwnerPhotoUrl, setLoading: setUploadingOwnerPhoto, path: photoUserId + '/owner-photo.jpg' },
+      owner2: { set: setOwner2PhotoUrl, setLoading: setUploadingOwner2Photo, path: photoUserId + '/owner2-photo.jpg' },
+      owner3: { set: setOwner3PhotoUrl, setLoading: setUploadingOwner3Photo, path: photoUserId + '/owner3-photo.jpg' },
     }
     const cfg = configs[target]
     if (!cfg) return
@@ -2237,12 +2320,15 @@ export default function ProfilePage() {
       owner3_photo_url: owner3PhotoUrl,
     }
 
-    // Update all of this user's location rows with the person fields
+    // In admin mode, update the target owner's rows; otherwise update the current user's rows
+    const targetUserId = adminMode ? adminTargetUserId : user.id
+
+    // Update all of the target user's location rows with the person fields
     // Use .select() so we can verify which rows were actually updated
     const { data: updated, error } = await supabase
       .from('locations')
       .update(personRecord)
-      .eq('user_id', user.id)
+      .eq('user_id', targetUserId)
       .select()
 
     if (error) {
@@ -2264,11 +2350,16 @@ export default function ProfilePage() {
     }))
 
     setSavedPersonForm({ ...personForm, _p1: ownerPhotoUrl, _p2: owner2PhotoUrl, _p3: owner3PhotoUrl })
-    // Clear pending_survey now that it's been applied
-    supabase.from('user_terms_acceptance')
-      .update({ pending_survey: null })
-      .eq('user_id', user.id)
-    setPersonToast(`Owner info saved ✓ (${updated.length} ${updated.length === 1 ? 'club' : 'clubs'} updated)`)
+    // Clear pending_survey (only for user's own profile — admin mode shouldn't touch this)
+    if (!adminMode) {
+      supabase.from('user_terms_acceptance')
+        .update({ pending_survey: null })
+        .eq('user_id', user.id)
+    }
+    const toastMsg = adminMode
+      ? `Updated ${adminTargetName}'s owner info ✓ (${updated.length} ${updated.length === 1 ? 'club' : 'clubs'})`
+      : `Owner info saved ✓ (${updated.length} ${updated.length === 1 ? 'club' : 'clubs'} updated)`
+    setPersonToast(toastMsg)
     setTimeout(() => setPersonToast(''), 3000)
     setSaving(false)
   }
@@ -2316,9 +2407,31 @@ export default function ProfilePage() {
 
   return (
     <div className="profile-page">
+      {adminMode && (
+        <div className="admin-mode-banner">
+          <div className="admin-mode-banner-icon" aria-hidden="true">🛡️</div>
+          <div className="admin-mode-banner-text">
+            <div className="admin-mode-banner-title">EDITING AS ADMIN</div>
+            <div className="admin-mode-banner-body">
+              You are editing <strong>{adminTargetName}</strong>'s profile — club <strong>{adminTargetClubName}</strong>. Changes save to their account.
+            </div>
+          </div>
+          <button
+            type="button"
+            className="admin-mode-banner-exit"
+            onClick={() => navigate('/app/admin')}
+          >
+            Exit admin edit
+          </button>
+        </div>
+      )}
       <div className="profile-header">
-        <h2>{hasAnyClub ? 'My Profile' : 'Set Up Your Club'}</h2>
-        <p className="profile-sub">{hasAnyClub ? 'Update your club info below.' : 'Fill out your profile to appear on the map.'}</p>
+        <h2>{adminMode ? `Admin Edit: ${adminTargetName}` : (hasAnyClub ? 'My Profile' : 'Set Up Your Club')}</h2>
+        <p className="profile-sub">{
+          adminMode
+            ? `You are making changes on behalf of ${adminTargetName}.`
+            : (hasAnyClub ? 'Update your club info below.' : 'Fill out your profile to appear on the map.')
+        }</p>
       </div>
 
       {/* CARD 1: Owners */}
@@ -2626,7 +2739,7 @@ export default function ProfilePage() {
               {club.id && <span className="club-tab-dot" />}
             </button>
           ))}
-          {clubs.length < 3 && (
+          {clubs.length < 3 && !adminMode && (
             <button className="club-tab club-tab--add" tabIndex={-1} onClick={handleAddClub}>
               + Add Club
             </button>
@@ -2667,16 +2780,17 @@ export default function ProfilePage() {
             key={activeTab + '-' + (clubs[activeTab].id || 'new')}
             club={clubs[activeTab]}
             clubIndex={activeTab}
-            userId={user.id}
+            userId={adminMode ? adminTargetUserId : user.id}
             isOnly={clubs.length === 1}
             allClubs={clubs}
             onSaved={handleClubSaved}
             onRemove={() => handleClubRemoved(activeTab)}
-            userEmail={!clubs[activeTab].id && activeTab === 0 ? user.email : null}
+            userEmail={!clubs[activeTab].id && activeTab === 0 && !adminMode ? user.email : null}
             personData={{ ...personForm, owner_photo_url: ownerPhotoUrl, owner2_photo_url: owner2PhotoUrl, owner3_photo_url: owner3PhotoUrl }}
             onDirtyChange={setClubDirty}
             saveRef={clubSaveRef}
             onNextSection={() => setShowStoryPrompt(true)}
+            adminMode={adminMode}
           />
         )}
         </>)}
@@ -2954,36 +3068,50 @@ export default function ProfilePage() {
         }} disabled={saving}>
           {saving ? 'Saving…' : 'Save progress'}
         </button>
-        <button className="ocp-btn ocp-btn--primary" onClick={async () => {
-          if (isPersonDirty) await savePersonFields()
-          if (clubDirty && clubSaveRef.current) await clubSaveRef.current('save')
-          setShowCongrats(true)
-        }} disabled={saving}>
-          {saving ? 'Saving…' : 'Save & go to map →'}
-        </button>
+        {!adminMode && (
+          <button className="ocp-btn ocp-btn--primary" onClick={async () => {
+            if (isPersonDirty) await savePersonFields()
+            if (clubDirty && clubSaveRef.current) await clubSaveRef.current('save')
+            setShowCongrats(true)
+          }} disabled={saving}>
+            {saving ? 'Saving…' : 'Save & go to map →'}
+          </button>
+        )}
+        {adminMode && (
+          <button className="ocp-btn ocp-btn--primary" onClick={async () => {
+            if (isPersonDirty) await savePersonFields()
+            if (clubDirty && clubSaveRef.current) await clubSaveRef.current('save')
+          }} disabled={saving}>
+            {saving ? 'Saving…' : 'Save changes'}
+          </button>
+        )}
       </div>
       )}
 
       <div style={{ height: 8 }} />
 
-      {/* My Team — only shown if user meets min level */}
-      {meetsTeamLevel && (<>
+      {/* My Team — only shown if user meets min level AND not in admin mode */}
+      {meetsTeamLevel && !adminMode && (<>
         <MyTeamSection userId={user?.id} userLevel={personForm.herbalife_level} />
       </>)}
 
-      {/* Contact / Feedback */}
-      <ContactFeedbackSection
-        userName={[personForm.first_name, personForm.last_name].filter(Boolean).join(' ')}
-        userEmail={personForm.owner_email}
-      />
+      {/* Contact / Feedback — hidden in admin mode (admin shouldn't file tickets as someone else) */}
+      {!adminMode && (
+        <ContactFeedbackSection
+          userName={[personForm.first_name, personForm.last_name].filter(Boolean).join(' ')}
+          userEmail={personForm.owner_email}
+        />
+      )}
 
-      {/* Account Removal */}
-      <AccountRemovalSection
-        userId={user?.id}
-        userEmail={personForm.owner_email}
-        userName={[personForm.first_name, personForm.last_name].filter(Boolean).join(' ')}
-        clubCount={clubs.length}
-      />
+      {/* Account Removal — hidden in admin mode (admin shouldn't delete someone else's account from here) */}
+      {!adminMode && (
+        <AccountRemovalSection
+          userId={user?.id}
+          userEmail={personForm.owner_email}
+          userName={[personForm.first_name, personForm.last_name].filter(Boolean).join(' ')}
+          clubCount={clubs.length}
+        />
+      )}
 
       <div style={{ height: 32 }} />
       <div className="profile-privacy-link">

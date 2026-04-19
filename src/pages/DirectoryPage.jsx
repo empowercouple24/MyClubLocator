@@ -117,7 +117,7 @@ function LevelPill({ level }) {
   )
 }
 
-function DirCard({ loc, isYours, defaultExpanded, isFocused, navigate }) {
+function DirCard({ loc, isYours, isAdmin, defaultExpanded, isFocused, navigate }) {
   const [expanded, setExpanded] = useState(defaultExpanded || isFocused)
   const cardRef = useRef(null)
 
@@ -377,6 +377,19 @@ function DirCard({ loc, isYours, defaultExpanded, isFocused, navigate }) {
               </button>
             </div>
           )}
+
+          {/* Admin-only — visible when admin is viewing someone else's club */}
+          {isAdmin && !isYours && (
+            <div className="dc-admin-actions">
+              <button
+                className="dc-admin-btn"
+                onClick={() => navigate(`/app/profile?club_id=${loc.id}&as_admin=1`)}
+              >
+                <span className="dc-admin-btn-icon" aria-hidden="true">🛡️</span>
+                Edit as admin
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -384,7 +397,7 @@ function DirCard({ loc, isYours, defaultExpanded, isFocused, navigate }) {
 }
 
 export default function DirectoryPage() {
-  const { user }    = useAuth()
+  const { user, isAdmin } = useAuth()
   const navigate    = useNavigate()
   const [searchParams] = useSearchParams()
   const [locations, setLocations] = useState([])
@@ -536,6 +549,7 @@ export default function DirectoryPage() {
                 key={loc.id}
                 loc={loc}
                 isYours={loc.user_id === user?.id}
+                isAdmin={isAdmin}
                 defaultExpanded={loc.id === focusedClubId}
                 isFocused={loc.id === focusedClubId}
                 navigate={navigate}
