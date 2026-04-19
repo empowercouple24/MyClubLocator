@@ -288,6 +288,16 @@ function ClubMarkers({ locations, selectedId, userId, onSelect, navigate, teamFi
           .replace(/ (\d+) 💎$/, ' $1 💎')
       }
 
+      // ── Tier-based pill color (matches DirectoryPage LevelPill system) ──
+      const levelTierClass = (l) => {
+        if (!l) return ''
+        if (/^Presidents Team/.test(l))                          return 'lvl-tier-gold'
+        if (/^Chairmans Club/.test(l))                           return 'lvl-tier-silver'
+        if (/^Founders Circle/.test(l))                          return 'lvl-tier-lavender'
+        if (/^(Get Team|Millionaire)/.test(l))                   return 'lvl-tier-green'
+        return 'lvl-tier-grey'
+      }
+
       const ownerRows = [
         { name: [loc.first_name, loc.last_name].filter(Boolean).join(' '), photo: loc.owner_photo_url, level: loc.herbalife_level },
         { name: [loc.owner2_first_name, loc.owner2_last_name].filter(Boolean).join(' '), photo: loc.owner2_photo_url, level: loc.owner2_herbalife_level },
@@ -300,7 +310,8 @@ function ClubMarkers({ locations, selectedId, userId, onSelect, navigate, teamFi
           ? `<img src="${o.photo}" class="ct-owner-photo" alt="${o.name}" />`
           : `<div class="ct-owner-initials">${initials}</div>`
         const lvlLabel = condenseLvl(o.level)
-        const pill = lvlLabel ? `<span class="ct-level-pill">${lvlLabel}</span>` : ''
+        const tierClass = levelTierClass(o.level)
+        const pill = lvlLabel ? `<span class="ct-level-pill ${tierClass}">${lvlLabel}</span>` : ''
         return `<div class="ct-owner-row">${avatar}<span class="ct-owner-name">${o.name}</span>${pill}</div>`
       }).join('')
 
