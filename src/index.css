@@ -11496,3 +11496,116 @@ input.input-ok {
   padding-top: 0;
   border-top: none;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Directory card — admin-only "Edit as admin" button
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.dc-admin-actions {
+  display: flex;
+  margin-top: 8px;
+  padding-top: 0;
+  border-top: none;
+}
+.dc-admin-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px 12px;
+  background: #fef4f4;
+  border: 0.5px solid #e8c5c5;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #9b3232;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.dc-admin-btn:hover {
+  background: #fde8e8;
+  border-color: #b74545;
+}
+.dc-admin-btn:active {
+  transform: scale(0.99);
+}
+.dc-admin-btn-icon {
+  font-size: 13px;
+}
+
+/* Tighten border-top when admin row follows another action row */
+.dc-edit-actions + .dc-admin-actions {
+  margin-top: 8px;
+}
+.dc-nav-actions + .dc-admin-actions {
+  margin-top: 8px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ProfilePage — Admin Masquerade Mode banner (sticky top of page)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.admin-mode-banner {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: linear-gradient(to right, #7a1d1d, #9b3232);
+  color: #ffffff;
+  padding: 14px 20px;
+  border-radius: 0;
+  margin: -24px -24px 24px;
+  box-shadow: 0 3px 12px rgba(155, 50, 50, 0.25);
+  font-family: 'DM Sans', -apple-system, sans-serif;
+}
+@media (max-width: 600px) {
+  .admin-mode-banner { margin: -16px -16px 16px; padding: 12px 16px; }
+}
+.admin-mode-banner-icon {
+  flex-shrink: 0;
+  font-size: 22px;
+  line-height: 1;
+}
+.admin-mode-banner-text { flex: 1; min-width: 0; }
+.admin-mode-banner-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: #fad9d9;
+  margin-bottom: 2px;
+}
+.admin-mode-banner-body {
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.4;
+  color: #ffffff;
+}
+.admin-mode-banner-body strong {
+  font-weight: 700;
+  color: #ffffff;
+}
+.admin-mode-banner-exit {
+  flex-shrink: 0;
+  padding: 7px 14px;
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  border: 0.5px solid rgba(255, 255, 255, 0.4);
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+  transition: background 0.15s ease;
+}
+.admin-mode-banner-exit:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+.admin-mode-banner-exit:active {
+  transform: scale(0.98);
+}
