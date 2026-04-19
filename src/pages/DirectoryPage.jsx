@@ -348,6 +348,17 @@ function DirCard({ loc, isYours, defaultExpanded, isFocused, navigate }) {
             </div>
           </div>
 
+          {/* Navigational — visible to everyone */}
+          <div className="dc-nav-actions">
+            <button
+              className="dc-nav-btn"
+              onClick={() => navigate(`/app/map?club_id=${loc.id}`)}
+            >
+              <span className="dc-nav-btn-icon" aria-hidden="true">📍</span>
+              View on map
+            </button>
+          </div>
+
           {isYours && (
             <div className="dc-edit-actions">
               <button

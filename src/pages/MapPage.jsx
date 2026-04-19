@@ -370,8 +370,8 @@ function ClubMarkers({ locations, selectedId, userId, onSelect, navigate, teamFi
       const sinceHtml = loc.opened_month && loc.opened_year
         ? `<div class="ct-since">Club open since ${loc.opened_month} ${loc.opened_year}</div>` : ''
 
-      // ── Directory link ──
-      const dirLink = `<div class="ct-dir-link" data-clubname="${encodeURIComponent(loc.club_name || '')}">View in directory →</div>`
+      // ── Directory link ── (uses club_id deep link for precision)
+      const dirLink = `<div class="ct-dir-link" data-clubid="${loc.id}">View in directory →</div>`
 
       const tooltipHtml = `
         <div class="ct-inner">
@@ -448,8 +448,8 @@ function ClubMarkers({ locations, selectedId, userId, onSelect, navigate, teamFi
               el.addEventListener('click', (e) => {
                 e.stopPropagation()
                 keepOpen()
-                const name = decodeURIComponent(el.dataset.clubname || '')
-                navigate(`/app/directory?search=${encodeURIComponent(name)}`)
+                const cid = el.dataset.clubid || ''
+                navigate(cid ? `/app/directory?club_id=${cid}` : '/app/directory')
               })
             }
           }
@@ -502,8 +502,8 @@ function ClubMarkers({ locations, selectedId, userId, onSelect, navigate, teamFi
               e.preventDefault()
               e.stopPropagation()
               e.stopImmediatePropagation()
-              const name = decodeURIComponent(fresh.dataset.clubname || '')
-              navigate(`/app/directory?search=${encodeURIComponent(name)}`)
+              const cid = fresh.dataset.clubid || ''
+              navigate(cid ? `/app/directory?club_id=${cid}` : '/app/directory')
             }, true)
           }
         }, 50)
@@ -864,8 +864,8 @@ export default function MapPage() {
       if (!link) return
       e.preventDefault()
       e.stopPropagation()
-      const name = decodeURIComponent(link.dataset.clubname || '')
-      navigateRef.current(`/app/directory?search=${encodeURIComponent(name)}`)
+      const cid = link.dataset.clubid || ''
+      navigateRef.current(cid ? `/app/directory?club_id=${cid}` : '/app/directory')
     }
     document.addEventListener('click', handleDirClick, true)
     return () => document.removeEventListener('click', handleDirClick, true)
@@ -874,6 +874,7 @@ export default function MapPage() {
   const focusLat = parseFloat(searchParams.get('focus_lat'))
   const focusLng = parseFloat(searchParams.get('focus_lng'))
   const focusTooltip = searchParams.get('focus_tooltip') === '1'
+  const focusClubId = searchParams.get('club_id')
   const [locations, setLocations]   = useState([])
   const [loading, setLoading]       = useState(true)
   const [selected, setSelected]     = useState(null)
@@ -1183,7 +1184,21 @@ export default function MapPage() {
   const focusApplied = useRef(false)
   useEffect(() => {
     if (locations.length > 0 && !defaultViewApplied.current) {
-      // Highest priority: focus from review modal approval
+      // Highest priority: focus by club_id (UUID deep link from directory/digest/etc.)
+      if (focusClubId && !focusApplied.current) {
+        const target = locations.find(l => l.id === focusClubId)
+        if (target) {
+          focusApplied.current = true
+          setMapCenter([target.lat, target.lng])
+          setMapZoom(15)
+          setSelected(target)
+          // Auto-dismiss tooltip after 12 seconds
+          setTimeout(() => setSelected(s => s?.id === target.id ? null : s), 12000)
+          defaultViewApplied.current = true
+          return
+        }
+      }
+      // Second priority: focus from review modal approval (legacy lat/lng)
       if (!isNaN(focusLat) && !isNaN(focusLng) && !focusApplied.current) {
         focusApplied.current = true
         setMapCenter([focusLat, focusLng])
