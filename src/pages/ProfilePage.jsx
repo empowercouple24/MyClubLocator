@@ -397,7 +397,6 @@ const DEFAULT_CLUB = {
   logo_url: null,
   photo_urls: [],
   lat: null, lng: null,
-  monthly_rent: null, square_footage: null,
 }
 
 // Owner + story/survey fields stay flat (not per-club)
@@ -926,9 +925,6 @@ function ClubEditor({ club, clubIndex, userId, isOnly, allClubs, onSaved, onRemo
       user_id: userId,
       club_index: clubIndex,
       ...form,
-      // Normalize rent/sqft to numbers (or null) for DB
-      monthly_rent: form.monthly_rent == null || form.monthly_rent === '' ? null : Number(form.monthly_rent),
-      square_footage: form.square_footage == null || form.square_footage === '' ? null : parseInt(form.square_footage, 10),
       state_zip: (form.state + ' ' + form.zip).trim(),
       logo_url: logoUrl,
       photo_urls: photoUrls,
@@ -947,7 +943,7 @@ function ClubEditor({ club, clubIndex, userId, isOnly, allClubs, onSaved, onRemo
           'survey_goal_detail', 'survey_open_response',
           'survey_completed_at',
         ]
-        PERSON_KEYS.forEach(k => { if (src[k] != null && src[k] !== '') fields[k] = src[k] })
+        PERSON_KEYS.forEach(k => { if (src[k] !== undefined) fields[k] = src[k] })
         return fields
       })(),
     }
@@ -1418,71 +1414,6 @@ function ClubEditor({ club, clubIndex, userId, isOnly, allClubs, onSaved, onRemo
             </div>
           )
         })}
-      </div>
-
-      {/* Financial Details — owner-only, private */}
-      <div className="club-section">
-        <div className="sec-label" style={{ marginBottom: 4 }}>
-          Financial details <span className="private-tag">Private</span>
-        </div>
-        <div className="sec-sublabel" style={{ marginBottom: 14 }}>
-          Used to calculate price per sq ft for your own benchmarking. Visible only to you and admins — never shown publicly.
-        </div>
-
-        <div className="financial-inputs">
-          <div className="form-field">
-            <label className="field-label">Monthly rent</label>
-            <div className="input-with-prefix">
-              <span className="input-prefix">$</span>
-              <input
-                type="text"
-                inputMode="decimal"
-                name="monthly_rent"
-                value={form.monthly_rent == null ? '' : String(form.monthly_rent)}
-                onChange={e => {
-                  const raw = e.target.value.replace(/[^0-9.]/g, '')
-                  setField('monthly_rent', raw === '' ? null : raw)
-                }}
-                placeholder="3,200"
-                className="field-input has-prefix"
-              />
-            </div>
-            <div className="field-hint">Base rent only — exclude CAM/utilities</div>
-          </div>
-
-          <div className="form-field">
-            <label className="field-label">Square footage</label>
-            <div className="input-with-suffix">
-              <input
-                type="text"
-                inputMode="numeric"
-                name="square_footage"
-                value={form.square_footage == null ? '' : String(form.square_footage)}
-                onChange={e => {
-                  const raw = e.target.value.replace(/[^0-9]/g, '')
-                  setField('square_footage', raw === '' ? null : raw)
-                }}
-                placeholder="1,450"
-                className="field-input has-suffix"
-              />
-              <span className="input-suffix">sq ft</span>
-            </div>
-            <div className="field-hint">Interior usable space</div>
-          </div>
-        </div>
-
-        {(() => {
-          const rent = Number(form.monthly_rent)
-          const sqft = Number(form.square_footage)
-          const showCalc = isFinite(rent) && isFinite(sqft) && rent > 0 && sqft > 0
-          const pps = showCalc ? (rent / sqft).toFixed(2) : null
-          return (
-            <div className={`per-sqft-display ${showCalc ? '' : 'empty'}`}>
-              <span className="per-sqft-label">Price per sq ft (monthly)</span>
-              <span className="per-sqft-value">{showCalc ? `$${pps}` : 'Fill both fields to see calculation'}</span>
-            </div>
-          )
-        })()}
       </div>
 
       {/* Photos */}
@@ -2187,22 +2118,38 @@ export default function ProfilePage() {
     }
 
     // Update all of this user's location rows with the person fields
-    const { error } = await supabase
+    // Use .select() so we can verify which rows were actually updated
+    const { data: updated, error } = await supabase
       .from('locations')
       .update(personRecord)
       .eq('user_id', user.id)
+      .select()
 
     if (error) {
       setPersonErrors({ _general: error.message })
-    } else {
-      setSavedPersonForm({ ...personForm, _p1: ownerPhotoUrl, _p2: owner2PhotoUrl, _p3: owner3PhotoUrl })
-      // Clear pending_survey now that it's been applied
-      supabase.from('user_terms_acceptance')
-        .update({ pending_survey: null })
-        .eq('user_id', user.id)
-      setPersonToast('Owner info saved ✓')
-      setTimeout(() => setPersonToast(''), 3000)
+      setSaving(false)
+      return
     }
+
+    if (!updated || updated.length === 0) {
+      setPersonErrors({ _general: 'No rows were updated. Your account may not have any clubs yet, or a permissions issue prevented the save. Please refresh and try again.' })
+      setSaving(false)
+      return
+    }
+
+    // Force local clubs state to reflect the fresh DB rows so UI doesn't drift
+    setClubs(prev => prev.map(c => {
+      const fresh = updated.find(u => u.id === c.id)
+      return fresh ? { ...c, ...fresh } : c
+    }))
+
+    setSavedPersonForm({ ...personForm, _p1: ownerPhotoUrl, _p2: owner2PhotoUrl, _p3: owner3PhotoUrl })
+    // Clear pending_survey now that it's been applied
+    supabase.from('user_terms_acceptance')
+      .update({ pending_survey: null })
+      .eq('user_id', user.id)
+    setPersonToast(`Owner info saved ✓ (${updated.length} ${updated.length === 1 ? 'club' : 'clubs'} updated)`)
+    setTimeout(() => setPersonToast(''), 3000)
     setSaving(false)
   }
 
@@ -3010,17 +2957,6 @@ export default function ProfilePage() {
                     ) : <span className="review-missing">No hours set</span>}
                   </div>
                 </div>
-
-                {/* Financial details (private) */}
-                <div className="review-section">
-                  <div className="review-section-label">Financial details <span className="private-tag" style={{ marginLeft: 6 }}>Private</span></div>
-                  <div className="review-row"><span className="review-key">Monthly rent</span>{club.monthly_rent ? <span>${Number(club.monthly_rent).toLocaleString()}</span> : <span className="review-missing">Not provided</span>}</div>
-                  <div className="review-row"><span className="review-key">Square footage</span>{club.square_footage ? <span>{Number(club.square_footage).toLocaleString()} sq ft</span> : <span className="review-missing">Not provided</span>}</div>
-                  {club.monthly_rent && club.square_footage && Number(club.square_footage) > 0 ? (
-                    <div className="review-row"><span className="review-key">Per sq ft</span><span style={{ color: '#2d7a52', fontWeight: 600 }}>${(Number(club.monthly_rent) / Number(club.square_footage)).toFixed(2)}/mo</span></div>
-                  ) : null}
-                </div>
-
                 {/* Social & Website — always show all fields */}
                 <div className="review-section">
                   <div className="review-section-label">Social & Website</div>

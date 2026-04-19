@@ -1342,14 +1342,28 @@ export default function MapPage() {
       const { data, error } = await supabase
         .from('locations').select('*').not('lat', 'is', null).not('lng', 'is', null)
         .or('approved.eq.true,approved.is.null')
-      if (!error && data) setLocations(data)
+      if (error) {
+        console.error('[MapPage] locations fetch error:', error)
+        setLoading(false)
+        return
+      }
+      if (data) {
+        setLocations(data)
+      }
       setLoading(false)
     }
     load()
+    // Re-fetch when the tab/window regains focus — guards against stale data after
+    // user made changes on another tab or after a realtime event was missed.
+    const onFocus = () => load()
+    window.addEventListener('focus', onFocus)
     const channel = supabase.channel('locations-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'locations' }, load)
       .subscribe()
-    return () => supabase.removeChannel(channel)
+    return () => {
+      window.removeEventListener('focus', onFocus)
+      supabase.removeChannel(channel)
+    }
   }, [])
 
   // Filter out orphaned clubs unless global toggle + per-club override allow them
