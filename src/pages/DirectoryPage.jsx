@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
@@ -117,8 +117,20 @@ function LevelPill({ level }) {
   )
 }
 
-function DirCard({ loc, isYours, defaultExpanded, navigate }) {
-  const [expanded, setExpanded] = useState(defaultExpanded)
+function DirCard({ loc, isYours, defaultExpanded, isFocused, navigate }) {
+  const [expanded, setExpanded] = useState(defaultExpanded || isFocused)
+  const cardRef = useRef(null)
+
+  // Auto-scroll and highlight when this is the deep-linked card
+  useEffect(() => {
+    if (isFocused && cardRef.current) {
+      // Scroll into view with a tiny delay so layout settles first
+      const t = setTimeout(() => {
+        cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }, 100)
+      return () => clearTimeout(t)
+    }
+  }, [isFocused])
 
   const ownerName  = [loc.first_name,  loc.last_name ].filter(Boolean).join(' ')
   const owner2Name = [loc.owner2_first_name, loc.owner2_last_name].filter(Boolean).join(' ')
@@ -130,8 +142,15 @@ function DirCard({ loc, isYours, defaultExpanded, navigate }) {
   // Address formatted: street, city, state
   const addressLine = [loc.address, loc.city, loc.state].filter(Boolean).join(', ')
 
+  // Financial calculations — only shown on owner's own card
+  const rentNum = Number(loc.monthly_rent)
+  const sqftNum = Number(loc.square_footage)
+  const hasRent = isFinite(rentNum) && rentNum > 0
+  const hasSqft = isFinite(sqftNum) && sqftNum > 0
+  const pricePerSqFt = (hasRent && hasSqft) ? (rentNum / sqftNum).toFixed(2) : null
+
   return (
-    <div className={`dir-card ${isYours ? 'dir-card-mine' : ''} ${expanded ? 'expanded' : ''}`}>
+    <div ref={cardRef} className={`dir-card ${isYours ? 'dir-card-mine' : ''} ${expanded ? 'expanded' : ''} ${isFocused ? 'dir-card-focused' : ''}`}>
 
       {/* ── Collapsed header — always visible ── */}
       <button className="dc-toggle-row" onClick={() => setExpanded(e => !e)}>
@@ -261,6 +280,36 @@ function DirCard({ loc, isYours, defaultExpanded, navigate }) {
             </div>
           )}
 
+          {/* Financials — only visible on owner's own card */}
+          {isYours && (hasRent || hasSqft) && (
+            <div className="dc-financials-block">
+              <div className="dc-financials-title">
+                <span className="dc-fin-lock">🔒</span>
+                Financial details · Only visible to you
+              </div>
+              <div className="dc-financials-grid">
+                <div className="dc-fin-item">
+                  <div className="dc-fin-item-label">Monthly Rent</div>
+                  <div className={`dc-fin-item-value ${hasRent ? '' : 'muted'}`}>
+                    {hasRent ? `$${rentNum.toLocaleString()}` : '—'}
+                  </div>
+                </div>
+                <div className="dc-fin-item">
+                  <div className="dc-fin-item-label">Square Feet</div>
+                  <div className={`dc-fin-item-value ${hasSqft ? '' : 'muted'}`}>
+                    {hasSqft ? sqftNum.toLocaleString() : '—'}
+                  </div>
+                </div>
+                <div className="dc-fin-item">
+                  <div className="dc-fin-item-label">Per sq ft</div>
+                  <div className={`dc-fin-item-value ${pricePerSqFt ? 'green' : 'muted'}`}>
+                    {pricePerSqFt ? `$${pricePerSqFt}` : '—'}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Footer */}
           <div className="dc-footer">
             {loc.opened_month && loc.opened_year && (
@@ -320,13 +369,19 @@ export default function DirectoryPage() {
   const [sortBy, setSortBy]       = useState('name')
   const [filterState, setFilterState] = useState('')
   const [filterLevel, setFilterLevel] = useState('')
-  const [hasSearched, setHasSearched] = useState(!!(searchParams.get('search')))
+  const [hasSearched, setHasSearched] = useState(!!(searchParams.get('search') || searchParams.get('club_id')))
+  const [focusedClubId, setFocusedClubId] = useState(searchParams.get('club_id') || null)
 
   // Sync search from URL params when navigating here from another page (e.g. map tooltip)
   useEffect(() => {
     const q = searchParams.get('search') || ''
     if (q) {
       setSearch(q)
+      setHasSearched(true)
+    }
+    const cid = searchParams.get('club_id') || null
+    if (cid) {
+      setFocusedClubId(cid)
       setHasSearched(true)
     }
   }, [searchParams])
@@ -352,12 +407,18 @@ export default function DirectoryPage() {
     return raw.sort()
   }, [locations])
 
-  const isFiltered = search || filterState || filterLevel
+  const isFiltered = search || filterState || filterLevel || focusedClubId
 
   const filtered = useMemo(() => {
     if (!isFiltered) return []
+    // If club_id is set, return just that club (pin-point deep link)
+    if (focusedClubId && !search && !filterState && !filterLevel) {
+      return locations.filter(loc => loc.id === focusedClubId)
+    }
     return locations
       .filter(loc => {
+        // When focusedClubId is set alongside other filters, still include that club
+        if (focusedClubId && loc.id === focusedClubId) return true
         const q = search.toLowerCase()
         const matchQ = !q ||
           loc.club_name?.toLowerCase().includes(q) ||
@@ -385,6 +446,7 @@ export default function DirectoryPage() {
 
   function clearFilters() {
     setSearch(''); setFilterState(''); setFilterLevel(''); setHasSearched(false)
+    setFocusedClubId(null)
   }
 
   return (
@@ -450,7 +512,8 @@ export default function DirectoryPage() {
                 key={loc.id}
                 loc={loc}
                 isYours={loc.user_id === user?.id}
-                defaultExpanded={false}
+                defaultExpanded={loc.id === focusedClubId}
+                isFocused={loc.id === focusedClubId}
                 navigate={navigate}
               />
             ))}

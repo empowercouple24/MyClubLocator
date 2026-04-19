@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 import mapPreviewStreets from '../assets/map-preview-streets.png'
@@ -208,7 +208,28 @@ function StatCard({ label, value, color }) {
 export default function AdminPage() {
   const { isAdmin, user } = useAuth()
   const navigate = useNavigate()
-  const [tab, setTab] = useState('settings')
+  const [searchParams] = useSearchParams()
+  const [tab, setTab] = useState(() => searchParams.get('club_id') ? 'clubs' : 'settings')
+  const [focusedClubId, setFocusedClubId] = useState(searchParams.get('club_id') || null)
+
+  // Deep link: when ?club_id= changes, jump to clubs tab and focus that row
+  useEffect(() => {
+    const cid = searchParams.get('club_id')
+    if (cid) {
+      setFocusedClubId(cid)
+      setTab('clubs')
+    }
+  }, [searchParams])
+
+  // Scroll the focused club row into view once it's rendered in the Clubs tab
+  useEffect(() => {
+    if (!focusedClubId || tab !== 'clubs') return
+    const t = setTimeout(() => {
+      const el = document.getElementById(`admin-club-${focusedClubId}`)
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }, 300)
+    return () => clearTimeout(t)
+  }, [focusedClubId, tab])
 
   // Resizable columns — default widths in px
   const defaultColWidths = [48, 190, 150, 170, 130, 210, 80, 90, 120, 90, 110]
@@ -2224,8 +2245,18 @@ export default function AdminPage() {
               }).map(m => {
                 const ownerName = [m.first_name, m.last_name].filter(Boolean).join(' ')
                 const initials = (m.first_name?.[0] || '') + (m.last_name?.[0] || '')
+                const isFocused = m.id === focusedClubId
+                const rentNum = Number(m.monthly_rent)
+                const sqftNum = Number(m.square_footage)
+                const hasRent = isFinite(rentNum) && rentNum > 0
+                const hasSqft = isFinite(sqftNum) && sqftNum > 0
+                const pps = (hasRent && hasSqft) ? (rentNum / sqftNum).toFixed(2) : null
                 return (
-                  <div key={m.id} className="admin-club-card">
+                  <div
+                    key={m.id}
+                    id={`admin-club-${m.id}`}
+                    className={`admin-club-card ${isFocused ? 'admin-row-focused' : ''}`}
+                  >
                     <div className="admin-club-card-hdr">
                       {m.logo_url
                         ? <img className="admin-club-card-logo" src={m.logo_url} alt="" />
@@ -2245,6 +2276,15 @@ export default function AdminPage() {
                       <div className="admin-club-card-row"><span>Email</span><span>{m.club_email || '—'}</span></div>
                       <div className="admin-club-card-row"><span>Opened</span><span>{m.opened_month && m.opened_year ? `${m.opened_month.slice(0,3)} ${m.opened_year}` : '—'}</span></div>
                       {m.address && <div className="admin-club-card-row"><span>Address</span><span>{m.address}</span></div>}
+                      <div className="admin-club-card-row admin-fin-row">
+                        <span>Rent / Sq ft</span>
+                        <span>
+                          {hasRent ? `$${rentNum.toLocaleString()}` : '—'}
+                          {' · '}
+                          {hasSqft ? `${sqftNum.toLocaleString()} sqft` : '—'}
+                          {pps && <span style={{ color: '#2d7a52', fontWeight: 600, marginLeft: 6 }}>(${pps}/sqft)</span>}
+                        </span>
+                      </div>
                     </div>
                     <div className="admin-club-card-actions">
                       {!m.approved && (
