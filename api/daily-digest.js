@@ -3,32 +3,29 @@
 // ═══════════════════════════════════════════════════════════════════════════
 //
 // Sends ONE summary email per day to the admin containing:
-//   • Group A: New user profiles created in the last 24h (with any clubs they made)
-//   • Group B: New clubs added by EXISTING profiles (older than 24h) in the last 24h
+//   • Group A: New user profiles from the last 24h (with their clubs, or signup-only status)
+//   • Group B: New clubs added by EXISTING profiles in the last 24h
 //
-// REQUIRED ENV VARS (set in Vercel → Project → Settings → Environment Variables):
-//   BREVO_API_KEY              — your Brevo (Sendinblue) v3 API key
-//   ADMIN_NOTIFICATION_EMAIL   — recipient address (e.g. you@gmail.com)
-//   BREVO_SENDER_EMAIL         — verified sender (e.g. notifications@myclublocator.com)
-//   BREVO_SENDER_NAME          — friendly from-name (default: "MyClubLocator")
-//   SUPABASE_URL               — your Supabase project URL
-//   SUPABASE_SERVICE_ROLE_KEY  — service-role key (NEVER expose to client)
-//   CRON_SECRET                — random string; Vercel Cron sends it as Authorization header
+// REQUIRED ENV VARS:
+//   BREVO_API_KEY, ADMIN_NOTIFICATION_EMAIL, BREVO_SENDER_EMAIL,
+//   BREVO_SENDER_NAME (optional), SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY,
+//   CRON_SECRET
 //
-// SCHEDULE: Configured in vercel.json — runs daily at 00:00 UTC (= 8 PM EDT / 7 PM EST)
+// SCHEDULE: vercel.json runs daily at 00:00 UTC (= 8 PM EDT / 7 PM EST)
 // ═══════════════════════════════════════════════════════════════════════════
 
 import { createClient } from '@supabase/supabase-js'
 
+const SITE_URL = 'https://myclublocator.com'
+const EASTERN_TZ = 'America/New_York'
+
 export default async function handler(req, res) {
-  // ── Auth: only Vercel Cron (or manual call with secret) can trigger ──
   const cronSecret = process.env.CRON_SECRET
   const authHeader = req.headers.authorization || ''
   if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
     return res.status(401).json({ error: 'Unauthorized' })
   }
 
-  // ── Validate required env vars ──
   const required = ['BREVO_API_KEY', 'ADMIN_NOTIFICATION_EMAIL', 'BREVO_SENDER_EMAIL', 'SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY']
   const missing = required.filter(k => !process.env[k])
   if (missing.length) {
@@ -39,177 +36,172 @@ export default async function handler(req, res) {
     auth: { persistSession: false, autoRefreshToken: false }
   })
 
-  // ── Window: last 24 hours ──
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
 
   try {
-    // ── 1. Fetch new auth users from the last 24h ──
-    // Supabase admin API returns paginated user list; 1000 per page is plenty for daily volume
+    // ── 1. New auth.users in last 24h ──
     const { data: usersData, error: usersErr } = await supabase.auth.admin.listUsers({ page: 1, perPage: 1000 })
     if (usersErr) throw new Error(`auth.admin.listUsers failed: ${usersErr.message}`)
-
     const newUsers = (usersData?.users || []).filter(u => u.created_at && u.created_at >= since)
     const newUserIds = new Set(newUsers.map(u => u.id))
 
-    // ── 2. Fetch all locations created in the last 24h ──
-    // Query strategy: try full → minimal → no-filter (filter in JS), log details on each failure
-    let allClubs = []
-    let lastError = null
-
-    // Attempt 1: full column list with created_at filter
-    const fullQuery = await supabase
+    // ── 2. All clubs created in last 24h ──
+    const { data: newClubsData, error: clubsErr } = await supabase
       .from('locations')
-      .select('id, user_id, club_name, first_name, last_name, club_email, city, state, address, zip, created_at, status, approved')
+      .select('id, user_id, club_name, first_name, last_name, club_email, city, state, address, zip, created_at, status, approved, owner_photo_url, monthly_rent, square_footage')
       .gte('created_at', since)
       .order('created_at', { ascending: true })
+    if (clubsErr) throw new Error(`locations query failed: ${clubsErr.message}`)
+    const allClubs = newClubsData || []
 
-    if (!fullQuery.error) {
-      allClubs = fullQuery.data || []
-    } else {
-      console.warn('[daily-digest] Attempt 1 (full columns + filter) failed:', JSON.stringify(fullQuery.error))
-      lastError = fullQuery.error
-
-      // Attempt 2: minimal columns with created_at filter
-      const minimalQuery = await supabase
-        .from('locations')
-        .select('id, user_id, club_name, first_name, last_name, city, state, created_at')
-        .gte('created_at', since)
-        .order('created_at', { ascending: true })
-
-      if (!minimalQuery.error) {
-        allClubs = minimalQuery.data || []
-      } else {
-        console.warn('[daily-digest] Attempt 2 (minimal + filter) failed:', JSON.stringify(minimalQuery.error))
-        lastError = minimalQuery.error
-
-        // Attempt 3: no filter, get everything and filter in JS (last resort, expensive but bulletproof)
-        const allQuery = await supabase
-          .from('locations')
-          .select('id, user_id, club_name, first_name, last_name, city, state, created_at')
-
-        if (!allQuery.error) {
-          allClubs = (allQuery.data || []).filter(c => c.created_at && c.created_at >= since)
-          console.warn('[daily-digest] Attempt 3 succeeded — created_at filter is the problem')
-        } else {
-          console.error('[daily-digest] Attempt 3 (no filter) ALSO failed:', JSON.stringify(allQuery.error))
-          throw new Error(`locations query failed (3 attempts): ${JSON.stringify(allQuery.error)}`)
-        }
-      }
-    }
-
-    // ── 3. Split clubs into "from new user" vs "from existing user" ──
-    const clubsByNewUser = new Map() // user_id -> [club, club, ...]
-    const clubsByExistingUser = new Map() // user_id -> [club, club, ...]
-
+    // ── 3. Split clubs into new-user vs existing-user buckets ──
+    const clubsByNewUser = new Map()
+    const clubsByExistingUser = new Map()
     for (const club of allClubs) {
-      if (!club.user_id) continue // skip orphans
+      if (!club.user_id) continue
       const bucket = newUserIds.has(club.user_id) ? clubsByNewUser : clubsByExistingUser
       if (!bucket.has(club.user_id)) bucket.set(club.user_id, [])
       bucket.get(club.user_id).push(club)
     }
 
-    // ── 4. For Group B (existing users adding clubs), look up their owner info ──
-    //    We need first_name/last_name/email of the owner — pull from any of their existing locations
-    const existingUserIds = [...clubsByExistingUser.keys()]
-    let existingUserInfo = new Map() // user_id -> { name, email }
+    // ── 4. Status lookup for new users without clubs ──
+    const newUserStatuses = new Map()
+    const usersNeedingStatus = newUsers.filter(u => !clubsByNewUser.has(u.id)).map(u => u.id)
 
-    if (existingUserIds.length) {
-      try {
-        // Try with club_index ordering, fall back without if it fails
-        let ownerRows = []
-        const orderedQuery = await supabase
-          .from('locations')
-          .select('user_id, first_name, last_name, club_email')
-          .in('user_id', existingUserIds)
-          .order('club_index', { ascending: true })
+    if (usersNeedingStatus.length) {
+      const { data: pubAccts } = await supabase
+        .from('public_accounts')
+        .select('auth_user_id, display_name, email')
+        .in('auth_user_id', usersNeedingStatus)
+      const publicSet = new Set((pubAccts || []).map(p => p.auth_user_id))
 
-        if (orderedQuery.error) {
-          console.warn('[daily-digest] Ordered owner query failed:', JSON.stringify(orderedQuery.error))
-          // Try without the order clause
-          const noOrderQuery = await supabase
-            .from('locations')
-            .select('user_id, first_name, last_name, club_email')
-            .in('user_id', existingUserIds)
+      const { data: utaRows } = await supabase
+        .from('user_terms_acceptance')
+        .select('user_id, onboarding_done, pending_survey')
+        .in('user_id', usersNeedingStatus)
+      const utaByUser = new Map((utaRows || []).map(r => [r.user_id, r]))
 
-          if (noOrderQuery.error) {
-            console.warn('[daily-digest] No-order owner query failed:', JSON.stringify(noOrderQuery.error))
-            // Try without club_email column
-            const minimalOwnerQuery = await supabase
-              .from('locations')
-              .select('user_id, first_name, last_name')
-              .in('user_id', existingUserIds)
-
-            if (!minimalOwnerQuery.error) {
-              ownerRows = minimalOwnerQuery.data || []
-            } else {
-              console.error('[daily-digest] Even minimal owner query failed:', JSON.stringify(minimalOwnerQuery.error))
-            }
-          } else {
-            ownerRows = noOrderQuery.data || []
-          }
-        } else {
-          ownerRows = orderedQuery.data || []
+      for (const uid of usersNeedingStatus) {
+        if (publicSet.has(uid)) {
+          const pub = (pubAccts || []).find(p => p.auth_user_id === uid)
+          newUserStatuses.set(uid, {
+            status: 'public_account',
+            firstName: pub?.display_name || null,
+            lastName: null,
+            photoUrl: null,
+          })
+          continue
         }
 
-      // Take the first row per user_id (typically club_index=0, the primary)
-      for (const row of ownerRows || []) {
+        const uta = utaByUser.get(uid)
+        let firstName = null, lastName = null
+        if (uta?.pending_survey) {
+          try {
+            const parsed = typeof uta.pending_survey === 'string' ? JSON.parse(uta.pending_survey) : uta.pending_survey
+            firstName = parsed.first_name || null
+            lastName = parsed.last_name || null
+          } catch { /* ignore */ }
+        }
+
+        newUserStatuses.set(uid, {
+          status: uta?.onboarding_done ? 'onboarded_no_club' : 'onboarding_incomplete',
+          firstName,
+          lastName,
+          photoUrl: null,
+        })
+      }
+    }
+
+    // ── 5. Existing-user owner info ──
+    const existingUserIds = [...clubsByExistingUser.keys()]
+    const existingUserInfo = new Map()
+    if (existingUserIds.length) {
+      const { data: ownerRows } = await supabase
+        .from('locations')
+        .select('user_id, first_name, last_name, club_email, owner_photo_url, club_index')
+        .in('user_id', existingUserIds)
+
+      const sorted = (ownerRows || []).sort((a, b) => (a.club_index ?? 999) - (b.club_index ?? 999))
+
+      for (const row of sorted) {
         if (!existingUserInfo.has(row.user_id)) {
           const fullName = [row.first_name, row.last_name].filter(Boolean).join(' ').trim()
           existingUserInfo.set(row.user_id, {
             name: fullName || null,
+            firstName: row.first_name || null,
+            lastName: row.last_name || null,
             email: row.club_email || null,
+            photoUrl: row.owner_photo_url || null,
           })
         }
       }
 
-      // Also fetch auth emails as fallback
       for (const uid of existingUserIds) {
         if (!existingUserInfo.get(uid)?.email) {
           try {
             const { data: authUser } = await supabase.auth.admin.getUserById(uid)
             if (authUser?.user?.email) {
-              const info = existingUserInfo.get(uid) || { name: null, email: null }
+              const info = existingUserInfo.get(uid) || { name: null, firstName: null, lastName: null, email: null, photoUrl: null }
               info.email = authUser.user.email
+              info.emailIsSignup = true
               existingUserInfo.set(uid, info)
             }
-          } catch (e) {
-            console.warn('[daily-digest] getUserById failed for', uid, ':', e.message)
-          }
+          } catch { /* ignore */ }
         }
-      }
-      } catch (ownerErr) {
-        // Owner-info enrichment failed entirely — log and continue without it
-        // The digest will still send, just without owner names/emails for Group B
-        console.error('[daily-digest] Owner-info section threw:', ownerErr.message, ownerErr.stack)
       }
     }
 
-    // ── 5. Build Group A data: new users + their clubs ──
-    const groupA = newUsers.map(user => ({
-      user_id: user.id,
-      email: user.email,
-      created_at: user.created_at,
-      clubs: clubsByNewUser.get(user.id) || [],
-    }))
+    // ── 6. Group A data ──
+    const groupA = newUsers.map(user => {
+      const clubs = clubsByNewUser.get(user.id) || []
+      if (clubs.length) {
+        const primary = clubs.find(c => (c.club_index ?? 0) === 0) || clubs[0]
+        return {
+          type: 'with_clubs',
+          user_id: user.id,
+          authEmail: user.email,
+          firstName: primary.first_name || null,
+          lastName: primary.last_name || null,
+          photoUrl: primary.owner_photo_url || null,
+          clubs,
+          created_at: user.created_at,
+        }
+      } else {
+        const info = newUserStatuses.get(user.id) || { status: 'onboarding_incomplete', firstName: null, lastName: null, photoUrl: null }
+        return {
+          type: 'signup_only',
+          user_id: user.id,
+          authEmail: user.email,
+          firstName: info.firstName,
+          lastName: info.lastName,
+          photoUrl: info.photoUrl,
+          status: info.status,
+          created_at: user.created_at,
+        }
+      }
+    })
 
-    // ── 6. Build Group B data: existing users w/ new clubs ──
-    const groupB = existingUserIds.map(uid => ({
-      user_id: uid,
-      email: existingUserInfo.get(uid)?.email || '(no email on file)',
-      name: existingUserInfo.get(uid)?.name || '(no name on file)',
-      clubs: clubsByExistingUser.get(uid),
-    }))
+    // ── 7. Group B data ──
+    const groupB = existingUserIds.map(uid => {
+      const info = existingUserInfo.get(uid) || {}
+      return {
+        user_id: uid,
+        firstName: info.firstName || null,
+        lastName: info.lastName || null,
+        email: info.email || '(no email on file)',
+        emailIsSignup: !!info.emailIsSignup,
+        photoUrl: info.photoUrl || null,
+        clubs: clubsByExistingUser.get(uid),
+      }
+    })
 
-    // ── 7. Skip sending if there's literally nothing to report ──
     if (groupA.length === 0 && groupB.length === 0) {
       return res.status(200).json({ ok: true, sent: false, reason: 'No activity in last 24h' })
     }
 
-    // ── 8. Build branded HTML email ──
     const html = buildDigestHtml({ groupA, groupB, since })
-    const subject = buildSubject({ newUsers: groupA.length, newClubs: allClubs.length, additions: groupB.length })
+    const subject = buildSubject({ groupA, groupB, allClubs })
 
-    // ── 9. Send via Brevo ──
     const brevoResp = await fetch('https://api.brevo.com/v3/smtp/email', {
       method: 'POST',
       headers: {
@@ -247,8 +239,7 @@ export default async function handler(req, res) {
 
   } catch (err) {
     console.error('[daily-digest] Error:', err)
-    console.error('[daily-digest] Stack:', err.stack)
-    return res.status(500).json({ error: err.message, stack: err.stack })
+    return res.status(500).json({ error: err.message })
   }
 }
 
@@ -256,113 +247,257 @@ export default async function handler(req, res) {
 // HTML builders
 // ═══════════════════════════════════════════════════════════════════════════
 
-function buildSubject({ newUsers, newClubs, additions }) {
+function buildSubject({ groupA, groupB, allClubs }) {
+  const newUsers = groupA.length
+  const additions = groupB.length
   const parts = []
   if (newUsers > 0) parts.push(`${newUsers} new ${newUsers === 1 ? 'signup' : 'signups'}`)
   if (additions > 0) parts.push(`${additions} club ${additions === 1 ? 'addition' : 'additions'}`)
-  if (newClubs > 0 && parts.length === 0) parts.push(`${newClubs} new ${newClubs === 1 ? 'club' : 'clubs'}`)
+  if (parts.length === 0 && allClubs.length > 0) parts.push(`${allClubs.length} new ${allClubs.length === 1 ? 'club' : 'clubs'}`)
   const summary = parts.join(' · ')
-  const date = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'America/New_York' })
+  const date = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: EASTERN_TZ })
   return `[MyClubLocator] Daily digest · ${summary} · ${date}`
 }
 
 function escapeHtml(s) {
   if (s == null) return ''
   return String(s)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;')
 }
+
+function escapeUrl(s) { return encodeURIComponent(String(s || '')) }
 
 function fmtDate(iso) {
   if (!iso) return ''
   try {
     return new Date(iso).toLocaleString('en-US', {
-      month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
-      timeZone: 'America/New_York'
+      month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: EASTERN_TZ
     })
   } catch { return '' }
 }
 
-function clubCard(club) {
-  const name = escapeHtml(club.club_name || '(unnamed club)')
-  const owner = [club.first_name, club.last_name].filter(Boolean).join(' ').trim()
-  const location = [club.city, club.state].filter(Boolean).join(', ')
+function fmtCurrency(val) {
+  if (val == null || val === '' || isNaN(Number(val))) return null
+  return '$' + Number(val).toLocaleString('en-US', { maximumFractionDigits: 0 })
+}
+
+function fmtNumber(val) {
+  if (val == null || val === '' || isNaN(Number(val))) return null
+  return Number(val).toLocaleString('en-US', { maximumFractionDigits: 0 })
+}
+
+function fmtPerSqFt(rent, sqft) {
+  const r = Number(rent), s = Number(sqft)
+  if (!isFinite(r) || !isFinite(s) || s <= 0 || r <= 0) return null
+  return '$' + (r / s).toFixed(2)
+}
+
+function initials(firstName, lastName, emailFallback) {
+  const f = (firstName || '').trim()
+  const l = (lastName || '').trim()
+  if (f && l) return (f[0] + l[0]).toUpperCase()
+  if (f) return f.slice(0, 2).toUpperCase()
+  if (l) return l.slice(0, 2).toUpperCase()
+  if (emailFallback) return emailFallback.slice(0, 2).toUpperCase()
+  return '?'
+}
+
+function ownerAvatar({ photoUrl, firstName, lastName, emailFallback, bgColor, fgColor }) {
+  if (photoUrl) {
+    return `<img src="${escapeHtml(photoUrl)}" width="34" height="34" alt="" style="display:block;width:34px;height:34px;border-radius:50%;object-fit:cover;border:0.5px solid #e0e7e2;" />`
+  }
+  const bg = bgColor || '#E8F5EE'
+  const fg = fgColor || '#2d7a52'
+  const text = escapeHtml(initials(firstName, lastName, emailFallback))
+  return `<div style="width:34px;height:34px;border-radius:50%;background:${bg};color:${fg};font-size:12px;font-weight:600;line-height:34px;text-align:center;font-family:'DM Sans',sans-serif;">${text}</div>`
+}
+
+function financialsStrip(club) {
+  const rent = fmtCurrency(club.monthly_rent)
+  const sqft = fmtNumber(club.square_footage)
+  const pps = fmtPerSqFt(club.monthly_rent, club.square_footage)
+
+  const cell = (label, value, accent) => `
+    <td style="padding:0 14px 0 0;font-size:10px;color:#888;white-space:nowrap;">
+      <span style="text-transform:uppercase;letter-spacing:0.4px;color:#aaa;">${label}</span>
+      <span style="color:${accent === 'green' && value ? '#2d7a52' : (value ? '#1A3C2E' : '#ccc')};font-weight:${value ? 600 : 400};font-size:11px;margin-left:4px;">${value || '—'}</span>
+    </td>
+  `
+  return `
+    <table cellpadding="0" cellspacing="0" style="width:100%;border-top:0.5px solid #f0f0f0;border-bottom:0.5px solid #f0f0f0;margin:8px 0;">
+      <tr>
+        <td style="padding:6px 0;">
+          <table cellpadding="0" cellspacing="0">
+            <tr>
+              ${cell('Rent', rent)}
+              ${cell('Sq ft', sqft)}
+              ${cell('Per sq ft', pps, 'green')}
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  `
+}
+
+function statusBadge(status) {
+  const map = {
+    onboarding_incomplete: { label: 'Onboarding incomplete', bg: '#fef3c7', fg: '#92400e', dot: '#f59e0b' },
+    onboarded_no_club:     { label: 'Onboarded · no club yet', bg: '#dbeafe', fg: '#1e40af', dot: '#3b82f6' },
+    public_account:        { label: 'Browsing only', bg: '#f3f4f6', fg: '#4b5563', dot: '#9ca3af' },
+  }
+  const s = map[status] || map.onboarding_incomplete
+  return `
+    <span style="display:inline-block;background:${s.bg};color:${s.fg};font-size:9px;font-weight:600;padding:3px 9px;border-radius:10px;text-transform:uppercase;letter-spacing:0.4px;">
+      <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${s.dot};margin-right:5px;vertical-align:middle;"></span>
+      ${escapeHtml(s.label)}
+    </span>
+  `
+}
+
+function statusCardColors(status) {
+  const map = {
+    onboarding_incomplete: { border: '#fde68a', bg: '#fffbeb', avatarBg: '#fef3c7', avatarFg: '#92400e' },
+    onboarded_no_club:     { border: '#c7d7ed', bg: '#f5f9ff', avatarBg: '#dbeafe', avatarFg: '#1e40af' },
+    public_account:        { border: '#e5e5e5', bg: '#fafafa', avatarBg: '#f3f4f6', avatarFg: '#4b5563' },
+  }
+  return map[status] || map.onboarding_incomplete
+}
+
+function clubCard(club, owner) {
+  const ownerName = [owner.firstName, owner.lastName].filter(Boolean).join(' ').trim() || '(name not provided)'
+  const clubName = escapeHtml(club.club_name || '(unnamed club)')
   const fullAddr = [club.address, club.city, club.state, club.zip].filter(Boolean).join(', ')
-  const statusBadge = club.status === 'orphaned'
-    ? `<span style="display:inline-block;background:#fff4e6;color:#b8651f;font-size:10px;font-weight:600;padding:2px 8px;border-radius:10px;margin-left:6px;text-transform:uppercase;letter-spacing:0.4px;">Orphaned</span>`
+
+  const badgeHtml = club.status === 'orphaned'
+    ? `<span style="display:inline-block;background:#fff4e6;color:#b8651f;font-size:9px;font-weight:600;padding:2px 7px;border-radius:8px;text-transform:uppercase;letter-spacing:0.3px;margin-left:6px;">Orphaned</span>`
     : (club.approved === false
-        ? `<span style="display:inline-block;background:#fef3c7;color:#92400e;font-size:10px;font-weight:600;padding:2px 8px;border-radius:10px;margin-left:6px;text-transform:uppercase;letter-spacing:0.4px;">Pending</span>`
-        : `<span style="display:inline-block;background:#E8F5EE;color:#2d7a52;font-size:10px;font-weight:600;padding:2px 8px;border-radius:10px;margin-left:6px;text-transform:uppercase;letter-spacing:0.4px;">Live</span>`)
+        ? `<span style="display:inline-block;background:#fef3c7;color:#92400e;font-size:9px;font-weight:600;padding:2px 7px;border-radius:8px;text-transform:uppercase;letter-spacing:0.3px;margin-left:6px;">Pending</span>`
+        : `<span style="display:inline-block;background:#E8F5EE;color:#2d7a52;font-size:9px;font-weight:600;padding:2px 7px;border-radius:8px;text-transform:uppercase;letter-spacing:0.3px;margin-left:6px;">Live</span>`)
+
+  const displayEmail = club.club_email || owner.fallbackEmail || ''
+  const emailSuffix = (!club.club_email && owner.fallbackEmail)
+    ? ` <span style="color:#aaa;font-style:italic;">(signup)</span>`
+    : ''
+
+  const dirLink = `${SITE_URL}/app/directory?club_id=${escapeUrl(club.id)}`
+  const adminLink = `${SITE_URL}/app/admin?club_id=${escapeUrl(club.id)}`
 
   return `
-    <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8faf9;border:1px solid #e8ede8;border-radius:8px;margin:0 0 8px;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="border:0.5px solid #e0e7e2;border-radius:8px;margin:0 0 10px;background:#ffffff;">
       <tr>
         <td style="padding:12px 14px;">
-          <div style="font-size:14px;font-weight:600;color:#1A3C2E;margin:0 0 4px;">
-            ${name}${statusBadge}
+          <table width="100%" cellpadding="0" cellspacing="0" style="border-bottom:0.5px solid #f0f0f0;">
+            <tr>
+              <td style="padding:0 0 8px;vertical-align:middle;">
+                <table cellpadding="0" cellspacing="0">
+                  <tr>
+                    <td style="padding-right:10px;vertical-align:middle;">${ownerAvatar({ photoUrl: owner.photoUrl, firstName: owner.firstName, lastName: owner.lastName, emailFallback: displayEmail })}</td>
+                    <td style="vertical-align:middle;font-size:15px;font-weight:600;color:#1A3C2E;font-family:'DM Sans',sans-serif;">${escapeHtml(ownerName)}</td>
+                  </tr>
+                </table>
+              </td>
+              <td align="right" style="padding:0 0 8px;vertical-align:middle;font-size:10px;color:#888;">
+                ${escapeHtml(displayEmail)}${emailSuffix}
+              </td>
+            </tr>
+          </table>
+
+          <div style="margin:8px 0 3px;">
+            <a href="${dirLink}" target="_blank" style="font-size:16px;font-weight:600;color:#2d7a52;text-decoration:none;font-family:'DM Sans',sans-serif;">
+              ${clubName}${badgeHtml} <span style="font-size:11px;color:#4CAF82;opacity:0.7;">&rarr;</span>
+            </a>
           </div>
-          ${owner ? `<div style="font-size:12px;color:#666;margin:0 0 2px;">Owner: ${escapeHtml(owner)}</div>` : ''}
-          ${fullAddr ? `<div style="font-size:12px;color:#888;margin:0;">${escapeHtml(fullAddr)}</div>` : (location ? `<div style="font-size:12px;color:#888;margin:0;">${escapeHtml(location)}</div>` : '')}
-          <div style="font-size:11px;color:#aaa;margin-top:4px;">Created ${fmtDate(club.created_at)}</div>
+
+          ${fullAddr ? `<div style="font-size:11px;color:#888;margin:0 0 8px;">${escapeHtml(fullAddr)}</div>` : ''}
+
+          ${financialsStrip(club)}
+
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+              <td style="font-size:10px;color:#aaa;">${fmtDate(club.created_at)}</td>
+              <td align="right">
+                <a href="${adminLink}" target="_blank" style="font-size:10px;color:#888;text-decoration:none;padding:2px 8px;border:0.5px solid #ddd;border-radius:10px;background:#fafafa;display:inline-block;">
+                  Admin view &rarr;
+                </a>
+              </td>
+            </tr>
+          </table>
         </td>
       </tr>
     </table>
   `
 }
 
-function newUserBlock(user) {
-  const clubsHtml = user.clubs.length
-    ? user.clubs.map(clubCard).join('')
-    : `<div style="font-size:12px;color:#999;font-style:italic;padding:8px 14px;background:#fafafa;border-radius:6px;">No club created yet — signed up only</div>`
+function newUserEntry(user) {
+  if (user.type === 'with_clubs') {
+    return user.clubs.map(club => clubCard(club, {
+      firstName: user.firstName,
+      lastName: user.lastName,
+      photoUrl: user.photoUrl,
+      fallbackEmail: user.authEmail,
+    })).join('')
+  }
+
+  const colors = statusCardColors(user.status)
+  const ownerName = [user.firstName, user.lastName].filter(Boolean).join(' ').trim()
+  const nameDisplay = ownerName
+    ? escapeHtml(ownerName)
+    : `<span style="color:#888;font-style:italic;font-weight:400;">(unknown name)</span>`
 
   return `
-    <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 16px;border:1px solid #e0e7e2;border-radius:10px;overflow:hidden;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="border:0.5px solid ${colors.border};border-radius:8px;margin:0 0 10px;background:${colors.bg};">
       <tr>
-        <td style="background:#ffffff;padding:14px 16px;border-bottom:1px solid #f0f0f0;">
-          <div style="font-size:14px;font-weight:600;color:#1A3C2E;">${escapeHtml(user.email)}</div>
-          <div style="font-size:11px;color:#999;margin-top:2px;">Signed up ${fmtDate(user.created_at)} · ${user.clubs.length} ${user.clubs.length === 1 ? 'club' : 'clubs'}</div>
-        </td>
-      </tr>
-      <tr>
-        <td style="padding:12px 16px 14px;background:#ffffff;">
-          ${clubsHtml}
+        <td style="padding:12px 14px;">
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+              <td style="vertical-align:middle;">
+                <table cellpadding="0" cellspacing="0">
+                  <tr>
+                    <td style="padding-right:10px;vertical-align:middle;">${ownerAvatar({ firstName: user.firstName, lastName: user.lastName, emailFallback: user.authEmail, bgColor: colors.avatarBg, fgColor: colors.avatarFg })}</td>
+                    <td style="vertical-align:middle;font-size:15px;font-weight:600;color:#1A3C2E;font-family:'DM Sans',sans-serif;">${nameDisplay}</td>
+                  </tr>
+                </table>
+              </td>
+              <td align="right" style="vertical-align:middle;font-size:11px;color:#888;">${escapeHtml(user.authEmail || '')}</td>
+            </tr>
+          </table>
+
+          <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:8px;padding-top:6px;border-top:0.5px solid rgba(0,0,0,0.05);">
+            <tr>
+              <td>${statusBadge(user.status)}</td>
+              <td align="right" style="font-size:10px;color:#aaa;">${fmtDate(user.created_at)}</td>
+            </tr>
+          </table>
         </td>
       </tr>
     </table>
   `
 }
 
-function existingUserBlock(entry) {
-  const clubsHtml = entry.clubs.map(clubCard).join('')
-  return `
-    <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 16px;border:1px solid #e0e7e2;border-radius:10px;overflow:hidden;">
-      <tr>
-        <td style="background:#ffffff;padding:14px 16px;border-bottom:1px solid #f0f0f0;">
-          <div style="font-size:14px;font-weight:600;color:#1A3C2E;">${escapeHtml(entry.name)}</div>
-          <div style="font-size:12px;color:#666;margin-top:2px;">${escapeHtml(entry.email)}</div>
-          <div style="font-size:11px;color:#999;margin-top:2px;">Added ${entry.clubs.length} new ${entry.clubs.length === 1 ? 'club' : 'clubs'}</div>
-        </td>
-      </tr>
-      <tr>
-        <td style="padding:12px 16px 14px;background:#ffffff;">
-          ${clubsHtml}
-        </td>
-      </tr>
-    </table>
-  `
+function existingUserEntry(entry) {
+  return entry.clubs.map(club => clubCard(club, {
+    firstName: entry.firstName,
+    lastName: entry.lastName,
+    photoUrl: entry.photoUrl,
+    fallbackEmail: entry.email,
+  })).join('')
 }
 
-function sectionHeader(label, count, accent) {
+function sectionHeader(label, count) {
   return `
-    <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 12px;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin:16px 0 10px;">
       <tr>
-        <td>
-          <div style="display:inline-block;background:${accent.bg};color:${accent.fg};font-size:11px;font-weight:700;padding:4px 10px;border-radius:6px;text-transform:uppercase;letter-spacing:0.5px;">
-            ${label} · ${count}
-          </div>
+        <td style="background:#1A3C2E;padding:9px 14px;border-radius:6px;">
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+              <td style="color:#ffffff;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.6px;font-family:'DM Sans',sans-serif;">${escapeHtml(label)}</td>
+              <td align="right">
+                <span style="display:inline-block;background:#4CAF82;color:#ffffff;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600;">${count}</span>
+              </td>
+            </tr>
+          </table>
         </td>
       </tr>
     </table>
@@ -370,21 +505,12 @@ function sectionHeader(label, count, accent) {
 }
 
 function buildDigestHtml({ groupA, groupB, since }) {
-  const totalClubs = groupA.reduce((sum, u) => sum + u.clubs.length, 0) + groupB.reduce((sum, u) => sum + u.clubs.length, 0)
-  const sinceFmt = new Date(since).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' })
-  const nowFmt = new Date().toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' })
+  const totalClubs = groupA.reduce((sum, u) => sum + (u.clubs?.length || 0), 0) + groupB.reduce((sum, u) => sum + u.clubs.length, 0)
+  const sinceFmt = new Date(since).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: EASTERN_TZ })
+  const nowFmt = new Date().toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: EASTERN_TZ })
 
-  const groupASection = groupA.length ? `
-    ${sectionHeader('New User Profiles', groupA.length, { bg: '#E8F5EE', fg: '#2d7a52' })}
-    ${groupA.map(newUserBlock).join('')}
-  ` : ''
-
-  const groupBSection = groupB.length ? `
-    ${sectionHeader('New Clubs from Existing Profiles', groupB.length, { bg: '#FFF4E6', fg: '#b8651f' })}
-    ${groupB.map(existingUserBlock).join('')}
-  ` : ''
-
-  const dividerBetween = (groupA.length && groupB.length) ? `<tr><td style="padding:8px 0 16px;"><div style="height:1px;background:linear-gradient(to right,transparent,#e0e7e2,transparent);"></div></td></tr>` : ''
+  const groupASection = groupA.length ? `${sectionHeader('New User Profiles', groupA.length)}${groupA.map(newUserEntry).join('')}` : ''
+  const groupBSection = groupB.length ? `${sectionHeader('New Clubs from Existing Profiles', groupB.length)}${groupB.map(existingUserEntry).join('')}` : ''
 
   return `
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f7f5;padding:40px 20px;font-family:'DM Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
@@ -392,87 +518,63 @@ function buildDigestHtml({ groupA, groupB, since }) {
     <td align="center">
       <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.06);max-width:600px;">
 
-        <!-- Dark green header -->
         <tr>
-          <td style="background:#1A3C2E;padding:28px 32px 24px;">
-            <table cellpadding="0" cellspacing="0" width="100%">
+          <td style="background:#1A3C2E;padding:22px 28px;">
+            <table cellpadding="0" cellspacing="0">
               <tr>
-                <td style="vertical-align:middle;">
-                  <table cellpadding="0" cellspacing="0">
-                    <tr>
-                      <td style="width:40px;height:40px;background:rgba(76,175,130,0.15);border-radius:10px;text-align:center;vertical-align:middle;">
-                        <img src="https://myclublocator.com/icon-48.png" width="26" height="26" alt="" style="display:block;margin:0 auto;" />
-                      </td>
-                      <td style="padding-left:12px;vertical-align:middle;">
-                        <div style="font-size:18px;font-weight:700;color:#ffffff;letter-spacing:-0.3px;line-height:1;">
-                          My<span style="color:#4CAF82;">Club</span>Locator
-                        </div>
-                        <div style="font-size:11px;color:#a8c4b6;margin-top:3px;letter-spacing:0.4px;text-transform:uppercase;">
-                          Admin · Daily Digest
-                        </div>
-                      </td>
-                    </tr>
-                  </table>
+                <td style="width:40px;height:40px;background:rgba(76,175,130,0.15);border-radius:10px;text-align:center;vertical-align:middle;">
+                  <img src="${SITE_URL}/icon-48.png" width="26" height="26" alt="" style="display:block;margin:0 auto;" />
+                </td>
+                <td style="padding-left:12px;vertical-align:middle;">
+                  <div style="font-size:18px;font-weight:700;color:#ffffff;letter-spacing:-0.3px;line-height:1;">
+                    My<span style="color:#4CAF82;">Club</span>Locator
+                  </div>
+                  <div style="font-size:11px;color:#a8c4b6;margin-top:3px;letter-spacing:0.4px;text-transform:uppercase;">
+                    Admin · Daily Digest
+                  </div>
                 </td>
               </tr>
             </table>
           </td>
         </tr>
 
-        <!-- Summary stats -->
         <tr>
-          <td style="padding:24px 32px 8px;">
+          <td style="padding:22px 28px 8px;">
             <h1 style="font-size:20px;font-weight:700;color:#1A3C2E;margin:0 0 6px;letter-spacing:-0.3px;">
-              ${(groupA.length + groupB.length) === 0 ? 'Quiet day on the platform' : 'Here\'s what happened today'}
+              ${(groupA.length + groupB.length) === 0 ? 'Quiet day on the platform' : "Here's what happened today"}
             </h1>
-            <p style="font-size:13px;color:#888;line-height:1.5;margin:0 0 20px;">
+            <p style="font-size:12px;color:#888;line-height:1.5;margin:0 0 18px;">
               Activity from ${sinceFmt} to ${nowFmt}
             </p>
 
-            <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8faf9;border:1px solid #e8ede8;border-radius:10px;margin:0 0 24px;">
+            <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8faf9;border:0.5px solid #e8ede8;border-radius:8px;margin:0 0 8px;">
               <tr>
-                <td width="33%" style="padding:14px 8px;text-align:center;border-right:1px solid #e8ede8;">
-                  <div style="font-size:24px;font-weight:700;color:#1A3C2E;line-height:1;">${groupA.length}</div>
-                  <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-top:6px;">New Signups</div>
+                <td width="33%" style="padding:12px 6px;text-align:center;border-right:0.5px solid #e8ede8;">
+                  <div style="font-size:22px;font-weight:700;color:#1A3C2E;line-height:1;">${groupA.length}</div>
+                  <div style="font-size:9px;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-top:6px;">New Signups</div>
                 </td>
-                <td width="33%" style="padding:14px 8px;text-align:center;border-right:1px solid #e8ede8;">
-                  <div style="font-size:24px;font-weight:700;color:#4CAF82;line-height:1;">${totalClubs}</div>
-                  <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-top:6px;">New Clubs</div>
+                <td width="33%" style="padding:12px 6px;text-align:center;border-right:0.5px solid #e8ede8;">
+                  <div style="font-size:22px;font-weight:700;color:#4CAF82;line-height:1;">${totalClubs}</div>
+                  <div style="font-size:9px;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-top:6px;">New Clubs</div>
                 </td>
-                <td width="33%" style="padding:14px 8px;text-align:center;">
-                  <div style="font-size:24px;font-weight:700;color:#b8651f;line-height:1;">${groupB.length}</div>
-                  <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-top:6px;">Adding to Existing</div>
+                <td width="33%" style="padding:12px 6px;text-align:center;">
+                  <div style="font-size:22px;font-weight:700;color:#b8651f;line-height:1;">${groupB.length}</div>
+                  <div style="font-size:9px;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-top:6px;">Adding to Existing</div>
                 </td>
               </tr>
             </table>
           </td>
         </tr>
 
-        <!-- Group A: new users -->
-        ${groupASection ? `
-        <tr>
-          <td style="padding:0 32px 8px;">
-            ${groupASection}
-          </td>
-        </tr>` : ''}
+        ${groupASection ? `<tr><td style="padding:0 28px;">${groupASection}</td></tr>` : ''}
+        ${groupBSection ? `<tr><td style="padding:0 28px;">${groupBSection}</td></tr>` : ''}
 
-        ${dividerBetween}
-
-        <!-- Group B: existing users with new clubs -->
-        ${groupBSection ? `
         <tr>
-          <td style="padding:0 32px 8px;">
-            ${groupBSection}
-          </td>
-        </tr>` : ''}
-
-        <!-- CTA -->
-        <tr>
-          <td style="padding:8px 32px 28px;">
+          <td style="padding:8px 28px 28px;">
             <table width="100%" cellpadding="0" cellspacing="0">
               <tr>
                 <td align="center">
-                  <a href="https://myclublocator.com/app/admin" target="_blank" style="display:inline-block;background:#4CAF82;color:#ffffff;font-size:14px;font-weight:600;text-decoration:none;padding:12px 28px;border-radius:10px;letter-spacing:0.2px;">
+                  <a href="${SITE_URL}/app/admin" target="_blank" style="display:inline-block;background:#4CAF82;color:#ffffff;font-size:14px;font-weight:600;text-decoration:none;padding:12px 28px;border-radius:10px;letter-spacing:0.2px;">
                     Open admin panel &rarr;
                   </a>
                 </td>
@@ -481,11 +583,10 @@ function buildDigestHtml({ groupA, groupB, since }) {
           </td>
         </tr>
 
-        <!-- Footer -->
         <tr>
-          <td style="background:#f8faf9;padding:18px 32px;border-top:1px solid #f0f0f0;">
+          <td style="background:#f8faf9;padding:18px 28px;border-top:0.5px solid #f0f0f0;">
             <p style="font-size:12px;color:#aaa;margin:0;line-height:1.5;">
-              <strong style="color:#888;">My Club Locator</strong> &middot; Daily admin digest, sent automatically each morning.
+              <strong style="color:#888;">My Club Locator</strong> &middot; Daily admin digest, sent automatically each evening.
             </p>
             <p style="font-size:11px;color:#ccc;margin:4px 0 0;">
               You're receiving this because your address is set as ADMIN_NOTIFICATION_EMAIL in the platform settings.
