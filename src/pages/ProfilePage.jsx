@@ -397,6 +397,7 @@ const DEFAULT_CLUB = {
   logo_url: null,
   photo_urls: [],
   lat: null, lng: null,
+  monthly_rent: null, square_footage: null,
 }
 
 // Owner + story/survey fields stay flat (not per-club)
@@ -925,6 +926,9 @@ function ClubEditor({ club, clubIndex, userId, isOnly, allClubs, onSaved, onRemo
       user_id: userId,
       club_index: clubIndex,
       ...form,
+      // Normalize rent/sqft to numbers (or null) for DB
+      monthly_rent: form.monthly_rent == null || form.monthly_rent === '' ? null : Number(form.monthly_rent),
+      square_footage: form.square_footage == null || form.square_footage === '' ? null : parseInt(form.square_footage, 10),
       state_zip: (form.state + ' ' + form.zip).trim(),
       logo_url: logoUrl,
       photo_urls: photoUrls,
@@ -1416,6 +1420,71 @@ function ClubEditor({ club, clubIndex, userId, isOnly, allClubs, onSaved, onRemo
         })}
       </div>
 
+      {/* Financial Details — owner-only, private */}
+      <div className="club-section">
+        <div className="sec-label" style={{ marginBottom: 4 }}>
+          Financial details <span className="private-tag">Private</span>
+        </div>
+        <div className="sec-sublabel" style={{ marginBottom: 14 }}>
+          Used to calculate price per sq ft for your own benchmarking. Visible only to you and admins — never shown publicly.
+        </div>
+
+        <div className="financial-inputs">
+          <div className="form-field">
+            <label className="field-label">Monthly rent</label>
+            <div className="input-with-prefix">
+              <span className="input-prefix">$</span>
+              <input
+                type="text"
+                inputMode="decimal"
+                name="monthly_rent"
+                value={form.monthly_rent == null ? '' : String(form.monthly_rent)}
+                onChange={e => {
+                  const raw = e.target.value.replace(/[^0-9.]/g, '')
+                  setField('monthly_rent', raw === '' ? null : raw)
+                }}
+                placeholder="3,200"
+                className="field-input has-prefix"
+              />
+            </div>
+            <div className="field-hint">Base rent only — exclude CAM/utilities</div>
+          </div>
+
+          <div className="form-field">
+            <label className="field-label">Square footage</label>
+            <div className="input-with-suffix">
+              <input
+                type="text"
+                inputMode="numeric"
+                name="square_footage"
+                value={form.square_footage == null ? '' : String(form.square_footage)}
+                onChange={e => {
+                  const raw = e.target.value.replace(/[^0-9]/g, '')
+                  setField('square_footage', raw === '' ? null : raw)
+                }}
+                placeholder="1,450"
+                className="field-input has-suffix"
+              />
+              <span className="input-suffix">sq ft</span>
+            </div>
+            <div className="field-hint">Interior usable space</div>
+          </div>
+        </div>
+
+        {(() => {
+          const rent = Number(form.monthly_rent)
+          const sqft = Number(form.square_footage)
+          const showCalc = isFinite(rent) && isFinite(sqft) && rent > 0 && sqft > 0
+          const pps = showCalc ? (rent / sqft).toFixed(2) : null
+          return (
+            <div className={`per-sqft-display ${showCalc ? '' : 'empty'}`}>
+              <span className="per-sqft-label">Price per sq ft (monthly)</span>
+              <span className="per-sqft-value">{showCalc ? `$${pps}` : 'Fill both fields to see calculation'}</span>
+            </div>
+          )
+        })()}
+      </div>
+
       {/* Photos */}
       <div className="club-section">
         <div className="sec-label" style={{ marginBottom: 12 }}>Club Photos <span className="optional-tag">optional</span></div>
@@ -1882,6 +1951,8 @@ export default function ProfilePage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const initClubTab = parseInt(searchParams.get('club'))
+  const initClubId = searchParams.get('club_id')      // deep link by UUID (more reliable than index)
+  const initFocus = searchParams.get('focus')         // 'owner' → scroll to Owner section on mount
 
   const [personForm, setPersonForm] = useState(DEFAULT_PERSON)
   const [savedPersonForm, setSavedPersonForm] = useState(null)
@@ -1911,7 +1982,7 @@ export default function ProfilePage() {
   const [cropTarget, setCropTarget] = useState(null)
 
   const [showAddClubPrompt, setShowAddClubPrompt] = useState(false)
-  const [myClubsOpen, setMyClubsOpen] = useState(!isNaN(initClubTab))
+  const [myClubsOpen, setMyClubsOpen] = useState(!isNaN(initClubTab) || !!initClubId)
   const [clubDirty, setClubDirty] = useState(false)
   const clubSaveRef = useRef(null)
   const [showOwnerPrompt, setShowOwnerPrompt] = useState(false)
@@ -1920,6 +1991,9 @@ export default function ProfilePage() {
   const [showTeamInfoModal, setShowTeamInfoModal] = useState(false)
   const [teamInfoSettings, setTeamInfoSettings] = useState(null)
   const [showReviewModal, setShowReviewModal] = useState(false)
+
+  // Rent/sqft retroactive prompt — modal shows once per session, banner stays until filled
+  const [showRentPromptModal, setShowRentPromptModal] = useState(false)
 
   // Does user's level meet the minimum for teams?
   const meetsTeamLevel = teamInfoSettings
@@ -1987,10 +2061,14 @@ export default function ProfilePage() {
         if (pf.first_name) setOwner1Collapsed(true)
 
         // Build clubs array — one entry per row (include ALL DB fields, not just DEFAULT_CLUB keys)
-        setClubs(data.map(row => {
-          const c = { ...DEFAULT_CLUB, ...row }
-          return c
-        }))
+        const clubsArr = data.map(row => ({ ...DEFAULT_CLUB, ...row }))
+        setClubs(clubsArr)
+
+        // Deep link: if ?club_id=<uuid> was provided, switch to that club's tab
+        if (initClubId) {
+          const idx = clubsArr.findIndex(c => c.id === initClubId)
+          if (idx >= 0) setActiveTab(idx)
+        }
 
         // Auto-sync: if first club has person data but other clubs are missing it, push to all rows
         if (data.length > 1 && row0.first_name) {
@@ -2051,6 +2129,56 @@ export default function ProfilePage() {
     }
     load()
   }, [user])
+
+  // Deep-link scroll: once the page finishes loading, if URL asked us to focus
+  // a specific section, scroll it into view.
+  useEffect(() => {
+    if (loading) return
+    // Only run once per mount (consume params by scrolling, not by changing them)
+    const targetId = initFocus === 'owner' ? 'section-owner' : (initClubId ? 'section-clubs' : null)
+    if (!targetId) return
+    // Delay to let the DOM settle after loading state flip
+    const t = setTimeout(() => {
+      const el = document.getElementById(targetId)
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 200)
+    return () => clearTimeout(t)
+    // Intentionally only runs when loading transitions to false
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading])
+
+  // Rent/sqft retroactive prompt — modal fires ONCE per browser session if any
+  // of this user's clubs is missing BOTH rent and sqft. sessionStorage ensures
+  // dismiss-then-reload doesn't re-open it within the same session.
+  useEffect(() => {
+    if (loading) return
+    if (!clubs || clubs.length === 0) return
+    // Already dismissed this session?
+    try {
+      if (sessionStorage.getItem('rent_prompt_seen') === '1') return
+    } catch { /* sessionStorage unavailable; just skip */ }
+    // Only fire if at least one saved club has no rent AND no sqft
+    const anyIncomplete = clubs.some(c => c.id && (c.monthly_rent == null || c.monthly_rent === '') && (c.square_footage == null || c.square_footage === ''))
+    if (!anyIncomplete) return
+    // Small delay so the modal doesn't fight with initial scroll effect
+    const t = setTimeout(() => setShowRentPromptModal(true), 600)
+    return () => clearTimeout(t)
+  }, [loading, clubs])
+
+  function dismissRentPromptModal(scrollToField) {
+    setShowRentPromptModal(false)
+    try { sessionStorage.setItem('rent_prompt_seen', '1') } catch {}
+    if (scrollToField) {
+      // Open My Clubs card, jump to first incomplete club, scroll to Financial section
+      setMyClubsOpen(true)
+      const firstIncomplete = clubs.findIndex(c => c.id && (c.monthly_rent == null || c.monthly_rent === '') && (c.square_footage == null || c.square_footage === ''))
+      if (firstIncomplete >= 0) setActiveTab(firstIncomplete)
+      setTimeout(() => {
+        const el = document.querySelector('.financial-inputs')
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }, 250)
+    }
+  }
 
   function setPersonField(key, value) {
     setPersonForm(f => ({ ...f, [key]: value }))
@@ -2202,7 +2330,7 @@ export default function ProfilePage() {
       </div>
 
       {/* CARD 1: Owners */}
-      <div className="sec-card">
+      <div id="section-owner" className="sec-card">
         <div className="sec-card-band">
           <span className="sec-label">Owners</span>
         </div>
@@ -2479,7 +2607,7 @@ export default function ProfilePage() {
       )}
 
       {/* CARD 2: My Clubs — tabbed */}
-      <div className="sec-card my-clubs-card">
+      <div id="section-clubs" className="sec-card my-clubs-card">
         <button type="button" className="sec-card-band" onClick={() => setMyClubsOpen(o => !o)} style={{ cursor: 'pointer', width: '100%', border: 'none' }}>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 2, flex: 1, minWidth: 0 }}>
             <span className="sec-label">My Clubs</span>
@@ -2512,6 +2640,34 @@ export default function ProfilePage() {
             </button>
           )}
         </div>
+
+        {/* Rent/sqft nudge banner — per club, shown on saved clubs missing both values */}
+        {clubs[activeTab] && clubs[activeTab].id && (() => {
+          const c = clubs[activeTab]
+          const needsRent = c.monthly_rent == null || c.monthly_rent === ''
+          const needsSqft = c.square_footage == null || c.square_footage === ''
+          // Spec: banner hides when either field has a value
+          if (!needsRent || !needsSqft) return null
+          return (
+            <div className="rent-prompt-banner">
+              <span className="rent-prompt-banner-icon" aria-hidden="true">📐</span>
+              <div className="rent-prompt-banner-text">
+                <div className="rent-prompt-banner-title">Add your rent &amp; square footage</div>
+                <div className="rent-prompt-banner-desc">Complete this private info to see your price per sq ft. Only you and admins can see it.</div>
+              </div>
+              <button
+                type="button"
+                className="rent-prompt-banner-cta"
+                onClick={() => {
+                  const el = document.querySelector('.financial-inputs')
+                  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                }}
+              >
+                Add now
+              </button>
+            </div>
+          )
+        })()}
 
         {/* Active club editor */}
         {clubs[activeTab] && (
@@ -2957,6 +3113,17 @@ export default function ProfilePage() {
                     ) : <span className="review-missing">No hours set</span>}
                   </div>
                 </div>
+
+                {/* Financial details (private) */}
+                <div className="review-section">
+                  <div className="review-section-label">Financial details <span className="private-tag" style={{ marginLeft: 6 }}>Private</span></div>
+                  <div className="review-row"><span className="review-key">Monthly rent</span>{club.monthly_rent ? <span>${Number(club.monthly_rent).toLocaleString()}</span> : <span className="review-missing">Not provided</span>}</div>
+                  <div className="review-row"><span className="review-key">Square footage</span>{club.square_footage ? <span>{Number(club.square_footage).toLocaleString()} sq ft</span> : <span className="review-missing">Not provided</span>}</div>
+                  {club.monthly_rent && club.square_footage && Number(club.square_footage) > 0 ? (
+                    <div className="review-row"><span className="review-key">Per sq ft</span><span style={{ color: '#2d7a52', fontWeight: 600 }}>${(Number(club.monthly_rent) / Number(club.square_footage)).toFixed(2)}/mo</span></div>
+                  ) : null}
+                </div>
+
                 {/* Social & Website — always show all fields */}
                 <div className="review-section">
                   <div className="review-section-label">Social & Website</div>
@@ -3095,6 +3262,47 @@ export default function ProfilePage() {
               onClick={() => { setShowCongrats(false); navigate('/app/map') }}>
               Explore the map →
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ Rent / sqft retroactive prompt modal ═══ */}
+      {showRentPromptModal && (
+        <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) dismissRentPromptModal(false) }}>
+          <div className="rent-prompt-modal" onClick={e => e.stopPropagation()}>
+            <div className="rent-prompt-modal-header">
+              <div className="rent-prompt-modal-icon" aria-hidden="true">📐</div>
+              <div className="rent-prompt-modal-title">One quick thing</div>
+              <div className="rent-prompt-modal-subtitle">30 seconds to complete</div>
+            </div>
+            <div className="rent-prompt-modal-body">
+              <p>
+                We just added two private fields to your club profile: <strong>monthly rent</strong> and <strong>square footage</strong>
+                <span className="private-tag">Private</span>
+              </p>
+              <div className="rent-prompt-modal-benefits">
+                <div className="rent-prompt-modal-benefit">
+                  <span className="rent-prompt-modal-check">✓</span>
+                  <span>See your <strong>price per sq ft</strong> benchmarked across similar clubs</span>
+                </div>
+                <div className="rent-prompt-modal-benefit">
+                  <span className="rent-prompt-modal-check">✓</span>
+                  <span>Visible <strong>only to you</strong> and platform admins</span>
+                </div>
+                <div className="rent-prompt-modal-benefit">
+                  <span className="rent-prompt-modal-check">✓</span>
+                  <span>Never shown on the public map or directory</span>
+                </div>
+              </div>
+            </div>
+            <div className="rent-prompt-modal-actions">
+              <button type="button" className="rent-prompt-modal-btn rent-prompt-modal-btn--secondary" onClick={() => dismissRentPromptModal(false)}>
+                Not now
+              </button>
+              <button type="button" className="rent-prompt-modal-btn rent-prompt-modal-btn--primary" onClick={() => dismissRentPromptModal(true)}>
+                Add my details &rarr;
+              </button>
+            </div>
           </div>
         </div>
       )}

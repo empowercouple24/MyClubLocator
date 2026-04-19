@@ -349,9 +349,22 @@ function DirCard({ loc, isYours, defaultExpanded, isFocused, navigate }) {
           </div>
 
           {isYours && (
-            <button className="dc-edit-prompt" onClick={() => navigate('/app/profile')}>
-              Edit my profile →
-            </button>
+            <div className="dc-edit-actions">
+              <button
+                className="dc-edit-btn"
+                onClick={() => navigate('/app/profile?focus=owner')}
+              >
+                <span className="dc-edit-btn-icon" aria-hidden="true">👤</span>
+                Edit my profile
+              </button>
+              <button
+                className="dc-edit-btn"
+                onClick={() => navigate(`/app/profile?club_id=${loc.id}`)}
+              >
+                <span className="dc-edit-btn-icon" aria-hidden="true">🏢</span>
+                Edit this club
+              </button>
+            </div>
           )}
         </div>
       )}
